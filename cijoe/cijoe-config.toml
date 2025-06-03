@@ -1,0 +1,19 @@
+[cijoe.transport.ssh]
+username = "root"
+password = "odus.321"
+#hostname = "192.168.1.23"
+hostname = "10.20.40.15"
+
+[nvidia.ofed]
+url="https://www.mellanox.com/downloads/DOCA/DOCA_v3.0.0/host/doca-host_3.0.0-058000-25.04-ubuntu2404_amd64.deb"
+
+[nvidia.gsp]
+url="https://uk.download.nvidia.com/XFree86/Linux-x86_64/570.153.02/NVIDIA-Linux-x86_64-570.153.02.run"
+
+[nvidia.modules.repository]
+remote="https://github.com/NVIDIA/open-gpu-kernel-modules.git"
+path = "/tmp/nvos_modules"
+tag="570.153.02"
+
+[nvidia.cuda]
+url="https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_570.124.06_linux.run"
