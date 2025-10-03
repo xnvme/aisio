@@ -1,0 +1,17 @@
+doc: |
+  Evaluate NVIDIA GPU DirectStorage for 4K I/O using gdsio
+  ========================================================
+
+  Assuming you installed the system along the lines of the 'aisio-nvstack.yaml'.
+  
+steps:
+- name: prep
+  run: |
+    umount /mnt/gds01 || true
+    mkfs.xfs -f -m reflink=0 /dev/nvme0n1
+    mkdir -p /mnt/gds01
+    mount -o noatime /dev/nvme0n1 /mnt/gds01
+    mkdir -p /mnt/gds01/gds_dir
+
+- name: run
+  uses: gdsio
