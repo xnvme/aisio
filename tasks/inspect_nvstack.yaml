@@ -1,0 +1,20 @@
+doc: |
+  Inspect the state of the nvstack
+
+steps:
+- name: gdscheck
+  run: /usr/local/cuda/gds/tools/gdscheck -p
+
+- name: modules
+  run: |
+    uname -r
+    lsmod | egrep 'nvidia(_uvm)?|nvidia_peermem'
+
+- name: block
+  run: lsblk -f
+
+- name: pcie
+  run: lspci -t
+
+- name: gpu
+  run: nvidia-smi topo -m

@@ -1,0 +1,16 @@
+[nvidia.doca]
+url = "https://www.mellanox.com/downloads/DOCA/DOCA_v3.0.0/host/doca-host_3.0.0-058000-25.04-ubuntu2404_amd64.deb"
+
+[nvidia.ofed]
+url = "https://content.mellanox.com/ofed/MLNX_OFED-24.10-3.2.5.0/MLNX_OFED_LINUX-24.10-3.2.5.0-ubuntu24.04-x86_64.tgz"
+
+[nvidia.gsp]
+url = "https://uk.download.nvidia.com/XFree86/Linux-x86_64/570.153.02/NVIDIA-Linux-x86_64-570.153.02.run"
+
+[nvidia.modules.repository]
+path = "/root/git/nokm"
+remote = "https://github.com/NVIDIA/open-gpu-kernel-modules.git"
+tag = "570.153.02"
+
+[nvidia.cuda]
+url = "https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_570.124.06_linux.run"

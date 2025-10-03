@@ -1,0 +1,201 @@
+doc: |
+  Ubuntu 24.04 Setup of the NVIDIA Software-Stack
+  ===============================================
+
+  This workflow sets up a system with:
+
+  * Ubuntu Server 24.04.3
+  * Linux 6.8 kernel (Ubuntu 24.04.3 GA Kernel)
+  * MLNX_OFED 24.10-3.2.5.0 (DOCA_OFED does not provide NVMe/gds support)
+  * GSP Firmware v570.153.02
+  * NVIDIA Open Kernel Modules (NOKM) v570.153.02 
+  * CUDA v12.8.1
+  * CUDA Samples v12.8
+  * nvidia-fs v2.26.6
+
+  Note, most of this version-information is given by the download-links in the config-file, not
+  hardcoded here in the workflow.
+
+  The workflow does not provision Ubuntu, rather it is prereq. expected to be done along the lines
+  of the instructions / Ubuntu Server installer selections below
+
+  * Ubuntu Server with the HWE Enabled Kernel
+  
+  * Installation Base
+  
+    (x) Ubuntu Server
+    ( ) Ubuntu Server (minimized)
+
+  * Proxy, network etc. up to you
+
+  * Guided storage configuraiton
+
+    (X) Use an entire disk
+    [ ] Set up this disk as an LVM group
+
+  * Profile Configuration
+
+    - Your name: Odus | sudO
+    - Your servers name: aisio-nvstack-01
+    - Pick a username: odus
+    - Password: ...
+  
+  * SSH configuration
+
+    [X] Install OpenSSH server  
+
+  Before running this workflow, then install Ubuntu and run the commands:
+
+    sudo passwd root
+    sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+    sudo systemctl restart ssh
+
+  By doing so, then workflow commands can execute as root, thus, do not this only reasonably on a
+  dev. box. With the above in place then run this workflow e.g.
+
+    cijoe -c configs/transport.toml -c configs/nvstack.toml workflows/aisio-nvstack.yaml --monitor
+
+  Adjusting transport.toml with the hostname and ssh-login info of the root user.
+
+  Caveat
+  ------
+
+  CUDA is not installed into standard locations for PATH and LD_LIBRARY_PATH, thus these environment
+  variables must be setup manually. An interactive setup is added in "/etc/profile.d/cuda.sh",
+  however, for non-interactive, then this does nothing.
+  
+steps:
+- name: directories
+  run: |
+    mkdir -p {git,workdir}
+
+- name: packages
+  run: |
+    apt-get -qy update && apt-get -qy upgrade
+    apt-get -qy install build-essential linux-headers-$(uname -r) wget git htop vim cmake
+    apt-get -qy autoremove
+
+- name: blacklist_nouveau
+  run: |
+    echo "blacklist nouveau" | tee /etc/modprobe.d/disable-nouveau.conf
+    echo "options nouveau modeset=0" | tee -a /etc/modprobe.d/disable-nouveau.conf
+    update-initramfs -u
+
+- name: ofed
+  run: |
+    wget -O workdir/ofed.tgz {{ config.nvidia.ofed.url }}
+    cd workdir; tar xzf ofed.tgz
+    cd workdir/MLNX*; ./mlnxofedinstall --with-nvmf --with-nfsrdma --enable-gds --add-kernel-support --dkms
+    update-initramfs -u -k $(uname -r)
+
+- name: reboot
+  run: shutdown -r now
+
+- name: wait_for_down
+  uses: core.wait_for_transport
+  with:
+    state: down
+    timeout: 60
+
+- name: wait_for_up
+  uses: core.wait_for_transport
+  with:
+    state: up
+    timeout: 300
+
+- name: gsp
+  run: |
+    test -f workdir/gsp.run || wget -O workdir/gsp.run "{{ config.nvidia.gsp.url }}"
+    chmod +x workdir/gsp.run
+    ls -lha workdir/gsp.run
+    md5sum workdir/gsp.run
+    ./workdir/gsp.run --no-kernel-modules --no-questions --ui=none
+
+- name: nokm_clone
+  run: |
+    test -d {{ config.nvidia.modules.repository.path }} || git clone "{{ config.nvidia.modules.repository.remote }}" {{ config.nvidia.modules.repository.path }}
+    cd {{ config.nvidia.modules.repository.path }}; git checkout "{{ config.nvidia.modules.repository.tag }}"
+
+- name: nokm_build
+  run: |
+    cd {{ config.nvidia.modules.repository.path }}; make modules -j "$(nproc)" BUILD_NV_DRM=n BUILD_NV_MODESET=n 
+
+- name: nokm_install
+  run: |
+    cd {{ config.nvidia.modules.repository.path }}; make nokm_install
+    depmod
+
+- name: nokm_config
+  run: |
+    echo "nvidia" | tee -a /etc/modules-load.d/nvidia.conf
+    echo "nvidia-uvm" | tee -a /etc/modules-load.d/nvidia.conf
+    echo "nvidia-peermem" | tee -a /etc/modules-load.d/nvidia.conf
+    update-initramfs -u
+
+- name: nokm_probe
+  run: |
+    modprobe nvidia
+    modprobe nvidia-uvm
+    modprobe nvidia-peermem
+
+- name: nokm_inspect
+  run: |
+    modinfo nvidia | grep version
+    lsmod | grep nvidia
+
+- name: cuda
+  run: |
+    test -f workdir/cuda.run || wget -O workdir/cuda.run "{{ config.nvidia.cuda.url}}"
+    ls -lha workdir/cuda.run
+    md5sum workdir/cuda.run
+    chmod +x workdir/cuda.run
+    ./workdir/cuda.run --toolkit --silent
+
+- name: cuda_profile
+  run: |
+    echo '# CUDA environment variables (set by setup script)' | tee /etc/profile.d/cuda.sh
+    echo 'export PATH=/usr/local/cuda/bin:$PATH' | tee -a /etc/profile.d/cuda.sh
+    echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' | tee -a /etc/profile.d/cuda.sh
+    chmod +x /etc/profile.d/cuda.sh
+
+- name: cuda_samples
+  run: |
+    git clone https://github.com/NVIDIA/cuda-samples.git git/cuda-samples
+    cd git/cuda-samples; git checkout v12.8
+    mkdir git/cuda-samples/build
+
+- name: cuda_check
+  run: |
+    nvcc --version || true
+    nvidia-smi || true
+
+- name: gds
+  run: |
+    git clone https://github.com/NVIDIA/gds-nvidia-fs.git git/gds
+    cd git/gds; git checkout v2.26.6
+    cd git/gds/src; NVIDIA_SRC_DIR=/root/git/nokm/kernel-open/nvidia CONFIG_MOFED_VERSION="24.10" make
+    cd git/gds/src; make install
+    cd git/gds/src; insmod nvidia-fs.ko
+    echo "nvidia-fs" | tee -a /etc/modules-load.d/nvidia.conf
+    update-initramfs -u
+
+- name: reboot_again
+  run: shutdown -r now
+
+- name: wait_for_down_again
+  uses: core.wait_for_transport
+  with:
+    state: down
+    timeout: 60
+
+- name: wait_for_up_again
+  uses: core.wait_for_transport
+  with:
+    state: up
+    timeout: 300
+
+- name: checkup
+  run: |
+    lsmod | grep nvidia
+    nvidia-smi || true
+    dmesg | grep -i nvidia

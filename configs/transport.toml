@@ -1,0 +1,10 @@
+[cijoe.workflow]
+fail_fast=true
+
+[cijoe.transport.ssh]
+hostname = "aisio-nvstack-01"
+password = "odus.321"
+username = "root"
+timeout = 1
+banner_timeout = 1
+auth_timeout = 1
