@@ -1,0 +1,29 @@
+[xnvme.repository]
+remote = "https://github.com/karlowich/xnvme"
+branch = "bam_unified"
+path = "/root/git/xnvme"
+
+[bam.repository]
+remote = "https://github.com/ankit-sam/bam"
+branch = "admin_share"
+path = "/root/git/bam"
+
+[xal.repository]
+remote = "https://github.com/safl/xallib"
+branch = "main"
+path = "/root/git/xal"
+
+[sil.repository]
+remote = "https://github.com/karlowich/sil"
+branch = "main"
+path = "/root/git/sil"
+
+[upcie.repository]
+remote = "https://github.com/safl/upcie.git"
+tag = "v0.3.2"
+path = "/root/git/upcie"
+
+[spdk.repository]
+remote = "https://github.com/ankit-sam/spdk.git"
+branch = "xnvme_bam"
+path = "/root/git/spdk"
