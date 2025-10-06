@@ -16,7 +16,7 @@ doc: |
   CUDA is not installed into standard locations for PATH and LD_LIBRARY_PATH, thus these environment
   variables must be setup manually. An interactive setup is added in "/etc/profile.d/cuda.sh",
   however, for non-interactive, then this does nothing.
-  
+
 steps:
 - name: fetch_sources
   uses: core.repository_prep

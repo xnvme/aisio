@@ -3,7 +3,7 @@ doc: |
   ========================================================
 
   Assuming you installed the system along the lines of the 'aisio-nvstack.yaml'.
-  
+
 steps:
 - name: prep
   run: |

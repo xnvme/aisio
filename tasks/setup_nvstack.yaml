@@ -8,7 +8,7 @@ doc: |
   * Linux 6.8 kernel (Ubuntu 24.04.3 GA Kernel)
   * MLNX_OFED 24.10-3.2.5.0 (DOCA_OFED does not provide NVMe/gds support)
   * GSP Firmware v570.153.02
-  * NVIDIA Open Kernel Modules (NOKM) v570.153.02 
+  * NVIDIA Open Kernel Modules (NOKM) v570.153.02
   * CUDA v12.8.1
   * CUDA Samples v12.8
   * nvidia-fs v2.26.6
@@ -20,9 +20,9 @@ doc: |
   of the instructions / Ubuntu Server installer selections below
 
   * Ubuntu Server with the HWE Enabled Kernel
-  
+
   * Installation Base
-  
+
     (x) Ubuntu Server
     ( ) Ubuntu Server (minimized)
 
@@ -39,10 +39,10 @@ doc: |
     - Your servers name: aisio-nvstack-01
     - Pick a username: odus
     - Password: ...
-  
+
   * SSH configuration
 
-    [X] Install OpenSSH server  
+    [X] Install OpenSSH server
 
   Before running this workflow, then install Ubuntu and run the commands:
 
@@ -63,7 +63,7 @@ doc: |
   CUDA is not installed into standard locations for PATH and LD_LIBRARY_PATH, thus these environment
   variables must be setup manually. An interactive setup is added in "/etc/profile.d/cuda.sh",
   however, for non-interactive, then this does nothing.
-  
+
 steps:
 - name: directories
   run: |
@@ -118,7 +118,7 @@ steps:
 
 - name: nokm_build
   run: |
-    cd {{ config.nvidia.modules.repository.path }}; make modules -j "$(nproc)" BUILD_NV_DRM=n BUILD_NV_MODESET=n 
+    cd {{ config.nvidia.modules.repository.path }}; make modules -j "$(nproc)" BUILD_NV_DRM=n BUILD_NV_MODESET=n
 
 - name: nokm_install
   run: |
