@@ -1,0 +1,31 @@
+[filesystems.dset]
+name = "xfs"
+bdev = "/dev/nvme1n1"
+mountpoint = "/mnt/datasets"
+
+[datasets.tiktokish]
+seed = "tiktokish"
+path = "/mnt/datasets/tiktokish"
+nclasses = 32
+nfiles_min = 14
+nfiles_max = 14
+filesize_min = 7340032
+filesize_max = 8388608
+
+[datasets.filesize8gib]
+seed = "filesize8gib"
+path = "/mnt/datasets/filesize8gib"
+nclasses = 2
+nfiles_min = 10
+nfiles_max = 10
+filesize_min = 8589934592
+filesize_max = 8589934592
+
+[datasets.imagenetish]
+seed = "imagenetish"
+path = "/mnt/datasets/imagenetish"
+nclasses = 1000
+nfiles_min = 1000
+nfiles_max = 1400
+filesize_min = 75000
+filesize_max = 150000

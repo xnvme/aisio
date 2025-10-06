@@ -1,0 +1,42 @@
+doc: |
+  Format a block device with XFS and populate it with pseudo-datasets
+
+steps:
+- name: filesystem
+  run: |
+    lsblk -f
+    umount {{ config.filesystems.dset.mountpoint }} || true
+    mkfs.xfs -f -m reflink=0 {{ config.filesystems.dset.bdev }}
+    mkdir -p {{ config.filesystems.dset.mountpoint }}
+    mount -o noatime {{ config.filesystems.dset.bdev }} {{ config.filesystems.dset.mountpoint }}
+    df -h
+
+- name: filesize8gib_generate
+  uses: generate_dataset
+  with:
+    dataset_name: "filesize8gib"
+
+- name: filesize8gib_stats
+  run: |
+    df -h
+    du -h {{ config.datasets.filesize8gib.path }} --max-depth=1
+
+- name: tiktokish_generate
+  uses: generate_dataset
+  with:
+    dataset_name: "tiktokish"
+
+- name: tiktokish_stats
+  run: |
+    df -h
+    du -h {{ config.datasets.tiktokish.path }} --max-depth=1
+
+- name: imagenetish_generate
+  uses: generate_dataset
+  with:
+    dataset_name: "imagenetish"
+
+- name: imagenetish_stats
+  run: |
+    df -h
+    du -h {{ config.datasets.imagenetish.path }} --max-depth=1
