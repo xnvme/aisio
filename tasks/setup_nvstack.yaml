@@ -151,12 +151,15 @@ steps:
     chmod +x workdir/cuda.run
     ./workdir/cuda.run --toolkit --silent
 
+# Setup CUDA for all interactive shells via '/etc/profile.d' and source this it explicitly for
+# 'root' via /root/.bashrc for non-interactive use of CUDA via e.g. ssh
 - name: cuda_profile
   run: |
     echo '# CUDA environment variables (set by setup script)' | tee /etc/profile.d/cuda.sh
     echo 'export PATH=/usr/local/cuda/bin:$PATH' | tee -a /etc/profile.d/cuda.sh
     echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' | tee -a /etc/profile.d/cuda.sh
     chmod +x /etc/profile.d/cuda.sh
+    grep -qF 'SSH_CONNECTION' /root/.bashrc || sed -i '1i if [ -n "$SSH_CONNECTION" ] && [ -f /etc/profile.d/cuda.sh ]; then\n    . /etc/profile.d/cuda.sh\nfi\n' /root/.bashrc
 
 - name: cuda_samples
   run: |
