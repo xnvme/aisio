@@ -42,7 +42,8 @@ steps:
 
 - name: xnvme
   run: |
-    cd "{{ config.xnvme.repository.path }}"; ./toolbox/pkgs/ubuntu-focal.sh
+    chmod +x  "{{ config.xnvme.repository.path }}/toolbox/pkgs/ubuntu-oracular.sh"
+    cd "{{ config.xnvme.repository.path }}"; ./toolbox/pkgs/ubuntu-oracular.sh
     rm -r "{{ config.xnvme.repository.path }}/builddir" || true
     mkdir -p "{{ config.xnvme.repository.path }}/builddir"
     cd "{{ config.xnvme.repository.path }}"; meson setup builddir
