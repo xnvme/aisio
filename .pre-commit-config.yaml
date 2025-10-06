@@ -1,0 +1,25 @@
+repos:
+  # 1. ShellCheck – static analysis for shell scripts
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1  # pick the latest stable version
+    hooks:
+      - id: shellcheck
+        name: shellcheck (bash)
+        files: \.sh$
+        args: ["--severity=style"]
+
+  # 2. shfmt – formatting and indentation consistency
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.12.0-2
+    hooks:
+      - id: shfmt
+        name: shfmt (bash formatter)
+        args: ["-i", "2", "-sr", "-w"]  # 2-space indent, simplify, write in place
+        files: \.sh$
+
+  # 3. (optional) trailing whitespace, newline, etc.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
