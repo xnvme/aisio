@@ -5,7 +5,7 @@ In the following, then it is assumed that ``transport.toml`` has the connection
 info to a freshly installed Ubuntu 24.04. With that in place, then you can use
 **cijoe** as below.
 
-installation of Ubuntu 24.04.3 for AiSIO::
+Installation of the NVIDIA Software Stack on top of Ubuntu 24.04.3::
 
 	pipx run cijoe \
 		--monitor \
@@ -13,7 +13,7 @@ installation of Ubuntu 24.04.3 for AiSIO::
 		-c configs/nvstack.toml \
 		tasks/setup_nvstack.yaml
 
-Then apply the AiSIO components::
+Then install the AiSIO components::
 
 	pipx run cijoe \
 		--monitor \
