@@ -48,10 +48,14 @@ def get_opts(args, cijoe, backend):
 
 def main(args, cijoe):
     prefix = "echo 3 > /proc/sys/vm/drop_caches;"
+    dataset = ""
+
+    if args.dataset:
+        dataset = f"--data-dir {args.dataset}"
 
     for backend in args.backends:
         opts = get_opts(args, cijoe, backend)
-        cmd = f"{prefix} {args.bin} {args.device} --data-dir {args.dataset} --batches {args.batches} --batch-size {args.batch_size} --backend {backend} {opts}"
+        cmd = f"{prefix} {args.bin} {args.device} {dataset} --batches {args.batches} --batch-size {args.batch_size} --backend {backend} {opts}"
         for _ in range(args.repetitions):
             err, _ = cijoe.run(cmd)
         if err:
