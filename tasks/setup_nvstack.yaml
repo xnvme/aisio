@@ -122,7 +122,7 @@ steps:
 
 - name: nokm_install
   run: |
-    cd {{ config.nvidia.modules.repository.path }}; make nokm_install
+    cd {{ config.nvidia.modules.repository.path }}; make modules_install
     depmod
 
 - name: nokm_config
