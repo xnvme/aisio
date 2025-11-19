@@ -53,9 +53,12 @@ doc: |
   By doing so, then workflow commands can execute as root, thus, do not this only reasonably on a
   dev. box. With the above in place then run this workflow e.g.
 
-    cijoe -c configs/transport.toml -c configs/nvstack.toml tasks/setup_nvstack.yaml --monitor
+    cijoe --monitor \
+      -c configs/transport.toml
+      -c configs/nvstack.toml
+      tasks/setup_nvstack.yaml
 
-  Adjusting transport.toml with the hostname and ssh-login info of the root user.
+  Adjusting transport.toml with the hostname and SSH-login info of the root user.
 
   Caveat
   ------

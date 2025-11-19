@@ -2,20 +2,16 @@ doc: |
   AiSIO PoC Setup using the NVIDIA Software-Stack
   ===============================================
 
-  Assuming you installed the system along the lines of the 'aisio-nvstack.yaml'.
+  Assuming you installed the system along the lines of the 'setup_nvstack.yaml'.
 
   With the above in place then run this workflow e.g.
 
-    cijoe -c configs/transport.toml -c configs/aisio.toml workflows/aisio-poc.yaml --monitor
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/aisio.toml \
+      tasks/setup_aisio.yaml
 
   Adjusting transport.toml with the hostname and ssh-login info of the root user.
-
-  Caveat
-  ------
-
-  CUDA is not installed into standard locations for PATH and LD_LIBRARY_PATH, thus these environment
-  variables must be setup manually. An interactive setup is added in "/etc/profile.d/cuda.sh",
-  however, for non-interactive, then this does nothing.
 
 steps:
 - name: fetch_sources
