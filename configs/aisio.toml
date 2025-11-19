@@ -10,7 +10,7 @@ path = "/root/git/bam"
 
 [xal.repository]
 remote = "https://github.com/safl/xallib"
-branch = "main"
+tag = "068c567a2603ca251f96f84e579f3be44e79e248"
 path = "/root/git/xal"
 
 [sil.repository]
