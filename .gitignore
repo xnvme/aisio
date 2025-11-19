@@ -1,3 +1,5 @@
 cijoe-output
 cijoe-archive
 __pycache__
+docs/build
+*.egg-info
