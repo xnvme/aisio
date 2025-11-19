@@ -8,28 +8,34 @@ In the following, then it is assumed that ``transport.toml`` has the connection
 info to a freshly installed Ubuntu 24.04. With that in place, then you can use
 **cijoe** as below.
 
-Installation of the NVIDIA Software Stack on top of Ubuntu 24.04.3::
+Installation of the **NVIDIA** Software Stack on top of **Ubuntu** 24.04.3::
 
-	pipx run cijoe \
-		--monitor \
+	pipx run cijoe --monitor \
 		-c configs/transport.toml \
 		-c configs/nvstack.toml \
 		tasks/setup_nvstack.yaml
 
-Then install the AiSIO components::
+Then setup **datasets** on the locally-attached NVMe storage, do take care hare
+as this formats the NVMe device::
 
-	pipx run cijoe \
-		--monitor \
+	pipx run cijoe --monitor \
+		-c configs/transport.toml \
+		-c configs/datasets.toml \
+		tasks/setup_datasets.yaml
+
+Then setup the **AiSIO** components (xNVMe, SPDK, bam, xal, sil, upcie)::
+
+	pipx run cijoe --monitor \
 		-c configs/transport.toml \
 		-c configs/aisio.toml \
 		tasks/setup_aisio.yaml
-
+		
 You can now go ahead and familiarize yourself, with the code-base, and adjust as
 you see fit. To run benchmarks, then do::
 
-	pipx run cijoe \
-		--monitor \
+	pipx run cijoe --monitor \
 		-c configs/transport.toml
+		-c configs/aisio.toml \
 		tasks/benchmark.yaml
 
 Prerequisites
