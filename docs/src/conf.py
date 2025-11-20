@@ -12,11 +12,13 @@ extensions = [
     "myst_parser",
     "sphinx_book_theme",
     "sphinxcontrib.bibtex",
-    "sphinx_external_toc",
+    #    "sphinx_external_toc",
 ]
 
 
-bibtex_bibfiles = ["refs.bib"]
+bibtex_bibfiles = ["references.bib"]
+bibtex_default_style = "unsrt"
+bibtex_header_str = " "
 
 myst_enable_extensions = [
     "colon_fence",
@@ -42,10 +44,12 @@ html_theme_options = {
     "logo": {
         # If you want, later: "image_light": "aisio-logo.svg"
     },
+    "show_navbar_depth": 3,
+    "max_navbar_depth": 3,
 }
 
-external_toc_path = "_toc.yml"
-external_toc_exclude_missing = False
+# external_toc_path = "_toc.yml"
+# external_toc_exclude_missing = False
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from latex_theme import latex_engine, latex_documents, latex_elements

@@ -5,7 +5,7 @@ latex_engine = "lualatex"
 latex_documents = [
     (
         "index",
-        "aisio-whitepaper.tex",
+        "aisio.tex",
         "AiSIO Whitepaper",
         "Simon A. F. Lund",
         "report",  # stable long-form layout

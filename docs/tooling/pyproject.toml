@@ -9,12 +9,13 @@ dependencies = [
     "jupyter-book",
     "linkify-it-py",
     "myst-parser>=1.0",
-    "sphinx>=7.0",
+    "sphinx>=8.0",
     "sphinx-autobuild>=2024.0",
     "sphinx-book-theme",
     "sphinxcontrib-bibtex",
     "sphinx-external-toc",
     "sphinx_thebe",
+    "watchdog>=4.0.0",
 ]
 
 [project.scripts]
