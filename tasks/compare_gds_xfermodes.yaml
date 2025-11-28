@@ -2,15 +2,33 @@ doc: |
   Evaluate NVIDIA GPU DirectStorage for 4K I/O using gdsio
   ========================================================
 
-  Assuming you installed the system along the lines of the 'aisio-nvstack.yaml'.
+  This repeatedly runs gdsio with varied XferType, this is done to evaluate with API / GDS-use
+  serves one best for small I/O. It is assumed that the system has been setup along the lines of:
+
+    setup_nvstack.yaml.
+
+  To run this workflow, invoke:
+
+    cijoe \
+      -c configs/transport.toml \
+      tasks/setup_dataset.yaml \
+      --monitor
 
 steps:
+- name: check
+  run: |
+    /usr/local/cuda/gds/tools/gdscheck -p
+    nvidia-smi -q
+    nvcc --version    
+    dmesg | grep -i nvidia_fs
+    lsmod | grep nvidia_fs
+  
 - name: prep
   run: |
     umount /mnt/gds01 || true
     mkfs.xfs -f -m reflink=0 /dev/nvme0n1
     mkdir -p /mnt/gds01
-    mount -o noatime /dev/nvme0n1 /mnt/gds01
+    mount -o rw,noatime,dax /dev/nvme0n1 /mnt/gds01
     mkdir -p /mnt/gds01/gds_dir
 
 - name: run
