@@ -15,12 +15,14 @@ doc: |
 
     cijoe \
       -c configs/transport.toml \
-      tasks/setup_dataset.yaml \
+      -c configs/datasets.toml \
+      tasks/compare_gds_xfermodes.yaml \
       --monitor
 
 steps:
 - name: check
   run: |
+    hostname
     /usr/local/cuda/gds/tools/gdscheck -p
     nvidia-smi -q
     nvcc --version    
@@ -30,4 +32,4 @@ steps:
 - name: run
   uses: gdsio
   with:
-    dir: "{{ config.filesystems.dset.mountpoint }}/gds"
+    mp: "{{ config.filesystems.dset.mountpoint }}/gds"

@@ -10,8 +10,8 @@ from argparse import ArgumentParser
 
 
 def add_args(parser: ArgumentParser):
+    parser.add_argument("--mp", type=str, default="/mnt/gds01/gds_dir")
     parser.add_argument("--bin", type=str, default="/usr/local/cuda/gds/tools/gdsio")
-    parser.add_argument("--dir", type=str, default="/mnt/gds01/gds_dir")
     parser.add_argument("--nthreads", type=int, default=1)
     parser.add_argument("--gpu_index", type=int, default=0)
     parser.add_argument("--repetitions", type=int, default=5)
@@ -33,7 +33,7 @@ def add_args(parser: ArgumentParser):
 
 def main(args, cijoe):
     bin = args.bin
-    dir = args.dir
+    mp = args.mp
     gpu_index = args.gpu_index
     nthreads = args.nthreads
     filesize = "8G"
@@ -41,13 +41,13 @@ def main(args, cijoe):
     runtime = 10  # Runtime in seconds
 
     # Precondition by creating the files
-    cmd = f"{bin} -D {dir} -d {gpu_index} -w {nthreads} -s {filesize} -i {iosize} -I 1 -x 0"
+    cmd = f"{bin} -D {mp} -d {gpu_index} -w {nthreads} -s {filesize} -i {iosize} -I 1 -x 0"
     err, _ = cijoe.run(cmd)
     if err:
         return 1
 
     for xfer_type in args.xfer_types:
-        cmd = f"{bin} -D {dir} -d {gpu_index} -w {nthreads} -s {filesize} -i {iosize} -T {runtime} -I {args.mode} -x {xfer_type}"
+        cmd = f"{bin} -D {mp} -d {gpu_index} -w {nthreads} -s {filesize} -i {iosize} -T {runtime} -I {args.mode} -x {xfer_type}"
         for rep in range(args.repetitions):
             err, _ = cijoe.run(cmd)
             if err:
