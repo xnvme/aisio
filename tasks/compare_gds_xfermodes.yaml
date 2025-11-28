@@ -7,6 +7,10 @@ doc: |
 
     setup_nvstack.yaml.
 
+  Also, with the storage-device setup according to:
+
+    setup_dataset.yaml
+
   To run this workflow, invoke:
 
     cijoe \
@@ -23,14 +27,6 @@ steps:
     dmesg | grep -i nvidia_fs
     lsmod | grep nvidia_fs
   
-- name: prep
-  run: |
-    umount {{ config.filesystems.dset.mountpoint }} || true
-    mkfs.xfs -f -m reflink=0 {{ config.filesystems.dset.bdev }}
-    mkdir -p {{ config.filesystems.dset.mountpoint }}
-    mount -o rw,noatime {{ config.filesystems.dset.bdev }} {{ config.filesystems.dset.mountpoint }}
-    mkdir -p {{ config.filesystems.dset.mountpoint }}/gds
-
 - name: run
   uses: gdsio
   with:

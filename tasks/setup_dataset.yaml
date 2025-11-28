@@ -1,6 +1,16 @@
 doc: |
   Format a block device with XFS and populate it with pseudo-datasets
 
+  Run it like so:
+
+    cijoe \
+      -c configs/transport.toml \
+      -c configs/datasets.toml \
+      tasks/setup_dataset.yaml \
+      --monitor
+
+  Double-check the mountpoints and device-paths in datasetes.yaml
+
 steps:
 - name: filesystem
   run: |
