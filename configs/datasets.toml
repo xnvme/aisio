@@ -1,7 +1,8 @@
 [filesystems.dset]
-name = "xfs"
-bdev = "/dev/nvme1n1"
 mountpoint = "/mnt/datasets"
+name = "xfs"
+bdev = "/dev/nvme0n1"
+libnvm_dev = "/dev/libnvm0"
 
 [datasets.tiktokish]
 seed = "tiktokish"

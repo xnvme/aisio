@@ -25,11 +25,13 @@ steps:
   
 - name: prep
   run: |
-    umount /mnt/gds01 || true
-    mkfs.xfs -f -m reflink=0 /dev/nvme0n1
-    mkdir -p /mnt/gds01
-    mount -o rw,noatime,dax /dev/nvme0n1 /mnt/gds01
-    mkdir -p /mnt/gds01/gds_dir
+    umount {{ config.filesystems.dset.mountpoint }} || true
+    mkfs.xfs -f -m reflink=0 {{ config.filesystems.dset.bdev }}
+    mkdir -p {{ config.filesystems.dset.mountpoint }}
+    mount -o rw,noatime {{ config.filesystems.dset.bdev }} {{ config.filesystems.dset.mountpoint }}
+    mkdir -p {{ config.filesystems.dset.mountpoint }}/gds
 
 - name: run
   uses: gdsio
+  with:
+    dir: "{{ config.filesystems.dset.mountpoint }}/gds"
