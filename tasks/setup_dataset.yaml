@@ -9,6 +9,7 @@ steps:
     mkfs.xfs -f -m reflink=0 {{ config.filesystems.dset.bdev }}
     mkdir -p {{ config.filesystems.dset.mountpoint }}
     mount -o noatime {{ config.filesystems.dset.bdev }} {{ config.filesystems.dset.mountpoint }}
+    mkdir -p {{ config.filesystems.dset.mountpoint }}/gds
     df -h
 
 - name: filesize8gib_generate
