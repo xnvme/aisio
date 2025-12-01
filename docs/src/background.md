@@ -1,19 +1,13 @@
 (sec-background)=
 # Background
 
-Modern high-performance systems rely on a coordinated set of hardware
-and software components that span compute devices, memory hierarchies,
-interconnects, storage controllers, operating-system services, and application
-frameworks. Understanding how these layers interact, and the constraints
-each one imposes on data movement and control, is essential for interpreting
-the design and mechanisms introduced later in AiSIO. This Background section
-provides a bottom-up technical foundation: it reviews the PCIe transport
-on which devices communicate, the execution and memory models of CPUs and
-accelerators, the behavior of NVMe controllers, the structure of file systems
-and block devices, and the interfaces through which software initiates and
-manages I/O. Readers already familiar with these topics may proceed directly
-to the architecture, while others may return here as needed when later sections
-depend on concepts introduced in this groundwork.
+This Background section provides a bottom-up technical foundation: it reviews
+the PCIe transport on which devices communicate, the execution and memory
+models of CPUs and accelerators, the behavior of NVMe controllers, the structure
+of file systems and block devices, and the interfaces through which software
+initiates and manages I/O. Readers already familiar with these topics may
+proceed directly to the architecture, while others may return here as needed
+when later sections depend on concepts introduced in this groundwork.
 
 ## PCIe  
 
@@ -131,6 +125,38 @@ RC involvement and without relying on switch ATUs. Commodity endpoints including
 NVMe SSDs, GPUs, and NICs do not generate ID-routed traffic and rely exclusively
 on address-routed Memory Requests.
 
+(sec-pcie-functions)=
+
+### Multi-function devices
+
+PCIe devices are identified by a Bus–Device–Function (BDF) tuple. Under a single
+Bus and Device number, a controller may expose multiple functions, each behaving
+as an independent PCIe endpoint with its own configuration space, capabilities,
+and BAR mappings. This allows a single physical device to present several
+logically distinct interfaces while sharing the same underlying hardware.
+
+#### Single- and Multi-Function Controllers
+
+Some devices expose only one function, while others expose two or more. A
+multi-function layout allows a controller to present multiple independent
+control paths or operational domains, each with isolated registers and interrupt
+lines but backed by common internal resources. This pattern is used in devices
+that serve several roles or expose multiple ports through the same silicon.
+
+#### SR-IOV
+
+SR-IOV extends the multi-function concept by enabling a device to dynamically
+create many lightweight virtual functions (VFs) alongside one physical function
+(PF). Each VF appears as its own BDF entry. The PF manages and provisions
+resources, and each VF exposes its own configuration space and BAR regions and
+can be assigned to a distinct software or hardware tenant such as a virtual
+machine, a container, or another isolated execution domain.
+
+SR-IOV provides a PCIe-level mechanism for carving a device’s internal resources
+into multiple independent and securely separated interfaces, without assuming
+anything about the higher-level protocols or device types implemented behind
+those interfaces.
+
 ### Summary  
 
 Data movement in PCIe whether DMA or MMIO are sequences of Memory TLPs
@@ -143,7 +169,6 @@ Together, RC mediated DMA, switch mediated peer DMA, and device routed peer DMA
 describe all data transfer paths allowable in PCI Express systems and form the
 architectural foundation for understanding performance and design tradeoffs in
 accelerator integrated storage paths.
-
 
 (sec-nvme-controllers)=
 ## NVMe Controllers
@@ -263,25 +288,6 @@ AiSIO originally aimed to unlock accelerator initiated I/O. Experimental results
 showed that no single initiator is always optimal. AiSIO therefore exposes a
 multipath I/O model where CPUs, GPUs, DPUs, and other accelerators can initiate
 I/O as appropriate for the workload and hardware capabilities.
-
-(sec-pcie-functions)=
-## PCIe: Endpoint multi-function
-
-PCIe controllers may expose multiple independent functions or ports.
-
-### Single Function and Dual Port Controllers
-
-Dual port NVMe devices allow two independent hosts or drivers to access the
-same media through separate control paths. This topology is common in high
-availability systems and relevant to AiSIO when multiple initiators coordinate
-access.
-
-### SR IOV
-
-SR IOV allows a singel physical NVMe controller to present multiple virtual
-functions. Each virtual function exposes its own controller registers and
-doorbells while sharing the underlying media. This makes it possible for CPUs
-and accelerators to maintain independent I/O paths to the same namespace.
 
 (sec-filesystems)=
 ## Files and File Systems
