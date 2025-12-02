@@ -178,3 +178,79 @@ Not for:
 | Interoperability | Full filesystem support | Same |
 | Deployment | Easiest, most portable | Hardware-dependent |
 
+# HOMI: Host Orchestrated Multipath IO
+
+HOMI exists to provide a host orchestrated control plane that enables
+accelerators to issue high performance storage I/O while preserving full
+compatibility with kernel managed file systems and Linux safety guarantees.
+Several responsibilities must be centralized, coordinated, and safely exposed
+before GPU initiated I/O can function in a production environment.
+
+HOMI brings these responsibilities together in operating system service or in
+UNIX terminalogy a daemon.
+
+### File extent caching for minimal cost lookup on the data path
+
+Accelerator initiated I O requires fast access to file to block mappings. A GPU
+cannot perform pathname resolution or interact with kernel metadata structures.
+It needs a direct physical layout description, provided at low latency and
+without involving the kernel on every I O.
+
+HOMI provides this through a file extent cache:
+
+* **File extent cache maintained inside the daemon**
+  HOMI maintains a host side index of inodes and extents for all files accessed by accelerator workloads. This allows the data path to retrieve block ranges instantly, without syscall overhead or kernel traversal.
+
+* **Logic delegated to xallib**
+  HOMI does not manually decode file system structures. All metadata operations are delegated to xallib (XAL), which provides:
+  * Extent retrieval using FIEMAP when available
+  * Extent retrieval through raw on disk XFS format decoding when needed
+  * Consistent interpretation of allocation groups, inodes, and extent trees
+
+* **Cache invalidation via kernel notification**
+  HOMI subscribes to kernel events that signal when file metadata has changed, such as truncation, write allocation, or hole punching. These events trigger invalidation or update of cached extents, ensuring the accelerator view of the file always matches the kernel’s state.
+
+### NVMe controller initialization and admin queue setup
+
+Before accelerators can submit I O directly, the storage subsystem must be brought into a state where both the host and the GPU can share or partition controller resources. HOMI performs:
+
+* **Controller initialization**
+  HOMI attaches to the NVMe controller through xNVMe and programs the controller state needed for shared operation.
+
+* **Admin queue setup in host memory**
+  HOMI configures the admin queue in host memory. This keeps all controller management operations under host control, ensuring that:
+  * Firmware level interactions remain safe
+  * Namespace management is not exposed to accelerators
+  * Controller resets or errors can be handled centrally
+
+### Accelerator-initiated driver setup
+
+To enable accelerator-initiated storage I/O, accelerators must host a
+sufficient NVMe driver-subset to construct, submit commands and process their
+completions e.g. an IO-driver, the admin/control-plane can be delegated to
+the host, however, the very thing that makes it accelerator-initiated is that
+it is the accelerator that does mmio, that is, it is the accelerator whose
+APIs provide the means to perform operations with the address-space mapped for
+the doorbells of the NVMe device, and store the commands and completions in
+accelerator-resident memory, long with payload and payload-associated structures
+such PRP - and SG lists.
+
+In other words the HOMI control-plane sets up the IO-fast-path such that after
+setup time, then the host CPU need no longer to be involved in IO-operations as
+the accelerator now that the sufficicent infrastructture setup to initiate I/O
+and process their completions.
+
+HOMI is responsible for bringing this environment into existence:
+
+* **NVMe I O queue allocation using on accelerator memory**
+  HOMI configures queue pairs placed in accelerator memory, allowing the GPU to:
+  * Submit commands without host mediation
+  * Receive completions without interrupts
+  * Use peer to peer DMA for data movement
+
+* **Setup of the on accelerator NVMe I/O driver**
+  HOMI coordinates the installation and configuration of the GPU resident NVMe driver, including:
+  * Queue configurations
+  * Doorbell register mappings
+  * P2P DMA permissions and address ranges
+  * Safety limits for namespace access
