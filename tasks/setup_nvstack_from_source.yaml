@@ -2,15 +2,19 @@ doc: |
   Ubuntu 24.04 Setup of the NVIDIA Software-Stack
   ===============================================
 
-  The tasks here is to setup a system with the NVIDIA software stack for NVMe <-> GPU, including:
+  CAUTION: This setup does **not** work with BAM. For full support, use the apt-based nvstack-setup
+           (setup_nvstack.yaml).
+
+  This workflow sets up a system with:
 
   * Ubuntu Server 24.04.3
   * Linux 6.8 kernel (Ubuntu 24.04.3 GA Kernel)
-  * MLNX_OFED 24.10-3.2.5.0 (DOCA_OFED does not provide NVMe/gds support) (via .run)
-  * nvidia-fs (via apt)
-  * NVIDIA Open Kernel Modules (NOKM) v570 (via apt)
-  * CUDA v12.8.1 (via apt)
-  * CUDA Samples v12.8 (from source)
+  * MLNX_OFED 24.10-3.2.5.0 (DOCA_OFED does not provide NVMe/gds support)
+  * GSP Firmware v570.153.02
+  * NVIDIA Open Kernel Modules (NOKM) v570.153.02
+  * CUDA v12.8.1
+  * CUDA Samples v12.8
+  * nvidia-fs v2.26.6
 
   Note, most of this version-information is given by the download-links in the config-file, not
   hardcoded here in the workflow.
@@ -74,7 +78,7 @@ steps:
 - name: packages
   run: |
     apt-get -qy update && apt-get -qy upgrade
-    apt-get -qy install build-essential linux-headers-$(uname -r) wget git htop vim cmake stress-ng
+    apt-get -qy install build-essential linux-headers-$(uname -r) wget git htop vim cmake
     apt-get -qy autoremove
 
 - name: blacklist_nouveau
@@ -105,17 +109,53 @@ steps:
     state: up
     timeout: 300
 
-- name: gpu_driver
+- name: gsp
   run: |
-    apt-get install nvidia-driver-570-server-open
+    test -f workdir/gsp.run || wget -O workdir/gsp.run "{{ config.nvidia.gsp.url }}"
+    chmod +x workdir/gsp.run
+    ls -lha workdir/gsp.run
+    md5sum workdir/gsp.run
+    ./workdir/gsp.run --no-kernel-modules --no-questions --ui=none
 
-- name: gpu_driver_kernel_source
+- name: nokm_clone
   run: |
-    cd /usr/src/nvidia-570.195.03/ && make -j
+    test -d {{ config.nvidia.modules.repository.path }} || git clone "{{ config.nvidia.modules.repository.remote }}" {{ config.nvidia.modules.repository.path }}
+    cd {{ config.nvidia.modules.repository.path }}; git checkout "{{ config.nvidia.modules.repository.tag }}"
+
+- name: nokm_build
+  run: |
+    cd {{ config.nvidia.modules.repository.path }}; make modules -j "$(nproc)" BUILD_NV_DRM=n BUILD_NV_MODESET=n
+
+- name: nokm_install
+  run: |
+    cd {{ config.nvidia.modules.repository.path }}; make modules_install
+    depmod
+
+- name: nokm_config
+  run: |
+    echo "nvidia" | tee -a /etc/modules-load.d/nvidia.conf
+    echo "nvidia-uvm" | tee -a /etc/modules-load.d/nvidia.conf
+    echo "nvidia-peermem" | tee -a /etc/modules-load.d/nvidia.conf
+    update-initramfs -u
+
+- name: nokm_probe
+  run: |
+    modprobe nvidia
+    modprobe nvidia-uvm
+    modprobe nvidia-peermem
+
+- name: nokm_inspect
+  run: |
+    modinfo nvidia | grep version
+    lsmod | grep nvidia
 
 - name: cuda
   run: |
-    apt-get install -y cuda-12-8
+    test -f workdir/cuda.run || wget -O workdir/cuda.run "{{ config.nvidia.cuda.url}}"
+    ls -lha workdir/cuda.run
+    md5sum workdir/cuda.run
+    chmod +x workdir/cuda.run
+    ./workdir/cuda.run --toolkit --silent
 
 # Setup CUDA for all interactive shells via '/etc/profile.d' and source this it explicitly for
 # 'root' via /root/.bashrc for non-interactive use of CUDA via e.g. ssh
@@ -127,26 +167,26 @@ steps:
     chmod +x /etc/profile.d/cuda.sh
     grep -qF 'SSH_CONNECTION' /root/.bashrc || sed -i '1i if [ -n "$SSH_CONNECTION" ] && [ -f /etc/profile.d/cuda.sh ]; then\n    . /etc/profile.d/cuda.sh\nfi\n' /root/.bashrc
 
-- name: cuda_check
-  run: |
-    nvcc --version || true
-    nvidia-smi || true
-
-# Grabbing these from source as to make them writable
 - name: cuda_samples
   run: |
     git clone https://github.com/NVIDIA/cuda-samples.git git/cuda-samples
     cd git/cuda-samples; git checkout v12.8
     mkdir git/cuda-samples/build
 
-- name: gpu_burn
+- name: cuda_check
   run: |
-    git clone https://github.com/wilicc/gpu-burn.git git/gpu-burn
-    cd git/gpu-burn; make
+    nvcc --version || true
+    nvidia-smi || true
 
-- name: nvidia_gds
+- name: gds
   run: |
-    apt-get install nvidia-gds-12-8
+    git clone https://github.com/NVIDIA/gds-nvidia-fs.git git/gds
+    cd git/gds; git checkout v2.26.6
+    cd git/gds/src; NVIDIA_SRC_DIR=/root/git/nokm/kernel-open/nvidia CONFIG_MOFED_VERSION="24.10" make
+    cd git/gds/src; make install
+    cd git/gds/src; insmod nvidia-fs.ko
+    echo "nvidia-fs" | tee -a /etc/modules-load.d/nvidia.conf
+    update-initramfs -u
 
 - name: reboot_again
   run: shutdown -r now
