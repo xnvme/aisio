@@ -29,7 +29,7 @@ Then setup the **AiSIO** components (xNVMe, SPDK, bam, xal, sil, upcie)::
 		-c configs/transport.toml \
 		-c configs/aisio.toml \
 		tasks/setup_aisio.yaml
-		
+
 You can now go ahead and familiarize yourself, with the code-base, and adjust as
 you see fit. To run benchmarks, then do::
 

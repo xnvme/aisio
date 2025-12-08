@@ -25,10 +25,10 @@ steps:
     hostname
     /usr/local/cuda/gds/tools/gdscheck -p
     nvidia-smi -q
-    nvcc --version    
+    nvcc --version
     dmesg | grep -i nvidia_fs
     lsmod | grep nvidia_fs
-  
+
 - name: run
   uses: gdsio
   with:
