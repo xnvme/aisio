@@ -399,3 +399,59 @@ accelerators from participating directly in data movement. The next section
 builds on this foundation by presenting the AiSIO architecture, which unifies
 these elements into a multipath design that enables CPUs, GPUs, DPUs, and other
 accelerators to cooperate efficiently as peers in the storage subsystem.
+
+## CPUs
+
+### CPU Frequency
+
+CPU frequency, or clock speed, is the frequency at which the CPU executes
+instructions. The frequency is measured per logical CPU and modern CPUs have
+dynamic frequency scaling, meaning the CPU frequency typically fluctuates within
+a given range. A higher CPU frequency generally means higher performance, as the
+CPU has a higher throughput. However, it also comes with the cost of increased
+temperatures and power consumption. As such, the CPU driver will adjust the CPU
+frequency according to the workload based on hardware limitation and CPU governors.
+
+Specifications of modern CPUs decribe both a *base* frequency and a *max* or
+*turbo* frequency. The base frequency is the minimum guaranteed clock speed at
+which the CPU can operate at continuously. The max frequency describe the maximum
+clock speed the processor can achieve when "turbo boost" is enabled. Turbo boost
+is a feature that allows the CPU to run aboce the base clock speed when thermal
+and power conditions allow it to do so. For heavy workloads, this increases the
+performance by raising the throughput. Turbo boost is commonly enabled by default
+but can be disabled to reduce heat and power consumption and to ensure more
+stability in battery life.
+
+CPU governors control how the CPU driver adjusts the clock speed in response to
+system load. Commonly, there will be *powersave* and *performance* governors,
+which lock the CPU frequency at either the minimum or maximum, respectively.
+Other governors, such as *ondemand*, will scale the frequency dynamically based
+on internal heuristics. The CPU frequency can also be fixed to a specific value
+using CLI tools such as ``cpufrequtils`` or ``linux-cpupower``, which will
+override the heuristics of the current CPU governor.
+
+### Simultaneous Multithreading
+
+Simultaneous Multithreading (SMT) allows each physical CPU core to run two threads,
+creating twice as many logical as physical cores. It does so by exposing two
+execution threads per core and utilizes idle time in one thread to execute the
+instructions from the other. This increases the efficiency of each physical core.
+On CPUs that support SMT, it is commonly enabled as default.
+
+On Intel processors, SMT is often refered to as Hyper-Threading.
+
+### Non-Uniform Memory Access
+
+Non-uniform memory access (NUMA) <REF linux-numa> is a design for computer memory
+when multiple processors are available in a system and memory location affects the
+memory access time.
+NUMA nodes are an abstraction of the system's hardware resources and represent
+groups of hardware that are physically closer to each other than to the rest of the
+system. Memory access to memory within the same node will often experience faster
+access time than to memory across nodes.
+
+In high-throughput storage benchmarks the penalty of accessing memory across NUMA
+nodes becomes negligible. When using multiple queues and threads most of the time is
+spent moving data through the device’s internal parallel engines, through PCIe, and
+on the CPUs that poll the queues. Under these conditions the latency difference
+between local and remote NUMA access is hidden by the concurrency of the system.
