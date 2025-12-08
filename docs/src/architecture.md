@@ -27,7 +27,7 @@ existing, and their interoperability. Why is that? you may ask, well the reason
 is simply that there are no silver bullets, there are simply trade-offs to be
 made when using a given IO-paths.
 
-Considering CPU-initiated projects such as.. the same challenge.. 
+Considering CPU-initiated projects such as.. the same challenge..
 The advent and widespread adoption of user-space storage stacks, and their
 continued existance and evolution,
 
