@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Data Graph</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  dialog {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    width: 1000px;
+    max-width: 90vw;
+    height: 800px;
+    max-height: 90vh;
+  }
+  dialog button {
+    float: right;
+  }
+  .controls-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    margin: 50px;
+    background: #edf1f4;
+    padding: 40px 50px;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,1,0.1);
+    gap: 50px;
+    justify-content: center;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 30px;
+    justify-content: center;
+    align-items: center;
+  }
+  .controls > span {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .controls > div .note {
+    font-size: 12px;
+  }
+  .controls strong {
+    margin-bottom: 18px;
+  }
+  .controls label {
+    display: flex;
+    flex-direction: column;
+    width: fit-content;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+    width: 32px;
+  }
+  .controls label:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    border-top: 2px solid #999;
+    width: 29px;
+    left: 23px;
+    top: 9px;
+  }
+  .button-row {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+  }
+  .button-row button {
+    background: rgba(0,0,1,0.1);
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    &:hover {
+      background: rgba(0,0,1,0.2);
+    }
+    &.selected {
+      outline: 2px solid rgba(0,0,1,0.2);
+    }
+  }
+  .controls .disabled,
+  .controls .disabled + * {
+    pointer-events: none;
+    opacity: 0.2;
+  }
+  #chart {
+    max-height: 70vh;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="chart" width="800" height="400"></canvas>
+
+<div class="controls-container">
+<div class="controls">
+  <strong>Turbo boost:</strong>
+  <span id="turboBoostRadios">
+    <label><input type="radio" name="turbo" value="0"> Off</label>
+    <label><input type="radio" name="turbo" value="1" checked> Both</label>
+    <label><input type="radio" name="turbo" value="2"> On</label>
+  </span>
+  <strong>SMT:</strong>
+  <span id="turboBoostRadios">
+    <label><input type="radio" name="SMT" value="0"> Off</label>
+    <label><input type="radio" name="SMT" value="1" checked> Both</label>
+    <label><input type="radio" name="SMT" value="2"> On</label>
+  </span>
+  <strong>Hyper Threading:</strong>
+  <span id="turboBoostRadios">
+    <label><input type="radio" name="ht" value="0"> Off</label>
+    <label><input type="radio" name="ht" value="1" checked> Both</label>
+    <label><input type="radio" name="ht" value="2"> On</label>
+  </span>
+  <strong>Stress:</strong>
+  <span id="turboBoostRadios">
+    <label><input type="radio" name="stress" value="0"> Off</label>
+    <label><input type="radio" name="stress" value="1" checked> Both</label>
+    <label><input type="radio" name="stress" value="2"> On</label>
+  </span>
+</div>
+<div class="controls">
+  <div>
+    <strong>Queue Depth:</strong>
+    <span class="note">(1 queue pair per device)</span>
+  </div>
+  <span id="qdepthRadios"></span>
+  <strong>Number of Physical Cores:</strong>
+  <span id="cpusRadios"></span>
+  <strong>Number of Devices:</strong>
+  <span id="devicesRadios"></span>
+  <strong>I/O Size:</strong>
+  <span id="iosizeRadios"></span>
+  <strong>Fixed CPU Frequency (GHz):</strong>
+  <span id="cpufreqRadios"></span>
+  <strong>Value on x-axis:</strong>
+  <div class="button-row">
+    <button value="0">Queue Depth</button>
+    <button value="1">Number of Physical Cores</button>
+    <button value="2">Number of Devices</button>
+    <button value="3">I/O Size</button>
+    <button value="4">CPU Frequency</button>
+  </div>
+</div>
+</div>
+
+<dialog>
+  <button onclick="document.querySelector('dialog').close()">x</button>
+  <canvas id="freq-chart" width="100%" height="100%"></canvas>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const results = [
+  {%- for dataset in datasets %}
+  {
+    label: "{{dataset.label}}",
+    data: [{% for d in dataset.data %}
+      {{ d }},
+    {%- endfor %}]
+    {%- if "Using thread siblings" in dataset.label %}
+      .sort((a,b) => a.ncpus - b.ncpus)
+      .map(d => ({...d, hyperthreads: d.ncpus, ncpus: Math.ceil(d.ncpus / 2)}))
+    {% endif %}
+  },
+  {%- endfor %}
+];
+
+const cpusSet = [...new Set(results[0].data.map(d => d.ncpus))].sort((a,b) => a - b);
+const devicesSet = [...new Set(results[0].data.map(d => d.ndevs))].sort((a,b) => a - b);
+const iosizeSet = [...new Set(results[0].data.map(d => d.iosize))].sort((a,b) => a - b);
+const qdepthSet = [...new Set(results[0].data.map(d => d.qdepth))].sort((a,b) => a - b);
+const cpufreqSet = [...new Set(results[0].data.map(d => d.fixed_freq))].sort((a,b) => a - b);
+
+const sets = [
+  {elemId: "qdepthRadios", set: qdepthSet, key: "qdepth", prettyName: "Queue Depth"},
+  {elemId: "cpusRadios", set: cpusSet, key: "ncpus", prettyName: "Number of Physical Cores"},
+  {elemId: "devicesRadios", set: devicesSet, key: "ndevs", prettyName: "Number of Devices"},
+  {elemId: "iosizeRadios", set: iosizeSet, key: "iosize", prettyName: "I/O Size"},
+  {elemId: "cpufreqRadios", set: cpufreqSet, key: "fixed_freq", prettyName: "Fixed CPU Frequency (GHz)" },
+];
+
+CUR_X_AXIS = 1;
+
+
+function createRadios(containerId, values, name) {
+  const container = document.getElementById(containerId);
+
+  container.innerHTML = "";
+  values.forEach(v => {
+    const label = document.createElement('label');
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = name;
+    radio.value = v;
+    label.appendChild(radio);
+    label.appendChild(document.createTextNode(v));
+    container.appendChild(label);
+  });
+  container.querySelector('input').checked = true; // default
+}
+sets.forEach(({elemId, set, key}) => {
+  createRadios(elemId, set, key);
+});
+document.querySelectorAll(`input[type="radio"]`).forEach(radio => {
+    radio.addEventListener('change', () => updateChart());
+})
+
+function updateRadios() {
+  sets.forEach(({elemId, set, key}, i) => {
+    let button = document.querySelector(`.controls .button-row button[value="${i}"]`);
+    const container = document.getElementById(elemId);
+
+    if (i == CUR_X_AXIS) {
+      button.classList.add("selected");
+      container.previousElementSibling.classList.add("disabled");
+    } else {
+      button.classList.remove("selected");
+      container.previousElementSibling.classList.remove("disabled");
+    }
+  });
+}
+updateRadios();
+
+const ctx = document.getElementById('chart').getContext('2d');
+let chart;
+
+const freq_ctx = document.getElementById('freq-chart').getContext('2d');
+let freq_chart;
+
+function updateChart() {
+  let colours = ["blue", "red", "green", "pink", "lime", "purple"];
+  let styles = ["circle", "rectRot", "rect", "star", "triangle"];
+  let radius = [3, 5, 4];
+
+  const x_axis = sets[CUR_X_AXIS].key;
+  const logarithmic = ["qdepth", "iosize"].includes(x_axis);
+  let iopsData = [];
+  let filtered_results = results;
+
+  for (let key of ["turbo", "SMT", "ht", "stress"]) {
+    const selectedRadio = document.querySelector(`input[name="${key}"]:checked`).value;
+    if (key == "ht") {
+      if (selectedRadio == 0) {
+        filtered_results = filtered_results.filter(res => res.label.includes(`Not using`));
+      } else if (selectedRadio == 2) {
+        filtered_results = filtered_results.filter(res => res.label.includes(`Using`));
+      }
+    } else {
+      if (selectedRadio == 0) {
+        filtered_results = filtered_results.filter(res => res.label.includes(`${key} off`));
+      } else if (selectedRadio == 2) {
+        filtered_results = filtered_results.filter(res => res.label.includes(`${key} on`));
+      }
+    }
+  }
+
+  for (let result of filtered_results) {
+    let filtered = result.data;
+
+    sets.forEach(({elemId, set, key}, i) => {
+      if (i === CUR_X_AXIS) return;
+      selectedRadio = document.querySelector(`input[name="${key}"]:checked`).value;
+      filtered = filtered.filter(d => d[key] == selectedRadio);
+    });
+
+    filtered = filtered.sort((a,b) => a[x_axis] - b[x_axis]);
+
+    const graphData = filtered.map(d => ({
+      x: logarithmic ? Math.log2(d[x_axis]) : d[x_axis],
+      y: d.iops,
+      data: d
+    }));
+
+    iopsData.push(graphData);
+  }
+
+  let extra = [];
+  if (x_axis === "fixed_freq") {
+    extra = iopsData.map(data => data.filter(d => d.x === 0));
+    extra = extra.map((data, idx) => ({
+      data,
+      borderColor: colours[idx % colours.length],
+      backgroundColor: colours[idx % colours.length],
+      pointStyle: styles[idx % styles.length],
+      pointRadius: radius[idx % radius.length],
+    }));
+
+    iopsData = iopsData.map(dataset => dataset.filter(d => d.x));
+  }
+
+  const maxPeak = iopsData.flat().length ? Math.max(...iopsData.flat().map(d => d.data.peakiops)) : 1000;
+  const maxXvalue = Math.max(...filtered_results[0].data.map(d => d[x_axis])) * (logarithmic ? 2 : 1) + (logarithmic ? 0 : 1);
+
+  if (chart) chart.destroy();
+
+  const datasets = iopsData.map((data, idx) => ({
+    data,
+    label: filtered_results[idx].label,
+    borderColor: colours[idx % colours.length],
+    backgroundColor: colours[idx % colours.length],
+    pointStyle: styles[idx % styles.length],
+    pointRadius: radius[idx % radius.length],
+  }));
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        ...datasets,
+        {
+          label: 'Peak IOPS with given devices',
+          data: [...Array(Math.round(maxXvalue+2)).keys()].map(x => ({x: x-1, y: maxPeak})),
+          borderColor: 'orange',
+          backgroundColor: 'white',
+          pointRadius: 0,
+          borderDash: [10,10]
+        },
+        ...extra
+      ]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      scales: {
+        x: {
+          type: "linear",
+          offset: x_axis === "fixed_freq",
+          title: { display: true, text: sets[CUR_X_AXIS].prettyName },
+          min: 0,
+          max: logarithmic ? Math.log2(maxXvalue) : maxXvalue,
+          ticks: {
+            callback: (v) => logarithmic ? Math.pow(2, v) : v,
+          },
+          grid: {
+            drawTicks: true,
+            tickLength: 10
+          }
+        },
+        y: {
+          title: { display: true, text: 'IOPS (millions)' },
+          min: 0,
+          max: maxPeak * 1.2,
+          ticks: { callback: (v) => v / 1e6 },
+        }
+      },
+      onClick: (evt, activeElements) => {
+        if (activeElements.length) {
+          const datasetIndex = activeElements[0].datasetIndex;
+          const index = activeElements[0].index;
+          const point = chart.data.datasets[datasetIndex].data[index];
+          updateFreqChart(point.data);
+          document.querySelector('dialog').show();
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title: () => "",
+            label: (context) => {
+              const d = context.raw;
+              if (context.dataset.label.includes("Using")) {
+                return [`IOPS: ${d.y}`,`Hyper threads: ${d.data.hyperthreads}`];
+              }
+              else if (context.dataset.label.includes("Peak IOPS")) {
+                return `Peak IOPS: ${d.y}`;
+              }
+              else {
+                return `IOPS: ${d.y}`;
+              }
+            }
+          }
+        },
+        legend: {
+          labels: {
+            filter: (legendItem, chartData) => {
+              return (chartData.datasets[legendItem.datasetIndex].label);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+updateChart();
+
+function updateFreqChart(datapoint) {
+  let freqs = datapoint.cpu_freqs;
+  freqs.sort((a,b) => a[1][1] - b[1][1])
+  freqs = freqs.map(f => ({x: f[1][1], y: f[0][0], variance: f[0][1], cpu: f[1][0], data: datapoint}));
+
+  const maxXvalue = Math.max(...freqs.map(f => f.x)) + 1;
+  const maxYvalue = Math.max(...freqs.map(f => f.y)) + 1;
+
+  if (freq_chart) freq_chart.destroy();
+  freq_chart = new Chart(freq_ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'CPU frequency',
+        data: freqs,
+        borderColor: 'green',
+        backgroundColor: 'green',
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      scales: {
+        x: {
+          type: "linear",
+          title: { display: true, text: "Physical core" },
+          offset: true,
+          min: 0,
+          max: maxXvalue,
+          ticks: {
+            callback: (v) => v,
+          },
+          grid: {
+            drawTicks: true,
+            tickLength: 10
+          }
+        },
+        y: {
+          title: { display: true, text: 'GHz' },
+          offset: true,
+          min: 0,
+          max: maxYvalue,
+          ticks: { callback: (v) => v / 1e6 },
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title: () => "",
+            label: (context) => {
+              const d = context.raw;
+              if (d.data.hyperthreads) {
+                return [`CPU Frequency: ${d.y}`,`Hyper thread ID: ${d.cpu}`];
+              } else {
+                return `CPU Frequency: ${d.y}`;
+              }
+            }
+          }
+        },
+        legend: {
+          labels: {
+            filter: (legendItem, chartData) => {
+              return (chartData.datasets[legendItem.datasetIndex].label);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+document.querySelectorAll(".controls .button-row button").forEach(button => {
+  button.addEventListener("click", (e) => {
+    let selected = Number(button.getAttribute("value"));
+    CUR_X_AXIS = selected;
+    updateRadios();
+    updateChart();
+  })
+});
+</script>
+
+</body>
+</html>
