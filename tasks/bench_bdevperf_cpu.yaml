@@ -65,3 +65,6 @@ steps:
     smt: [0,1]
     hyperthreads: [0,1]
     stress: [0,1]
+
+- name: visualise
+  uses: bdevperf_visualise
