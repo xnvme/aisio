@@ -15,7 +15,66 @@ remote = "https://github.com/spdk/spdk"
 tag = "v25.09"
 path = "/root/git/spdk"
 
+[xnvme.driver]
+prefix = ""
+
 [xnvme.repository]
 remote = "https://github.com/xnvme/xnvme"
 tag = "v0.7.5"
 path = "/root/git/xnvme"
+
+[[devices]]
+pci_addr = "0000:41:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:42:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:43:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:44:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:45:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:46:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:47:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:48:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:0c:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:0d:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:0e:00.0"
+iops = 1200000
+
+[[devices]]
+pci_addr = "0000:0b:00.0"
+iops = 1200000
+
+# [[devices]]
+# pci_addr = "0000:08:00.0"
+# iops = 1200000
+
+# [[devices]]
+# pci_addr = "0000:09:00.0"
+# iops = 1200000
