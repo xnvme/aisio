@@ -14,3 +14,6 @@ tag = "570.153.02"
 
 [nvidia.cuda]
 url = "https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_570.124.06_linux.run"
+
+[nvidia.keyring]
+url = "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb"
