@@ -1,75 +1,100 @@
 doc: |
-  Ubuntu 24.04 Setup of the NVIDIA Software-Stack
+  Ubuntu 24.04 Setup of the NVIDIA Software Stack
   ===============================================
 
-  The tasks here is to setup a system with the NVIDIA software stack for NVMe <-> GPU, including:
+  This workflow provisions a system with the NVIDIA software stack required for
+  NVMe <-> GPU development, testing, and experimentation. It targets the following
+  components and versions:
 
   * Ubuntu Server 24.04.3
-  * Linux 6.8 kernel (Ubuntu 24.04.3 GA Kernel)
-  * MLNX_OFED 24.10-3.2.5.0 (DOCA_OFED does not provide NVMe/gds support) (via .run)
-  * nvidia-fs (via apt)
+  * Linux 6.8 GA kernel (HWE must be disabled)
   * NVIDIA Open Kernel Modules (NOKM) v570 (via apt)
-  * CUDA v12.8.1 (via apt)
+  * CUDA Toolkit v12.8 (via apt)
   * CUDA Samples v12.8 (from source)
+  * MLNX_OFED 24.10-3.2.5.0 (via .run installer)
+      - DOCA_OFED does not include NVMe or GDS support
+  * nvidia-fs (via apt)
 
-  Note, most of this version-information is given by the download-links in the config-file, not
-  hardcoded here in the workflow.
+  The workflow also configures `PATH` and `LD_LIBRARY_PATH` to include the CUDA
+  toolkit.
 
-  The workflow does not provision Ubuntu, rather it is prereq. expected to be done along the lines
-  of the instructions / Ubuntu Server installer selections below
+  Version information comes from two places:
+  * Apt repositories provide the minor versions of NOKM and CUDA.
+  * Major versions are fixed in the workflow itself and do not change automatically.
 
-  * Ubuntu Server with the HWE Enabled Kernel
+  This workflow does *not* install Ubuntu. Instead, it assumes a clean Ubuntu Server
+  24.04.3 installation prepared with the selections shown below.
 
-  * Installation Base
+  Base Ubuntu Installation
+  ------------------------
+  During installation, ensure the following:
 
-    (x) Ubuntu Server
-    ( ) Ubuntu Server (minimized)
+  * Kernel selection:
+      (X) GA Kernel  
+      ( ) HWE Kernel  ← must be disabled
 
-  * Proxy, network etc. up to you
+  * Installation Base:
+      (X) Ubuntu Server  
+      ( ) Ubuntu Server (minimized)
 
-  * Guided storage configuraiton
+  * Storage (guided):
+      (X) Use an entire disk  
+      [ ] Set up this disk as an LVM group
 
-    (X) Use an entire disk
-    [ ] Set up this disk as an LVM group
+  * Profile:
+      - Your name: Odus | sudO
+      - Server name: aisio-nvstack-01
+      - Username: odus
+      - Password: <choose>
 
-  * Profile Configuration
+  * SSH configuration:
+      [X] Install OpenSSH server
 
-    - Your name: Odus | sudO
-    - Your servers name: aisio-nvstack-01
-    - Pick a username: odus
-    - Password: ...
+  Required Manual Steps Before Running the Workflow
+  -------------------------------------------------
+  To allow CIJOE to execute commands as `root`, enable SSH root login:
 
-  * SSH configuration
+      sudo passwd root
+      sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+      sudo systemctl restart ssh
 
-    [X] Install OpenSSH server
+  Perform these steps only on a development machine, as enabling root SSH access
+  reduces system security.
 
-  Before running this workflow, then install Ubuntu and run the commands:
+  Running the Workflow
+  --------------------
+  After installing Ubuntu and enabling root SSH access, run:
 
-    sudo passwd root
-    sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-    sudo systemctl restart ssh
+      cijoe --monitor \
+        -c configs/transport.toml \
+        -c configs/nvstack.toml \
+        tasks/setup_nvstack.yaml
 
-  By doing so, then workflow commands can execute as root, thus, do not this only reasonably on a
-  dev. box. With the above in place then run this workflow e.g.
+  Make sure `transport.toml` contains the correct hostname and login credentials
+  for the root user.
 
-    cijoe --monitor \
-      -c configs/transport.toml
-      -c configs/nvstack.toml
-      tasks/setup_nvstack.yaml
+  Caveat: CUDA Environment
+  ------------------------
+  CUDA is not installed in standard system locations. The workflow installs a
+  helper script in `/etc/profile.d/cuda.sh` that sets the CUDA environment for
+  interactive shells.
 
-  Adjusting transport.toml with the hostname and SSH-login info of the root user.
-
-  Caveat
-  ------
-
-  CUDA is not installed into standard locations for PATH and LD_LIBRARY_PATH, thus these environment
-  variables must be setup manually. An interactive setup is added in "/etc/profile.d/cuda.sh",
-  however, for non-interactive, then this does nothing.
+  However, non-interactive shells (including many CIJOE operations) do *not*
+  automatically source `/etc/profile.d/`. The workflow therefore explicitly
+  updates `/root/.bashrc` so that CUDA tools (e.g., `nvcc`) work when executing
+  over SSH.
 
 steps:
 - name: directories
   run: |
     mkdir -p {git,workdir}
+
+- name: disable_upgrades
+  run: |
+    systemctl stop unattended-upgrades || true
+    systemctl disable unattended-upgrades || true
+    systemctl mask unattended-upgrades || true
+    apt remove unattended-upgrades || true
 
 - name: packages
   run: |
@@ -83,23 +108,16 @@ steps:
     echo "options nouveau modeset=0" | tee -a /etc/modprobe.d/disable-nouveau.conf
     update-initramfs -u
 
-- name: ofed
-  run: |
-    wget -O workdir/ofed.tgz {{ config.nvidia.ofed.url }}
-    cd workdir; tar xzf ofed.tgz
-    cd workdir/MLNX*; ./mlnxofedinstall --with-nvmf --with-nfsrdma --enable-gds --add-kernel-support --dkms
-    update-initramfs -u -k $(uname -r)
-
 - name: reboot
   run: shutdown -r now
 
-- name: wait_for_down
+- name: wait_down
   uses: core.wait_for_transport
   with:
     state: down
     timeout: 60
-
-- name: wait_for_up
+    
+- name: wait_up
   uses: core.wait_for_transport
   with:
     state: up
@@ -107,12 +125,36 @@ steps:
 
 - name: gpu_driver
   run: |
-    apt-get install nvidia-driver-570-server-open
+    apt-get install -y nvidia-driver-570-server-open
 
+# Build NVIDIA kernel source tree to generate symbols/headers required by libnvm / BAM (not done
+# automatically by DKMS)
 - name: gpu_driver_kernel_source
   run: |
-    cd /usr/src/nvidia-570.195.03/ && make -j
+    cd /usr/src/nvidia-*570*/ && make -j
 
+- name: reboot_driver
+  run: shutdown -r now
+
+- name: wait_down_driver
+  uses: core.wait_for_transport
+  with:
+    state: down
+    timeout: 60
+    
+- name: wait_up_driver
+  uses: core.wait_for_transport
+  with:
+    state: up
+    timeout: 300
+
+- name: apt_repos
+  run: |
+    wget -O workdir/cuda_keyring.deb {{ config.nvidia.keyring.url }}
+    dpkg -i workdir/cuda_keyring.deb
+    wget -O /etc/apt/preferences.d/cuda-repository-pin-600 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin
+    apt update
+    
 - name: cuda
   run: |
     apt-get install -y cuda-12-8
@@ -139,14 +181,16 @@ steps:
     cd git/cuda-samples; git checkout v12.8
     mkdir git/cuda-samples/build
 
-- name: gpu_burn
-  run: |
-    git clone https://github.com/wilicc/gpu-burn.git git/gpu-burn
-    cd git/gpu-burn; make
-
 - name: nvidia_gds
   run: |
-    apt-get install nvidia-gds-12-8
+    apt-get install -y nvidia-gds-12-8
+
+- name: ofed
+  run: |
+    wget -O workdir/ofed.tgz {{ config.nvidia.ofed.url }}
+    cd workdir; tar xzf ofed.tgz
+    cd workdir/MLNX*; ./mlnxofedinstall --with-nvmf --with-nfsrdma --enable-gds --add-kernel-support --dkms
+    update-initramfs -u -k $(uname -r)
 
 - name: reboot_again
   run: shutdown -r now
@@ -168,3 +212,10 @@ steps:
     lsmod | grep nvidia
     nvidia-smi || true
     dmesg | grep -i nvidia
+
+# Quick way to verify thermals on the GPU
+- name: gpu_burn
+  run: |
+    git clone https://github.com/wilicc/gpu-burn.git git/gpu-burn
+    cd git/gpu-burn; make
+    cd git/gpu-burn; ./gpu_burn -d 60
