@@ -1,0 +1,21 @@
+[cijoe.workflow]
+fail_fast=true
+
+[cijoe.transport.bench]
+hostname = "10.20.30.120"
+username = "root"
+key_filename = "{{ local.env.HOME }}/.ssh/id_ed25519"
+
+[os]
+name = "debian"
+version = "trixie"
+
+[spdk.repository]
+remote = "https://github.com/spdk/spdk"
+tag = "v25.09"
+path = "/root/git/spdk"
+
+[xnvme.repository]
+remote = "https://github.com/xnvme/xnvme"
+tag = "v0.7.5"
+path = "/root/git/xnvme"
