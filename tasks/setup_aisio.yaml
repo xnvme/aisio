@@ -34,6 +34,7 @@ steps:
     mkdir -p "{{ config.bam.repository.path }}/builddir"
     cd "{{ config.bam.repository.path }}/builddir"; cmake ..
     cd "{{ config.bam.repository.path }}/builddir"; make install
+    cd "{{ config.bam.repository.path }}/builddir"; make benchmarks
     cd "{{ config.bam.repository.path }}/builddir/module"; make
 
 - name: xnvme
