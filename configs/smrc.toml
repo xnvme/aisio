@@ -10,7 +10,74 @@ remote = "https://github.com/spdk/spdk"
 tag = "v25.09"
 path = "/root/git/spdk"
 
+[xnvme.driver]
+prefix = "PCI_BLACKLIST=0000:01:00.0"
+
 [xnvme.repository]
 remote = "https://github.com/xnvme/xnvme"
 tag = "v0.7.5"
 path = "/root/git/xnvme"
+
+[[devices]]
+pci_addr = "0000:4a:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:4b:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:4c:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:4d:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:61:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:62:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:63:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:64:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:ca:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:cb:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:cc:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:cd:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:e1:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:e2:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:e3:00.0"
+iops = 3800000
+
+[[devices]]
+pci_addr = "0000:e4:00.0"
+iops = 3800000
