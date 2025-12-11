@@ -1,0 +1,83 @@
+doc: |
+  Install Custom Kernel with UIO dma-buf patches
+  ==============================================
+
+  This adds dma-buf importer functionality to UIO and the ability to share
+  physical addresses, from the dma-buf, with userspace. 
+
+  The patch is added untop of the source of the kernel included with Ubuntu.
+  This ensures compatibility with the other parts of the AiSIO stack that
+  depends on the Linux kernel.
+
+  This can be run with::
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/uio_dmabuf.toml \
+      tasks/setup_uio_dmabuf.yaml
+
+  
+  Adjust transport.toml with the hostname and ssh-login info of the root user.
+  Adjust uio_dmabuf.toml with the path to your aisio github repository on the host.
+
+
+steps:
+  - name: install_dependencies
+    run: |
+      apt-get -fy install build-essential libncurses-dev bison flex libssl-dev libelf-dev
+  
+  - name: fetch_kernel_source
+    run: |
+      apt-get -fy install {{ config.linux.source.pkg }}
+
+  - name: decompress_source
+    run: |
+      cd /usr/src/{{ config.linux.source.pkg }}; tar -jxf {{ config.linux.source.pkg }}.tar.bz2  --strip-components=1
+
+  - name: copy_patch
+    uses: core.put
+    with:
+      src: "{{ config.uio.patch.path }}/{{ config.uio.patch.name }}"
+      dst: /usr/src/{{ config.linux.source.pkg }}
+
+  - name: apply_patch
+    run: |
+      cd /usr/src/{{ config.linux.source.pkg }}; git apply --reject {{ config.uio.patch.name }}
+
+  - name: get_config
+    run: |
+      cp /boot/config-$(uname -r) /usr/src/{{ config.linux.source.pkg }}/.config
+
+  - name: configure
+    run: |
+      cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --disable DEBUG_INFO; \
+        scripts/config --set-str SYSTEM_TRUSTED_KEYS ""; \
+        scripts/config --set-str SYSTEM_REVOCATION_KEYS ""; \
+        scripts/config --disable MODULE_SIG 
+
+  - name: prepare
+    run: |
+      cd /usr/src/{{ config.linux.source.pkg }}; make olddefconfig scripts prepare modules_prepare
+  
+  - name: build
+    run: |
+      cd /usr/src/{{ config.linux.source.pkg }}; make -j $(nproc) bindeb-pkg LOCALVERSION=-dmabuf
+
+  - name: install
+    run: |
+      cd /usr/src/{{ config.linux.source.pkg }}; dpkg -i ../*.deb
+  
+  - name: reboot
+    run: shutdown -r now
+
+  - name: wait_down
+    uses: core.wait_for_transport
+    with:
+      state: down
+      timeout: 60
+    
+  - name: wait_up
+    uses: core.wait_for_transport
+    with:
+      state: up
+      timeout: 300
