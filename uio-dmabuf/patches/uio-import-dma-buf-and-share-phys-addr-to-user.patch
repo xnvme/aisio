@@ -1,0 +1,431 @@
+From 4e32137594f22ecb58c4ad99b51a68ecc9ee6745 Mon Sep 17 00:00:00 2001
+From: Karl Bonde Torp <k.torp@samsung.com>
+Date: Wed, 19 Nov 2025 14:19:53 +0100
+Subject: [PATCH] uio: import dma-buf and share phys addr to user
+
+Signed-off-by: Karl Bonde Torp <k.torp@samsung.com>
+---
+ .../userspace-api/ioctl/ioctl-number.rst      |   1 +
+ drivers/uio/Kconfig                           |   1 +
+ drivers/uio/Makefile                          |   4 +
+ drivers/uio/dmabuf.c                          | 138 ++++++++++++++++++
+ drivers/uio/dmabuf.h                          |  24 +++
+ drivers/uio/{uio.c => main.c}                 | 103 +++++++++++++
+ include/uapi/linux/uio_driver.h               |  47 ++++++
+ 7 files changed, 318 insertions(+)
+ create mode 100644 drivers/uio/dmabuf.c
+ create mode 100644 drivers/uio/dmabuf.h
+ rename drivers/uio/{uio.c => main.c} (91%)
+ create mode 100644 include/uapi/linux/uio_driver.h
+
+diff --git a/Documentation/userspace-api/ioctl/ioctl-number.rst b/Documentation/userspace-api/ioctl/ioctl-number.rst
+index 457e16f06e04..675199545dae 100644
+--- a/Documentation/userspace-api/ioctl/ioctl-number.rst
++++ b/Documentation/userspace-api/ioctl/ioctl-number.rst
+@@ -288,6 +288,7 @@ Code  Seq#    Include File                                           Comments
+ 'u'   00-1F  linux/smb_fs.h                                          gone
+ 'u'   20-3F  linux/uvcvideo.h                                        USB video class host driver
+ 'u'   40-4f  linux/udmabuf.h                                         userspace dma-buf misc device
++'u'   50-5F  linux/uio_driver.h                                        userspace IO driver
+ 'v'   00-1F  linux/ext2_fs.h                                         conflict!
+ 'v'   00-1F  linux/fs.h                                              conflict!
+ 'v'   00-0F  linux/sonypi.h                                          conflict!
+diff --git a/drivers/uio/Kconfig b/drivers/uio/Kconfig
+index 2e16c5338e5b..e6acd15a4075 100644
+--- a/drivers/uio/Kconfig
++++ b/drivers/uio/Kconfig
+@@ -2,6 +2,7 @@
+ menuconfig UIO
+ 	tristate "Userspace I/O drivers"
+ 	depends on MMU
++	select DMA_SHARED_BUFFER
+ 	help
+ 	  Enable this to allow the userspace driver core code to be
+ 	  built.  This code allows userspace programs easy access to
+diff --git a/drivers/uio/Makefile b/drivers/uio/Makefile
+index f2f416a14228..2db534f7edb6 100644
+--- a/drivers/uio/Makefile
++++ b/drivers/uio/Makefile
+@@ -1,5 +1,9 @@
+ # SPDX-License-Identifier: GPL-2.0
++
++ccflags-y 			+= -I$(src)
++
+ obj-$(CONFIG_UIO)	+= uio.o
++uio-objs 			:= main.o dmabuf.o
+ obj-$(CONFIG_UIO_CIF)	+= uio_cif.o
+ obj-$(CONFIG_UIO_PDRV_GENIRQ)	+= uio_pdrv_genirq.o
+ obj-$(CONFIG_UIO_DMEM_GENIRQ)	+= uio_dmem_genirq.o
+diff --git a/drivers/uio/dmabuf.c b/drivers/uio/dmabuf.c
+new file mode 100644
+index 000000000000..a54aff67b35b
+--- /dev/null
++++ b/drivers/uio/dmabuf.c
+@@ -0,0 +1,138 @@
++// SPDX-License-Identifier: GPL-2.0
++
++#include "dmabuf.h"
++
++static struct rb_root uio_dma_tree = RB_ROOT;
++static DEFINE_RWLOCK(uio_dma_treelock);
++
++static struct uio_dma_buf_desc *uio_dma_tree_find(struct rb_root *root, int dma_buf_fd)
++{
++	struct rb_node *node = root->rb_node;
++
++	while (node) {
++		struct uio_dma_buf_desc *this = container_of(node, struct uio_dma_buf_desc, node);
++
++		if (dma_buf_fd < this->dma_buf_fd)
++			node = node->rb_left;
++		else if (dma_buf_fd > this->dma_buf_fd)
++			node = node->rb_right;
++		else
++			return this;
++	}
++	return NULL;
++}
++
++static int uio_dma_tree_insert(struct rb_root *root, struct uio_dma_buf_desc *desc)
++{
++	struct rb_node **link = &root->rb_node;
++	struct rb_node *parent = NULL;
++
++	while(*link) {
++		struct uio_dma_buf_desc *this = container_of(*link, struct uio_dma_buf_desc, node);
++		parent = *link;
++
++		if (desc->dma_buf_fd < this->dma_buf_fd)
++			link = &parent->rb_left;
++		else if (desc->dma_buf_fd > this->dma_buf_fd)
++			link = &parent->rb_right;
++		else
++			return -EEXIST;
++	}
++
++	rb_link_node(&desc->node, parent, link);
++	rb_insert_color(&desc->node, root);
++
++	return 0;
++}
++
++void uio_detach_dma_buf(struct uio_dma_buf_desc *desc)
++{
++	if (!desc)
++		return;
++
++	if (desc->sgt)
++		dma_buf_unmap_attachment_unlocked(desc->attach, desc->sgt,
++						  desc->dir);
++	if (desc->attach)
++		dma_buf_detach(desc->dma_buf, desc->attach);
++	if (desc->dma_buf)
++		dma_buf_put(desc->dma_buf);
++	if (desc->dev)
++		put_device(desc->dev);
++
++	rb_erase(&desc->node, &uio_dma_tree);
++	kfree(desc);
++}
++
++int uio_attach_dma_buf(struct uio_dma_buf_desc **desc, int dma_buf_fd,
++		     struct device *dev, enum dma_data_direction dir)
++{
++	struct uio_dma_buf_desc *tmp;
++	int ret;
++
++	if (WARN_ON_ONCE(!dev))
++		return -EFAULT;
++
++	read_lock(&uio_dma_treelock);
++	tmp = uio_dma_tree_find(&uio_dma_tree, dma_buf_fd);
++	read_unlock(&uio_dma_treelock);
++	if (tmp) {
++		// Don't fail if dma-buf is already attached
++		*desc = tmp;
++		return 0;
++	}
++
++	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
++	if (!tmp)
++		return -ENOMEM;
++
++	tmp->dir = dir;
++	tmp->dma_buf = dma_buf_get(dma_buf_fd);
++	if (IS_ERR(tmp->dma_buf)) {
++		ret = PTR_ERR(tmp->dma_buf);
++		tmp->dma_buf = NULL;
++		goto err;
++	}
++
++	tmp->attach = dma_buf_attach(tmp->dma_buf, dev);
++	if (IS_ERR(tmp->attach)) {
++		ret = PTR_ERR(tmp->attach);
++		tmp->attach = NULL;
++		goto err;
++	}
++
++	tmp->sgt = dma_buf_map_attachment_unlocked(tmp->attach, dir);
++	if (IS_ERR(tmp->sgt)) {
++		ret = PTR_ERR(tmp->sgt);
++		tmp->sgt = NULL;
++		goto err;
++	}
++
++	tmp->dir = dir;
++	tmp->dev = get_device(dev);
++	tmp->dma_buf_fd = dma_buf_fd;
++
++	write_lock(&uio_dma_treelock);
++	ret = uio_dma_tree_insert(&uio_dma_tree, tmp);
++	write_unlock(&uio_dma_treelock);
++	if (ret)
++		goto err;
++
++	*desc = tmp;
++	return 0;
++err:
++	uio_detach_dma_buf(tmp);
++	return ret;
++}
++
++struct uio_dma_buf_desc *uio_get_dma_buf_desc(int dma_buf_fd) {
++	struct uio_dma_buf_desc *desc;
++
++	read_lock(&uio_dma_treelock);
++	desc = uio_dma_tree_find(&uio_dma_tree, dma_buf_fd);
++	read_unlock(&uio_dma_treelock);
++	if (!desc)
++		return ERR_PTR(-EINVAL);
++
++	return desc;
++}
+diff --git a/drivers/uio/dmabuf.h b/drivers/uio/dmabuf.h
+new file mode 100644
+index 000000000000..5843a125453b
+--- /dev/null
++++ b/drivers/uio/dmabuf.h
+@@ -0,0 +1,24 @@
++// SPDX-License-Identifier: GPL-2.0
++
++#ifndef UIO_DMABUF_H
++#define UIO_DMABUF_H
++
++#include <linux/dma-buf.h>
++#include <linux/rbtree.h>
++
++struct uio_dma_buf_desc {
++	int				dma_buf_fd;
++	enum dma_data_direction		dir;
++	struct dma_buf_attachment	*attach;
++	struct dma_buf			*dma_buf;
++	struct sg_table			*sgt;
++	struct device			*dev;
++	struct rb_node			node;
++};
++
++void uio_detach_dma_buf(struct uio_dma_buf_desc *desc);
++int uio_attach_dma_buf(struct uio_dma_buf_desc **desc, int dma_buf_fd,
++		     struct device *dev, enum dma_data_direction dir);
++struct uio_dma_buf_desc *uio_get_dma_buf_desc(int dma_buf_fd);
++
++#endif /* UIO_DMABUF_H */
+\ No newline at end of file
+diff --git a/drivers/uio/uio.c b/drivers/uio/main.c
+similarity index 91%
+rename from drivers/uio/uio.c
+rename to drivers/uio/main.c
+index 2d572f6c8ec8..a7f0db54bee3 100644
+--- a/drivers/uio/uio.c
++++ b/drivers/uio/main.c
+@@ -25,6 +25,10 @@
+ #include <linux/cdev.h>
+ #include <linux/uio_driver.h>
+ 
++#include <uapi/linux/uio_driver.h>
++
++#include "dmabuf.h"
++
+ #define UIO_MAX_DEVICES		(1U << MINORBITS)
+ 
+ static int uio_major;
+@@ -815,6 +819,101 @@ static int uio_mmap(struct file *filep, struct vm_area_struct *vma)
+ 	return ret;
+ }
+ 
++static long _uio_attach_dma_buf(struct file *filep,
++                                struct uio_attach_dma_buf __user *uattach)
++{
++	struct uio_listener *listener = filep->private_data;
++	struct uio_device *idev = listener->dev;
++	struct device *dev = &idev->dev;
++	struct uio_attach_dma_buf attach;
++	struct uio_dma_buf_desc *desc;
++	int ret;
++
++	if (copy_from_user(&attach, uattach, sizeof(attach)))
++		return -EFAULT;
++
++	ret = uio_attach_dma_buf(&desc, attach.fd, dev, DMA_BIDIRECTIONAL);
++	if (ret) 
++		return ret;
++
++	attach.count = desc->sgt->nents;
++
++	if (copy_to_user(uattach, &attach, sizeof(attach)))
++		return -EFAULT;
++
++	return 0;
++}
++
++static long _uio_detach_dma_buf(struct file *filep, int __user *ufd)
++{
++	struct uio_dma_buf_desc *desc;
++	int fd;
++
++	if (copy_from_user(&fd, ufd, sizeof(fd)))
++		return -EFAULT;
++
++	desc = uio_get_dma_buf_desc(fd);
++	if (IS_ERR(desc))
++		return PTR_ERR(desc);
++
++	uio_detach_dma_buf(desc);
++	return 0;
++}
++
++static long _uio_get_dma_map(struct file *filep,
++                             struct uio_get_dma_map __user *uget_map)
++{
++	struct uio_dma_buf_desc *desc;
++	struct uio_get_dma_map get_map;
++	struct uio_dma_map map;
++	struct uio_dma_map __user *umap;
++	struct scatterlist *sg;
++	int i;
++
++	if (copy_from_user(&get_map, uget_map, sizeof(get_map)))
++		return -EFAULT;
++	
++	desc = uio_get_dma_buf_desc(get_map.fd);
++	if (IS_ERR(desc))
++		return PTR_ERR(desc);
++
++	umap = uget_map->dma_arr;
++	for_each_sgtable_dma_sg(desc->sgt, sg, i) {
++		if (i > get_map.count)
++			break;
++
++		map.dma_addr = sg_dma_address(sg);
++		map.dma_len = sg_dma_len(sg);
++		if (copy_to_user(umap + i, &map, sizeof(map)))
++			return -EFAULT;
++	}
++
++	return 0;
++}
++
++static long uio_ioctl(struct file *filep, unsigned int ioctl,
++                      unsigned long arg)
++{
++	long ret;
++	void __user *argp = (void __user *)arg;
++
++	switch (ioctl) {
++	case UIO_ATTACH_DMA_BUF:
++		ret = _uio_attach_dma_buf(filep, argp);
++		break;
++	case UIO_DETACH_DMA_BUF:
++		ret = _uio_detach_dma_buf(filep, argp);
++		break;
++	case UIO_GET_DMA_MAP:
++		ret = _uio_get_dma_map(filep, argp);
++		break;
++	default:
++		ret = -ENOTTY;
++		break;
++	}
++	return ret;
++}
++
+ static const struct file_operations uio_fops = {
+ 	.owner		= THIS_MODULE,
+ 	.open		= uio_open,
+@@ -825,6 +924,7 @@ static const struct file_operations uio_fops = {
+ 	.poll		= uio_poll,
+ 	.fasync		= uio_fasync,
+ 	.llseek		= noop_llseek,
++	.unlocked_ioctl = uio_ioctl,
+ };
+ 
+ static int uio_major_init(void)
+@@ -952,6 +1052,8 @@ int __uio_register_device(struct module *owner,
+ 	idev->dev.class = &uio_class;
+ 	idev->dev.parent = parent;
+ 	idev->dev.release = uio_device_release;
++	idev->dev.dma_mask = parent->dma_mask;
++	idev->dev.coherent_dma_mask = parent->coherent_dma_mask;
+ 	dev_set_drvdata(&idev->dev, idev);
+ 
+ 	ret = dev_set_name(&idev->dev, "uio%d", idev->minor);
+@@ -1085,3 +1187,4 @@ static void __exit uio_exit(void)
+ module_init(uio_init)
+ module_exit(uio_exit)
+ MODULE_LICENSE("GPL v2");
++MODULE_IMPORT_NS(DMA_BUF);
+diff --git a/include/uapi/linux/uio_driver.h b/include/uapi/linux/uio_driver.h
+new file mode 100644
+index 000000000000..896ca77927dd
+--- /dev/null
++++ b/include/uapi/linux/uio_driver.h
+@@ -0,0 +1,47 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
++#ifndef _UAPI_UIO_DRIVER_H_
++#define _UAPI_UIO_DRIVER_H_
++
++#include <linux/types.h>
++#include <linux/ioctl.h>
++
++/**
++ * struct uio_attach_dma_buf - Attach to dma-buf and return number of addresses
++ */
++struct uio_attach_dma_buf {
++	/** @fd: dma-buf file descriptor (in) */
++	__s32 fd;
++	/** @count: Count of DMA addresses in the dma-buf (out) */
++	__u32 count;
++};
++
++/**
++ * struct uio_dma_map - Representation of DMA mapping
++ */
++struct uio_dma_map {
++	/** @dma_addr: Address to physical page */
++	__u32 dma_addr;
++	/** @dma_addr: Size of physical page */
++	__u32 dma_len;
++};
++
++/**
++ * struct uio_get_dma_map - Get DMA mappings from provided dma-buf fd
++ *
++ * The dma_mappings array must be allocated from userspace
++ */
++struct uio_get_dma_map {
++	/** @fd: dma-buf file descriptor (in) */
++	__s32 fd;
++	/** @count: Size of dma_mappings array (in) */
++	__u32 count;
++	/** @dma_arr: Array of dma mappings (out) */
++	struct uio_dma_map dma_arr[];
++};
++
++#define UIO_BASE 		'u'
++#define UIO_ATTACH_DMA_BUF	_IOWR(UIO_BASE, 0x52, struct uio_attach_dma_buf)
++#define UIO_DETACH_DMA_BUF	_IOW(UIO_BASE, 0x53, int)
++#define UIO_GET_DMA_MAP 	_IOWR(UIO_BASE, 0x54, struct uio_get_dma_map)
++
++#endif /* _UAPI_UIO_DRIVER_H_ */
+-- 
+2.46.0
+
