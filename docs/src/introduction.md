@@ -1,4 +1,5 @@
 (sec-introduction)=
+
 # Introduction
 
 Few developments today influence system architecture as immediately and
@@ -10,7 +11,7 @@ integrate accelerators into the I/O path in a coherent and interoperable way, so
 that data movement and storage access can keep pace with modern workloads.
 
 The need for such integration becomes clear when considering how accelerator
-hardware has advanced, yet systems still rely on CPU centered I O paths. This
+hardware has advanced, yet systems still rely on CPU centered I/O paths. This
 is not only a hardware limitation. It reflects poor utilization caused by weak
 integration of accelerators into operating system infrastructure. Proprietary
 drivers, runtimes, and programming models keep accelerators outside the
@@ -36,14 +37,17 @@ managed paths. The operating system must therefore provide robust abstractions
 alongside efficient bypass mechanisms, enabling flexibility without compromising
 correctness, safety, or interoperability.
 
-AiSIO denotes a class of system designs built around an integrated multipath
-philosophy that treats accelerators as first class participants in the
+AiSIO designates a class of system architectures built around an integrated
+multipath philosophy that treats accelerators as first class participants in the
 storage subsystem. In this model, the CPU retains essential system management
-responsibilities, accelerators can participate directly in data movement, and
-the operating system coordinates both long standing abstractions and efficient
-bypass mechanisms.
+responsibilities, accelerators can participate directly in data movement
+or initiate I/O, and the operating system coordinates both long standing
+abstractions and efficient bypass mechanisms.
 
 This unified and hybrid approach is essential for constructing scalable and
-efficient systems in the AI era. It enables designs that do not rely on a single
-I/O paradigm but instead combine the strengths of diverse processing units,
-memory tiers, and software layers.
+efficient systems in the AI era. It enables architectures that do not rely on
+a single I/O paradigm but instead combine the strengths of diverse processing
+units, memory tiers, and software layers. HOMI, introduced later in this paper,
+serves as a reference architecture and implementation within the AiSIO class and
+demonstrates how these principles can be realized in open and modifiable system
+software.
