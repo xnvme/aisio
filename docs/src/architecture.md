@@ -1,35 +1,49 @@
 (sec-architecture)=
+
 # Architecture
 
-AiSIO implements a cooperative multipath I/O architecture that unifies
-the conventional OS storage stack with accelerator-resident NVMe drivers
-{cite}`nvme-base-2.3`. This architecture enables accelerators to initiate I/O
-at line rate while preserving full interoperability with Linux and the universal
-abstractions of files and their implementations in existing file systems.
+AiSIO designates a class of system architectures that integrate accelerators
+into the storage I/O path as first-class participants. AiSIO systems support
+cooperative multipath I/O, in which conventional OS-managed storage paths
+coexist with accelerator-accessible data paths. These architectures may unify
+the operating system storage stack with accelerator-resident NVMe drivers
+{cite}nvme-base-2.3, enabling accelerators to participate in data movement
+or initiate I/O at high throughput, while preserving compatibility and
+interoperability with Linux and the universal abstractions of files and their
+implementations in existing file systems.
 
-The architecture rests on a fundamental division of responsibilities: the CPU
-performs metadata operations and coordinates system state, while accelerators
-execute data-path operations using direct peer-to-peer DMA and MMIO. This
-separation allows each processing unit to operate in its area of strength—CPUs
-for coordination and scheduling, accelerators for parallel data movement—while
-maintaining the safety and correctness guarantees expected from operating system
-managed storage.
+While AiSIO does not mandate a specific orchestration model, many realizations
+share a common structural separation between control-oriented responsibilities
+and high-bandwidth data-path execution. Metadata operations, protection
+enforcement, and system coordination remain associated with the operating
+system, while accelerators execute data-path operations using mechanisms such
+as peer-to-peer DMA and MMIO. This separation allows each processing unit to
+operate in its area of strength, with CPUs handling coordination and scheduling
+and accelerators handling parallel data movement, while maintaining the safety
+and correctness guarantees expected from operating system managed storage.
 
 ## Host Orchestrated Multipath I/O (HOMI)
 
-HOMI is a host-resident daemon that provides the control plane enabling
-accelerators to issue high-performance storage I/O while preserving full
-compatibility with kernel-managed file systems and Linux safety guarantees.
-Several responsibilities must be centralized, coordinated, and safely exposed
-before GPU-initiated I/O can function in a production environment. HOMI brings
-these responsibilities together in a unified operating system service.
+HOMI is a reference architecture and implementation within the AiSIO class. It
+realizes accelerator-integrated storage I/O using a host-orchestrated control
+plane that enables accelerators to issue high-performance storage I/O while
+preserving compatibility with kernel-managed file systems and Linux safety
+guarantees.
 
-The HOMI daemon represents what could conceptually be offloaded to a physical
-DPU—hence its earlier designation as "software DPU" (swDPU). By running on the
-host CPU, HOMI avoids introducing additional hardware while providing all the
-orchestration needed for accelerator-integrated I/O.
+In HOMI, responsibilities that must be centralized, coordinated, and
+safely exposed before accelerator-initiated I/O can operate in a production
+environment are brought together in a host-resident user-space daemon. This
+daemon interfaces with the operating system storage stack, manages device
+configuration, and enables accelerator-resident I/O paths without requiring
+modification to existing file systems.
 
-### The Case for Multipath I/O
+The HOMI daemon represents functionality that could alternatively be implemented
+in dedicated hardware, such as a DPU or storage controller firmware. By
+implementing this functionality in host software, HOMI avoids additional
+hardware requirements while providing a concrete, open, and modifiable
+realization of the AiSIO architecture.
+
+## The Case for Multipath I/O
 
 Modern systems require multiple concurrent I/O paths not because different
 workloads favor different initiators, but because preserving interoperability
