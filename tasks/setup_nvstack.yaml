@@ -94,7 +94,7 @@ steps:
     systemctl stop unattended-upgrades || true
     systemctl disable unattended-upgrades || true
     systemctl mask unattended-upgrades || true
-    apt remove unattended-upgrades || true
+    apt-get remove unattended-upgrades || true
 
 - name: packages
   run: |
@@ -107,6 +107,13 @@ steps:
     echo "blacklist nouveau" | tee /etc/modprobe.d/disable-nouveau.conf
     echo "options nouveau modeset=0" | tee -a /etc/modprobe.d/disable-nouveau.conf
     update-initramfs -u
+
+- name: ofed
+  run: |
+    wget -O workdir/ofed.tgz {{ config.nvidia.ofed.url }}
+    cd workdir; tar xzf ofed.tgz
+    cd workdir/MLNX*; ./mlnxofedinstall --with-nvmf --with-nfsrdma --enable-gds --add-kernel-support --dkms
+    update-initramfs -u -k $(uname -r)
 
 - name: reboot
   run: shutdown -r now
@@ -153,11 +160,11 @@ steps:
     wget -O workdir/cuda_keyring.deb {{ config.nvidia.keyring.url }}
     dpkg -i workdir/cuda_keyring.deb
     wget -O /etc/apt/preferences.d/cuda-repository-pin-600 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin
-    apt update
+    apt-get update
     
 - name: cuda
   run: |
-    apt-get install -y cuda-12-8
+    apt-get install -y cuda-toolkit-12-8
 
 # Setup CUDA for all interactive shells via '/etc/profile.d' and source this it explicitly for
 # 'root' via /root/.bashrc for non-interactive use of CUDA via e.g. ssh
@@ -184,28 +191,6 @@ steps:
 - name: nvidia_gds
   run: |
     apt-get install -y nvidia-gds-12-8
-
-- name: ofed
-  run: |
-    wget -O workdir/ofed.tgz {{ config.nvidia.ofed.url }}
-    cd workdir; tar xzf ofed.tgz
-    cd workdir/MLNX*; ./mlnxofedinstall --with-nvmf --with-nfsrdma --enable-gds --add-kernel-support --dkms
-    update-initramfs -u -k $(uname -r)
-
-- name: reboot_again
-  run: shutdown -r now
-
-- name: wait_for_down_again
-  uses: core.wait_for_transport
-  with:
-    state: down
-    timeout: 60
-
-- name: wait_for_up_again
-  uses: core.wait_for_transport
-  with:
-    state: up
-    timeout: 300
 
 - name: checkup
   run: |

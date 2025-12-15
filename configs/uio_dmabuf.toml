@@ -1,7 +1,6 @@
 [linux.source]
 pkg = "linux-source-6.8.0"
 
-
 [uio.patch]
-path = {{ local.env.HOME }}/git/aisio/patches
-name = uio-import-dma-buf-and-share-phys-addr-to-user.patch
+path = "{{ local.env.HOME }}/git/aisio/uio-dmabuf/patches"
+name = "uio-import-dma-buf-and-share-phys-addr-to-user.patch"
