@@ -1,8 +1,8 @@
 doc: |
-  Install Custom Kernel with UIO dma-buf patches
-  ==============================================
+  Install Custom Kernel with UDMABUF import patches
+  =================================================
 
-  This adds dma-buf importer functionality to UIO and the ability to share
+  This adds dma-buf importer functionality to UDMABUF and the ability to share
   physical addresses, from the dma-buf, with userspace. 
 
   The patch is added untop of the source of the kernel included with Ubuntu.
@@ -13,11 +13,11 @@ doc: |
 
     cijoe --monitor \
       -c configs/transport.toml \
-      -c configs/uio_dmabuf.toml \
-      tasks/setup_uio_dmabuf.yaml
+      -c configs/udmabuf_import.toml \
+      tasks/setup_udmabuf_import.yaml
 
   Adjust transport.toml with the hostname and ssh-login info of the root user.
-  Adjust uio_dmabuf.toml with the path to your aisio github repository on the host.
+  Adjust udmabuf_import.toml with the path to your aisio github repository on the host.
 
 steps:
 - name: install_dependencies
@@ -35,12 +35,12 @@ steps:
 - name: copy_patch
   uses: core.put
   with:
-    src: "{{ config.uio.patch.path }}/{{ config.uio.patch.name }}"
+    src: "{{ config.udmabuf.patch.path }}/{{ config.udmabuf.patch.name }}"
     dst: /usr/src/{{ config.linux.source.pkg }}
 
 - name: apply_patch
   run: |
-    cd /usr/src/{{ config.linux.source.pkg }}; git apply --reject {{ config.uio.patch.name }}
+    cd /usr/src/{{ config.linux.source.pkg }}; git apply --reject {{ config.udmabuf.patch.name }}
 
 - name: get_config
   run: |

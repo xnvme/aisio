@@ -5,7 +5,6 @@
 #include <linux/dma-buf.h>
 #include <linux/memfd.h>
 #include <linux/udmabuf.h>
-#include <linux/uio_driver.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,17 +19,12 @@ struct buf_udmabuf {
   int memfd;
 };
 
-int create_udmabuf(struct buf_udmabuf *b, size_t size) {
+int create_udmabuf(int udmabuf_fd, struct buf_udmabuf *b, size_t size) {
   struct udmabuf_create create;
   int memfd, dmabuf_fd;
   void *p;
-  int ret, devfd;
+  int ret;
 
-  devfd = open("/dev/udmabuf", O_RDWR);
-  if (devfd < 0) {
-    printf("Failed to open udmabuf dev, %d\n", devfd);
-    return devfd;
-  }
 
   memfd = memfd_create("udmabuf-test", MFD_ALLOW_SEALING);
   if (memfd < 0) {
@@ -54,7 +48,7 @@ int create_udmabuf(struct buf_udmabuf *b, size_t size) {
   create.memfd = memfd;
   create.offset = 0;
   create.size = size;
-  dmabuf_fd = ioctl(devfd, UDMABUF_CREATE, &create);
+  dmabuf_fd = ioctl(udmabuf_fd, UDMABUF_CREATE, &create);
   if (dmabuf_fd < 0) {
     printf("Failed to create udmabuf, %d\n", dmabuf_fd);
     return dmabuf_fd;
@@ -66,7 +60,6 @@ int create_udmabuf(struct buf_udmabuf *b, size_t size) {
     return -1;
   }
 
-  close(devfd);
   b->size = size;
   b->dmabuf_fd = dmabuf_fd;
   b->memfd = memfd;
@@ -76,59 +69,61 @@ int create_udmabuf(struct buf_udmabuf *b, size_t size) {
 }
 
 int main(int argc, char *argv[]) {
-  struct uio_attach_dma_buf *attach;
-  struct uio_get_dma_map *map;
+  struct udmabuf_attach *attach;
+  struct udmabuf_get_map *map;
   struct buf_udmabuf dmabuf;
-  int uio_fd, ret;
+  int udmabuf_fd, dmabuf_fd, ret;
   long buf_size = 8 * 4096;
   long map_size;
 
-  uio_fd = open("/dev/uio0", O_RDWR);
-  if (uio_fd < 0) {
-    printf("Failed to open /dev/uio0, %d\n", uio_fd);
-    return uio_fd;
+  
+  udmabuf_fd = open("/dev/udmabuf", O_RDWR);
+  if (udmabuf_fd < 0) {
+    printf("Failed to open udmabuf dev, %d\n", udmabuf_fd);
+    return udmabuf_fd;
   }
-  printf("UIO FD: %d\n", uio_fd);
 
-  ret = create_udmabuf(&dmabuf, buf_size);
+  ret = create_udmabuf(udmabuf_fd, &dmabuf, buf_size);
   if (ret) {
     return ret;
   }
 
-  printf("DMABUF FD: %d\n", dmabuf.dmabuf_fd);
+  dmabuf_fd = dmabuf.dmabuf_fd;
 
-  attach = malloc(sizeof(struct uio_attach_dma_buf));
+  printf("DMABUF FD: %d\n", dmabuf_fd);
+
+  attach = malloc(sizeof(struct udmabuf_attach));
   if (!attach) {
     printf("Failed to alloc attach struct\n");
     return -1;
   }
-  attach->fd = dmabuf.dmabuf_fd;
+  attach->fd = dmabuf_fd;
 
-  ret = ioctl(uio_fd, UIO_ATTACH_DMA_BUF, attach);
+  ret = ioctl(udmabuf_fd, UDMABUF_ATTACH, attach);
   if (ret) {
     ret = errno;
-    printf("IOCTL UIO_ATTACH_DMA_BUF failed, %d\n", ret);
+    printf("IOCTL UDMABUF_ATTACH failed, %d\n", ret);
     return ret;
   }
 
   printf("dma-buf contains %u addresses\n", attach->count);
 
-  map_size = attach->count * sizeof(struct uio_dma_map);
+  map_size = attach->count * sizeof(struct udmabuf_get_map);
 
-  map = malloc(sizeof(struct uio_get_dma_map) + map_size);
+  map = malloc(sizeof(struct udmabuf_get_map) + map_size);
   if (!map) {
     printf("Failed to alloc map struct\n");
     return -1;
   }
   memset(map->dma_arr, 0, map_size);
 
-  map->fd = dmabuf.dmabuf_fd;
+  map->fd = dmabuf_fd;
   map->count = attach->count;
 
-  ret = ioctl(uio_fd, UIO_GET_DMA_MAP, map);
+  ret = ioctl(udmabuf_fd, UDMABUF_GET_MAP, map);
   if (ret) {
     ret = errno;
-    printf("IOCTL UIO_GET_DMA_MAP failed, %d\n", ret);
+    printf("IOCTL UDMABUF_GET_MAP failed, %d\n", ret);
     return ret;
   }
 
@@ -137,12 +132,14 @@ int main(int argc, char *argv[]) {
     printf("len %d: 0x%x\n", i, map->dma_arr[i].dma_len);
   }
 
-  ret = ioctl(uio_fd, UIO_DETACH_DMA_BUF, &dmabuf.dmabuf_fd);
+  ret = ioctl(udmabuf_fd, UDMABUF_DETACH, &dmabuf_fd);
   if (ret) {
     ret = errno;
-    printf("IOCTL UIO_DETACH_DMA_BUF failed, %d\n", ret);
+    printf("IOCTL UDMABUF_DETACH failed, %d\n", ret);
     return ret;
   }
+
+  close(udmabuf_fd);
 
   return ret;
 }

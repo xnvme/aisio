@@ -1,0 +1,6 @@
+[linux.source]
+pkg = "linux-source-6.8.0"
+
+[udmabuf.patch]
+path = "{{ local.env.HOME }}/git/aisio/udmabuf-import/patches"
+name = "udmabuf-import-dma-buf-and-share-phys-addr-to-user.patch"
