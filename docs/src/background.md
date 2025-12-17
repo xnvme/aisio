@@ -11,89 +11,218 @@ when later sections depend on concepts introduced in this groundwork.
 
 ## CPUs
 
-Intel, AMD, ARM, Power, Risc-V. This section provides a brief introduction to
-CPU behavior and how operating-system and user-space tools interact with CPUs to
-control power/performance states. As well as basic CPU architecture components
-of the ALU, FPU, MMU, CACHE and how these are used for instruction fetch,
-decode, and execute with branch-prediction.
+Modern CPU architecture is a sophisticated evolution of the **Von Neumann
+Architecture**, which established the foundational concept of a processing unit
+fetching instructions and data from a shared memory system. While the original
+model relied on a single sequential flow, modern processors from manufacturers
+like Intel, AMD, ARM, and RISC-V have expanded these core principles into a
+highly parallel and specialized hierarchy.
 
-### CPU Frequency
+### CPU Architecture and Components
 
-CPU frequency, or clock speed, is the frequency at which the CPU executes
-instructions. The frequency is measured per logical CPU and modern CPUs have
-dynamic frequency scaling, meaning the CPU frequency typically fluctuates within
-a given range. A higher CPU frequency generally means higher performance, as the
-CPU has a higher throughput. However, it also comes with the cost of increased
-temperatures and power consumption. As such, the CPU driver will adjust the CPU
-frequency according to the workload based on hardware limitation and CPU governors.
+The "Central Processing Unit" is now an **Execution Engine** composed of
+distinct hardware units that handle the instruction fetch, decode, and execute
+cycle. The **Arithmetic Logic Unit (ALU)** remains the primary worker for
+whole-number calculations and logical branching, while the **Floating-Point
+Unit (FPU)** acts as a dedicated specialist for complex decimal math. To handle
+modern workloads like video and encryption, **SIMD (Single Instruction, Multiple
+Data)** or **Vector Units** allow the processor to apply a single command across
+large batches of data simultaneously.
 
-Specifications of modern CPUs decribe both a *base* frequency and a *max* or
-*turbo* frequency. The base frequency is the minimum guaranteed clock speed at
-which the CPU can operate at continuously. The max frequency describe the maximum
-clock speed the processor can achieve when "turbo boost" is enabled. Turbo boost
-is a feature that allows the CPU to run aboce the base clock speed when thermal
-and power conditions allow it to do so. For heavy workloads, this increases the
-performance by raising the throughput. Turbo boost is commonly enabled by default
-but can be disabled to reduce heat and power consumption and to ensure more
-stability in battery life.
+Directing these units is the **Control Unit**, which functions as the manager
+of the execution cycle. In contemporary designs, this unit is assisted by a
+**Branch Predictor** that anticipates program flow to keep the execution units
+fed with data, minimizing idle time. Data movement and memory protection are
+managed by the **Memory Management Unit (MMU)**, which translates virtual
+addresses used by software into physical addresses in RAM to ensure process
+isolation. To bridge the speed gap between the fast processor and slow main
+RAM, a tiered **Cache** hierarchy (L1, L2, and L3) stores progressively larger
+amounts of data directly on the silicon.
 
-CPU governors control how the CPU driver adjusts the clock speed in response to
-system load. Commonly, there will be *powersave* and *performance* governors,
-which lock the CPU frequency at either the minimum or maximum, respectively.
-Other governors, such as *ondemand*, will scale the frequency dynamically based
-on internal heuristics. The CPU frequency can also be fixed to a specific value
-using CLI tools such as ``cpufrequtils`` or ``linux-cpupower``, which will
-override the heuristics of the current CPU governor.
+For communication beyond internal memory, CPUs utilize various
+**Interconnects**. The most common is the **PCIe Root Complex**, which serves as
+the interface between the internal CPU fabric and the external PCIe hierarchy.
+Specialized systems may also use alternative high-bandwidth interconnects like
+**NVLINK** for direct GPU to CPU or GPU to GPU communication, offering higher
+throughput than standard PCIe for specific high-performance workloads.
 
-### Simultaneous Multithreading
+### CPU Frequency and Scaling
 
-Simultaneous Multithreading (SMT) allows each physical CPU core to run two threads,
-creating twice as many logical as physical cores. It does so by exposing two
-execution threads per core and utilizes idle time in one thread to execute the
-instructions from the other. This increases the efficiency of each physical core.
-On CPUs that support SMT, it is commonly enabled as default.
+The clock frequency represents the speed at which the **Control Unit**
+coordinates the fetch-decode-execute cycle, measured in billions of cycles
+per second (GHz). In the classic Von Neumann model, this speed was generally
+static, but modern CPUs use dynamic scaling to balance performance and power
+consumption. Through **Voltage and Frequency Scaling**, a processor can reduce
+its clock speed during light tasks to save energy and lower heat output.
 
-On Intel processors, SMT is often refered to as Hyper-Threading.
+Conversely, **Boost Clock** technology (also known as Turbo Boost) allows
+the CPU to temporarily exceed its **base frequency**, which is the minimum
+guaranteed clock speed, when a demanding task is detected and there is enough
+thermal and electrical headroom. This opportunistic behavior ensures that the
+ALU and FPU operate at their maximum potential only when needed, preventing the
+chip from overheating. **CPU governors** control how the driver adjusts these
+speeds; *powersave* and *performance* governors lock the frequency at limits,
+while *ondemand* scales it dynamically based on load. These can be overridden
+using CLI tools such as `cpufrequtils` or `linux-cpupower`.
+
+### Simultaneous Multithreading (SMT)
+
+To further increase efficiency, **Simultaneous Multithreading (SMT)**, referred
+to as **Hyper-Threading** on Intel processors, allows each physical CPU core to
+run two threads, creating twice as many logical cores as physical cores. It does
+so by exposing two execution threads per core and utilizing idle time in one
+thread to execute the instructions from the other. By maximizing the utility of
+execution units during memory stalls (when the core is waiting for data from the
+Cache or RAM), SMT ensures the physical core remains as productive as possible.
 
 ## Memory
 
-Briefly introduce the physical memory technologies of DDR, LPDDR, GDDR, and HBM.
-Host vs device memory
+Modern computer systems employ multiple memory technologies, each optimized
+for different trade-offs in latency, bandwidth, capacity, and persistence.
+The foundation of system memory is Dynamic Random-Access Memory (DRAM), which
+stores data as electrical charge in capacitors and therefore requires continuous
+refresh to retain its contents. When power is removed, all data in DRAM is lost,
+and technologies with this property are described as volatile.
 
-Then how this is abstracted in the operating system in the form of virtual memory.
+In computer systems, volatile memory technologies are typically referred
+to simply as memory, and we will adopt that convention here. By contrast,
+non-volatile memory technologies, such as NAND flash, retain their contents
+across power cycles and are referred to as storage.
 
-### Memory Mapped I/O (mmio)
+A further distinguishing characteristic between memory and storage is
+addressability. Memory is typically exposed as a byte-addressable address
+space, whereas storage technologies are commonly accessed through block-oriented
+interfaces. For NAND flash and other storage media, this non-byte-addressable
+access model arises from physical constraints of the underlying technology
+itself, in contrast to DRAM, which naturally supports fine-grained byte access.
 
-...
+The volatile memory technologies used in modern systems are specialized
+derivatives of DRAM. The most common variant is DDR (Double Data Rate SDRAM),
+which serves as the main system memory in general-purpose computing platforms.
+A power-optimized variant, LPDDR (Low-Power DDR), reduces energy consumption
+through lower operating voltages and optimized signaling, and is widely used
+across a broad range of systems, from mobile devices and single-board computers
+to DPUs and tightly integrated accelerator platforms. For accelerator-attached
+memory, GDDR and HBM prioritize bandwidth over latency, with HBM employing
+three-dimensional stacked DRAM and ultra-wide interfaces to deliver extremely
+high throughput and improved energy efficiency.
+
+Beyond individual memory technologies, modern systems organize memory into
+hierarchical tiers that trade capacity for latency and bandwidth. These tiers
+are commonly grouped into main memory, device-attached memory, and on-chip
+caches, each serving a distinct role within the memory hierarchy. Main memory,
+typically implemented using DDR or LPDDR, is visible to the operating system
+and provides large-capacity storage for CPU-centric execution. Device-attached
+memory, commonly implemented using GDDR or HBM, is located close to accelerators
+and optimized to sustain the high data rates required by massively parallel
+compute engines.
+
+At the lowest-latency end of the hierarchy are caches, which are tightly
+integrated with compute units and optimized for rapid, fine-grained access.
+Caches are typically implemented using SRAM and organized into multiple levels,
+trading capacity for progressively lower latency and higher bandwidth. This
+tiered organization underpins data locality, cache behavior, and memory access
+patterns in both CPUs and accelerators.
+
+Across these tiers, main memory and device-attached memory constitute the
+primary software-visible pools of volatile memory. Whether backed by host DRAM,
+accelerator-attached DRAM, or HBM, these pools are managed by system software
+and exposed to programs through explicit allocation and addressing mechanisms.
+From the perspective of both the programmer and the operating system, they are
+programmed in broadly similar ways, despite differences in physical placement,
+access latency, and bandwidth. At the lowest level, access to these memory
+pools ultimately resolves to load and store operations, whether expressed in
+high-level languages or directly as instructions that move data between memory
+and processor registers.
+
+In contrast, cache memories are primarily managed by hardware and are not
+explicitly allocated or addressed by application code. Cache placement,
+eviction, and coherence are handled transparently by the memory subsystem,
+allowing software to reason in terms of larger, contiguous memory abstractions.
+While exceptions exist, such as software-managed scratchpads or shared memories
+on accelerators, caches are generally treated as an implicit performance
+optimization rather than a directly programmable memory resource.
+
+### Virtual Memory Abstraction
+
+While applications ultimately rely on physical memory for storage, the operating
+system (OS) abstracts this reality using **Virtual Memory**. Each running
+program is given its own isolated, contiguous **virtual address space**. The
+OS, with the help of the **Memory Management Unit (MMU)** in the CPU, translates
+these virtual addresses into potentially non-contiguous **physical addresses**
+in RAM using a **page table**.  This abstraction is critical for **process
+isolation** (preventing programs from interfering with each other), **efficient
+memory utilization** (allowing a contiguous virtual block to be backed by
+scattered physical pages), and **memory capacity expansion** (enabling swapping,
+where idle memory pages are temporarily moved to disk).
+
+### Contiguous vs. Non-Contiguous Memory
+
+The operating system manages memory using a sophisticated translation scheme.
+From the perspective of an application, memory is a single, contiguous block of
+**virtual addresses**. However, this block is typically mapped by the MMU into
+non-contiguous, or scattered, **physical addresses** in RAM. This non-contiguous
+allocation is the default, allowing the OS to efficiently utilize fragmented
+physical memory.
+
+**Contiguous Memory** refers to a special case where a requested block of memory
+is backed by a single, unbroken sequence of physical addresses. This strict
+physical contiguity is often a requirement for low-level hardware operations,
+particularly those involving devices that must perform DMA transfers without
+involving the MMU in address translation.
+
+### Memory Pinning
+
+**Memory Pinning** (also known as page locking or registering memory) is the
+process of instructing the operating system to prevent a specific region of
+application memory from being relocated or swapped out to disk. When a memory
+region is pinned, its physical address is guaranteed to remain constant. This
+is crucial for performance-sensitive contexts, especially those using DMA. If
+a device is given a physical address for a DMA transfer, the memory must be
+pinned; otherwise, the OS could move the data, causing the DMA operation to
+target the wrong location and resulting in data corruption or an I/O fault.
+Pinning memory temporarily reduces the pool of physical memory available for the
+OS to manage, making it a resource-intensive operation typically restricted to
+kernel code or privileged user-space drivers.
 
 ### Direct Memory Access (DMA)
 
-...
+**Direct Memory Access (DMA)** is a critical capability that allows peripheral
+devices (such as network cards, disk controllers, or GPUs) to transfer data
+directly to and from main system memory **without continuous CPU intervention**.
+A specialized component, the **DMA Controller**, manages the entire transfer
+process.  This offloading significantly reduces the CPU overhead and bus
+traffic, which is essential for high-throughput operations. The device initiates
+a transfer request, the DMA Controller moves the data, and then interrupts the
+CPU only when the entire operation is complete.
 
 ### Non-Uniform Memory Access (NUMA)
 
-Non-uniform memory access (NUMA) <REF linux-numa> is a design for computer memory
-when multiple processors are available in a system and memory location affects the
-memory access time.
-NUMA nodes are an abstraction of the system's hardware resources and represent
-groups of hardware that are physically closer to each other than to the rest of the
-system. Memory access to memory within the same node will often experience faster
-access time than to memory across nodes.
+Non-uniform memory access (NUMA) <REF linux-numa> is a design for computer
+memory when multiple processors are available in a system and memory location
+affects the memory access time.  NUMA nodes are an abstraction of the system's
+hardware resources and represent groups of hardware that are physically closer
+to each other than to the rest of the system. Memory access to memory within the
+same node will often experience faster access time than to memory across nodes.
 
-In high-throughput storage benchmarks the penalty of accessing memory across NUMA
-nodes becomes negligible. When using multiple queues and threads most of the time is
-spent moving data through the device’s internal parallel engines, through PCIe, and
-on the CPUs that poll the queues. Under these conditions the latency difference
-between local and remote NUMA access is hidden by the concurrency of the system.
+In high-throughput storage benchmarks the penalty of accessing memory across
+NUMA nodes becomes negligible. When using multiple queues and threads most of
+the time is spent moving data through the device’s internal parallel engines,
+through PCIe, and on the CPUs that poll the queues. Under these conditions
+the latency difference between local and remote NUMA access is hidden by the
+concurrency of the system.
 
-### Virtual Memory
+### Memory-Mapped I/O (MMIO)
 
-...
+**Memory-Mapped I/O (MMIO)** is a mechanism that allows the CPU to communicate
+with peripheral devices by treating the device's control and data registers as
+if they were standard memory locations. The device registers are assigned unique
+addresses within the CPU's overall address space, separate from main system RAM.
+The CPU then uses standard load and store instructions to read from or write to
+these memory addresses, which directly manipulate the state of the I/O device.
 
-### Pinning
-
-...
-
+Later we will take a closer look at thos PCIe attached devices expose register
+and memory spaces.
 
 ## PCIe
 
