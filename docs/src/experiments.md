@@ -50,21 +50,33 @@ as there are two threads on each of the cores.
 
 The complete list of independent variables and the values for the variables are:
 
-| Variable                 | Used values                            |
-| ------------------------ | -------------------------------------- |
-| Queue depth              | { 64, 128, 256 }                       |
-| I/O size                 | { 512, 4096 }                          |
-| Number of cores          | { 1, 2, ..., 8 }                       |
-| Number of devices        | { 1, 2, ..., 16 }                      |
-| CPU frequency / governor | { powersave, performance, 3.0 GHz }    |
-| Turbo boost              | { on, off }                            |
-| SMT                      | { on, off }                            |
-| Thread siblings          | { used, not used }                     |
-| Stress                   | { on, off }                            |
+| Variable                 | Parameter Set              |
+| ------------------------ | -------------------------- |
+| CPU frequency / governor | { powersave, performance } |
+| Turbo boost              | { on, off }                |
+| SMT                      | { on, off }                |
+| Thread siblings          | { used, not used }         |
+| Stress                   | { on, off }                |
+| Queue depth              | { 64, 128, 256 }           |
+| I/O size                 | { 512, 4096 }              |
+| Number of cores          | { 1, 2, 4, 8 }             |
+| Number of devices        | { 1, 2, 4, 8, 16 }         |
 
-The cartesian product of the sets of these variables, filtered to avoid an illegal
-combination of (SMT off, thread siblings used), yields the full set of benchmark
-runs.
+The Cartesian product of the variable sets, excluding the illegal combination of
+SMT off with thread siblings used, defines the full set of benchmark runs.
+
+After identifying the parameterization which yielded the highest IOPS, we
+individually expanded the set of values for each variable to explore the results
+beyond the initial selection. The expanded parameter set is listed below. Note
+that not all combinations in the expanded parameter set were tested.
+
+| Variable                 | Expanded Parameter Set                 |
+| ------------------------ | -------------------------------------- |
+| CPU frequency / governor | { powersave, performance }             |
+| Queue depth              | { 8, 16, 32, 64, 128, 256, 512, 1024 } |
+| I/O size                 | { 512, 1024, 2048, 4096, 8192 }        |
+| Number of cores          | { 1, 2, ..., 16 }                      |
+| Number of devices        | { 1, 2, ..., 16 }                      |
 
 ### Metrics Collected
 
@@ -73,6 +85,7 @@ The collected metrics are:
 | Metric                         | Reported by                                               |
 | ------------------------------ | --------------------------------------------------------- |
 | Completed IOPS                 | bdevperf                                                  |
+| Bandwidth (MiB/s)              | bdevperf                                                  |
 | CPU utilisation (%)            | ``/usr/bin/time``                                         |
 | Measured CPU frequencies (kHz) | ``/sys/devices/system/cpu/cpuX/cpufreq/scaling_cur_freq`` |
 
