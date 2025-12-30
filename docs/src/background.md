@@ -385,6 +385,15 @@ describe all data transfer paths allowable in PCI Express systems and form the
 architectural foundation for understanding performance and design tradeoffs in
 accelerator integrated storage paths.
 
+(sec-massively-parallel-processing-units)=
+## Massively Parallel Processing Units
+
+* SIMD, SPMD, and SIMT
+
+* Arithmetic vs logic
+
+* Memory bandwidth vs Compute Capability
+
 (sec-nvme-controllers)=
 ## NVMe Controllers
 
@@ -560,6 +569,74 @@ or accelerator-to-device communication, these abstractions can be bypassed
 entirely, exposing the concrete NVMe protocol rather than the higher-level block
 interface. Understanding the underlying constraints therefore becomes essential
 when building systems where devices interact without traditional OS mediation.
+
+### Software Components and Integration
+
+**ublk**
+: A Linux kernel mechanism that exposes block devices implemented in user
+space. HOMI uses ublk to bridge kernel I/O requests to user-space handlers. When
+applications or the kernel VFS layer issue I/O to the ublk block device, these
+requests are delivered to HOMI's user-space process, which forwards them to the
+cooperative NVMe driver. This enables the conventional OS path to coexist with
+accelerator-initiated paths while presenting a standard block device interface
+to the kernel.
+
+**SPDK**
+: The Storage Performance Development Kit provides a user-space NVMe driver
+that bypasses the kernel I/O stack for reduced latency. HOMI configures SPDK
+as a cooperative driver: unlike traditional SPDK deployments that consume all
+available NVMe queue pairs, HOMI-managed SPDK reserves a subset of queues for
+CPU-initiated I/O and leaves the remainder available for GPU assignment. This
+partitioning is static and configured during system initialization based on
+expected workload characteristics.
+
+**xNVMe**
+: Provides a unified cross-platform NVMe API layer that abstracts differences
+between operating systems, backends, and execution contexts. HOMI uses xNVMe to
+manage NVMe controller initialization, admin queue operations, and to provide
+consistent interfaces whether commands originate from host code or GPU kernels.
+xNVMe extensions support GPU memory addressing and direct queue access patterns
+required for accelerator-initiated I/O.
+
+**XAL (eXtent Access Library)**
+: Integrated within HOMI, XAL decodes filesystem metadata to provide
+file-to-block mappings without kernel involvement. XAL reads XFS on-disk
+structures directly—including superblocks, allocation groups, inodes, and
+extent trees—and constructs an in-memory index that GPU kernels can query
+efficiently. When the filesystem is mounted and supports it, XAL uses FIEMAP
+ioctls to retrieve extent information. For unmounted filesystems or when FIEMAP
+is unavailable, XAL parses raw on-disk format structures to extract extent
+mappings.
+
+### Interaction with OS Kernel and Devices
+
+
+**Conventional kernel path**
+
+Applications using standard POSIX file I/O interact with the kernel VFS and
+filesystem layers. These requests eventually reach the ublk block device, which
+delivers them to HOMI's user-space process. HOMI forwards them to SPDK, which
+executes the I/O using its reserved NVMe queue pairs. Completions propagate
+back through the same path. This path maintains full compatibility with existing
+applications and kernel infrastructure.
+
+**Host-initiated fast path**
+: Applications using user-space I/O libraries (io_uring, SPDK APIs) bypass
+the kernel and submit I/O directly to HOMI-managed SPDK queues. This reduces
+software overhead while still using CPU-initiated I/O and host memory buffers.
+
+**Device-initiated fast path**
+: GPU kernels query HOMI's extent cache to translate file offsets into
+physical block addresses, construct NVMe commands in GPU memory, submit them
+to GPU-resident queue pairs, and process completions via polling. The NVMe
+controller performs peer-to-peer DMA directly between SSD and GPU memory. The
+CPU is not involved in data movement.
+
+All three paths operate concurrently on the same filesystem. HOMI ensures
+coherency by maintaining up-to-date extent information and coordinating queue
+access. The kernel path provides safety and compatibility. The accelerator path
+provides maximum performance for data-intensive operations.
+
 
 (sec-dma-visibility)=
 ## DMA Visibility Requirements
