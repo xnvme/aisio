@@ -22,6 +22,7 @@ but sacrificing compatibility with unmodified Linux file systems.
 models but requires specialized runtime infrastructure and does not interoperate
 with existing on-disk file systems.
 
-**AiSIO** differs by preserving existing file-system formats and Linux
-kernel semantics while enabling both CPU-initiated and device-initiated
-accelerator-integrated I/O.
+Accelerator-integrated Storage I/O (**AiSIO**) differs both in design and
+in the Host-Orchestrated Multipath I/O (**HOMI**) reference implementation
+by preserving existing file-system formats and Linux kernel semantics while
+enabling both CPU-initiated and device-initiated accelerator-integrated I/O.
