@@ -14,15 +14,15 @@ when later sections depend on concepts introduced in this groundwork.
 
 This section introduces a small set of terms used throughout the document to
 avoid implicit assumptions about where coordination occurs, where data moves,
-and what constitutes a minimal I/O sequence. The terms “control plane” and “data
-path” are used to describe logical roles rather than fixed subsystems or
-deployment boundaries.
+and which processing entity is responsible for initiating I/O. The terms defined
+here describe logical roles rather than fixed subsystems or deployment
+boundaries.
 
 **Control plane**
 : Logical coordination and management operations associated with I/O, such as
 device configuration, queue allocation and management, metadata handling, and
-permission or policy enforcement. Control-plane operations may execute on the
-same processing elements as data-path operations, depending on system design.
+policy enforcement. Control-plane operations may execute on the same processing
+elements as data-path operations, depending on system design.
 
 **Data path**
 : The movement of I/O payloads through DMA engines and interconnects, including
@@ -32,6 +32,33 @@ device-to-host and device-to-device transfers.
 : The minimal sequence of operations required to complete an I/O request under a
 given execution and memory model, excluding optional monitoring, fallback
 handling, or recovery procedures.
+
+**CPU-initiated I/O**
+: I/O in which NVMe commands are constructed and submitted by software executing
+on the host CPU. This includes both kernel-resident drivers and user-space
+drivers, and is independent of whether data movement uses host memory or
+peer-to-peer DMA. In the literature, this execution model is sometimes also
+referred to as *host-initiated* I/O.
+
+**Device-initiated I/O**
+: I/O in which NVMe commands are constructed and submitted by software executing
+on a PCIe-attached device, such as a GPU, DPU, or FPGA. Payloads reside in
+device-local or device-accessible memory, and command submission proceeds
+without host involvement on the data path, subject to host-managed coordination
+and policy.
+
+**OS-managed**
+: Storage access paths that operate through kernel-resident drivers and the
+operating system’s storage stack, including block layers, file systems, and
+VFS-mediated interfaces. The operating system retains responsibility for device
+initialization, queue management, metadata handling, and policy enforcement.
+
+**User-space managed**
+: Storage access paths in which NVMe devices are initialized and managed by
+host-resident user-space software rather than kernel drivers. User-space managed
+paths bypass the kernel storage stack and assume explicit responsibility for
+queue management, scheduling, and safety mechanisms normally provided by the
+operating system.
 
 ## CPUs
 

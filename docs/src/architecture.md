@@ -2,11 +2,11 @@
 
 # Architecture
 
-Accelerator-integrated Storage I/O (AiSIO) architectures are characterized by the
-coexistence of multiple I/O paths within a single system, spanning conventional
-OS-managed storage stacks, host-resident user-space frameworks, and
-device-initiated execution on accelerators. These architectures are designed to
-enable high-performance data access without sacrificing compatibility with
+Accelerator-integrated Storage I/O (AiSIO) architectures are characterized
+by the coexistence of multiple I/O paths within a single system, spanning
+conventional OS-managed storage stacks, host-resident user-space frameworks,
+and device-initiated execution on accelerators. These architectures are designed
+to enable high-performance data access without sacrificing compatibility with
 existing filesystems, applications, and operating-system storage abstractions.
 Rather than replacing established OS storage mechanisms, AiSIO focuses on
 controlled sharing of storage resources and coordinated operation across
@@ -62,15 +62,15 @@ through standard interfaces, ensuring correct metadata handling, consistency,
 and durability. This path maintains the safety and semantic guarantees required
 by the operating system and its applications.
 
-**User-space managed** I/O paths remain host-resident but shift both control
-and data plane responsibilities from kernel space to user space. Frameworks
-such as SPDK initialize and manage NVMe devices directly on the host,
-including driver bring-up, admin-queue configuration, and I/O queue management.
-By bypassing the kernel storage stack, this path eliminates
-interrupts, context switches, and redundant data copies, enabling low-latency
-and high-throughput I/O. As a result, abstractions normally provided by the
-operating system, such as block devices, scheduling, isolation, and safety
-guarantees, must be explicitly rebuilt on top of the user-space runtime.
+**User-space managed** I/O paths remain host-resident but shift both control and
+data plane responsibilities from kernel space to user space. Frameworks such as
+SPDK initialize and manage NVMe devices directly on the host, including driver
+bring-up, admin-queue configuration, and I/O queue management. By bypassing
+the kernel storage stack, this path eliminates interrupts, context switches,
+and redundant data copies, enabling low-latency and high-throughput I/O. As a
+result, abstractions normally provided by the operating system, such as block
+devices, scheduling, isolation, and safety guarantees, must be explicitly
+rebuilt on top of the user-space runtime.
 
 **Device-initiated** I/O paths extend user-space managed I/O by allowing devices
 to initiate storage operations directly. Accelerators such as GPUs issue NVMe
@@ -134,7 +134,7 @@ HOMI supports multiple orchestration strategies that reflect different points
 in the AiSIO design space. It can realize host-orchestrated multipath I/O
 either through hardware-supported virtualization using SR-IOV, or through
 software-mediated multiplexing via a user-space block interface using *ublk*
-\cite{ublk}. These strategies impose different constraints on isolation, queue
+{cite}`ublk`. These strategies impose different constraints on isolation, queue
 ownership, and resource sharing, and enable the exploration of architectural
 trade-offs between hardware-assisted and software-mediated multipath designs.
 
@@ -147,12 +147,16 @@ layout, it provides a common coordination point between OS-managed, user-space
 managed, and device-initiated I/O paths.
 
 The daemon exposes interfaces through which user-space processes and devices
-can obtain access to NVMe resources, including handles required to establish
-I/O queue pairs for direct command submission. This design allows queue
-ownership and scheduling decisions to be orchestrated at the host level, without
-transferring full device control out of the host. As a result, accelerators
-and user-space components can initiate I/O while remaining integrated with
-kernel-managed storage semantics.
+can obtain access to NVMe resources, including handles required to establish I/O
+queue pairs for direct command submission.
+
+This design allows queue ownership and scheduling decisions to be orchestrated
+at the host level, enabling accelerators and user-space components to initiate
+I/O without assuming responsibility for device management or administrative
+control.
+
+As a result, accelerators and user-space components can initiate I/O while
+remaining integrated with kernel-managed storage semantics.
 
 HOMI is intentionally scoped as a reference implementation. It focuses on
 exposing and coordinating multiple I/O paths rather than on providing a complete
