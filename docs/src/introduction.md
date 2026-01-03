@@ -2,52 +2,57 @@
 
 # Introduction
 
-Few developments today influence system architecture as immediately and
-pervasively as AI, although quantum computing is poised to introduce
-transformative long-term changes of its own. While quantum systems remain
-specialized and emerging, AI workloads are already reshaping how compute,
-memory, and storage architectures evolve. AiSIO arises directly from the need to
+Few developments are reshaping system architecture as rapidly and decisively
+as artificial intelligence. Unprecedented investment in AI infrastructure, the
+emergence of large-scale AI factories, and the pace of research in training,
+inference, and data-intensive models are collectively redefining requirements
+for compute, memory, and storage systems. AiSIO arises directly from the need to
 integrate accelerators into the I/O path in a coherent and interoperable way, so
 that data movement and storage access can keep pace with modern workloads.
 
 The need for such integration becomes clear when considering how accelerator
-hardware has advanced, yet systems still rely on CPU centered I/O paths. This
-is not only a hardware limitation. It reflects poor utilization caused by weak
-integration of accelerators into operating system infrastructure. Proprietary
-drivers, runtimes, and programming models keep accelerators outside the
-mechanisms that the operating system uses to manage memory and coordinate I/O.
+capabilities have advanced while their interaction with storage remains largely
+mediated through conventional host-driven interfaces. This is not a failure of
+CPU-centered I/O paths, which continue to provide essential guarantees around
+correctness, sharing, and interoperability, but a reflection of integration
+models that were not designed for accelerators capable of issuing and sustaining
+I/O at massive scale. Proprietary drivers, closed runtimes, and narrowly scoped
+programming models often place accelerators outside the mechanisms the operating
+system uses to coordinate memory, devices, and storage access.
 
-I/O demand now grows faster than accelerator vendors can adapt their proprietary
-stacks, and closed ecosystems prevent users from addressing bottlenecks or
-extending functionality. As a result, data continues to pass through host
-memory and CPU controlled paths even when accelerators are capable of direct
-and efficient access to storage. This leads to persistent underutilization of
-compute and storage. Open and modifiable system software is becoming essential
-for achieving full hardware utilization and for building architectures that can
-evolve with emerging workloads.
+As I/O demand continues to grow, these integration boundaries increasingly
+manifest as inefficiencies rather than hard limitations. Data is frequently
+routed through host memory and CPU-managed paths even when accelerators are
+capable of participating directly in data movement or initiating I/O themselves.
+This leads to persistent underutilization of compute and storage resources, not
+because existing operating-system abstractions are flawed, but because they lack
+structured mechanisms for safely incorporating accelerators into the storage
+subsystem.
 
-A parallel evolution is required within the operating system. OS storage stacks,
-drivers, and abstractions were built around long standing principles such as
-file system semantics, block device interfaces, security, metadata management,
-and uniform access to hardware. These abstractions remain indispensable. Yet
-emerging workloads increasingly require mechanisms that allow accelerators to
-access storage directly through peer to peer transfers, accelerator resident
-queues, and heterogeneous control flows, while still supporting conventional OS
-managed paths. The operating system must therefore provide robust abstractions
-alongside efficient bypass mechanisms, enabling flexibility without compromising
-correctness, safety, or interoperability.
+A parallel evolution is therefore required within system software. Operating
+system storage stacks, drivers, and abstractions were built around long-standing
+principles such as file system semantics, block-device interfaces, protection,
+metadata management, and uniform access to hardware. These principles remain
+indispensable. At the same time, emerging workloads motivate additional paths
+that allow accelerators to access storage more directly, through peer-to-peer
+transfers, accelerator-accessible queues, and heterogeneous control flows, while
+continuing to coexist with conventional OS-managed I/O.
 
-AiSIO designates a class of system architectures built around an integrated
-multipath philosophy that treats accelerators as first class participants in the
-storage subsystem. In this model, the CPU retains essential system management
-responsibilities, accelerators can participate directly in data movement
-or initiate I/O, and the operating system coordinates both long standing
-abstractions and efficient bypass mechanisms.
+Accelerator-integrated Storage I/O (AiSIO) designates a class of system
+software architectures built around this cooperative multipath philosophy. In
+AiSIO systems, the CPU and operating system retain responsibility for global
+coordination, device management, metadata handling, and policy enforcement.
+Accelerators, in turn, are elevated to first-class participants in the storage
+subsystem, able to contribute to data-path execution or initiate I/O under
+host coordination. This approach enables high-performance access paths without
+abandoning existing file systems, applications, or operating-system managed
+storage abstractions.
 
-This unified and hybrid approach is essential for constructing scalable and
-efficient systems in the AI era. It enables architectures that do not rely on
-a single I/O paradigm but instead combine the strengths of diverse processing
-units, memory tiers, and software layers. HOMI, introduced later in this paper,
-serves as a reference architecture and implementation within the AiSIO class and
-demonstrates how these principles can be realized in open and modifiable system
-software.
+This unified and hybrid model is essential for constructing scalable and
+efficient systems in the AI era. Rather than relying on a single I/O paradigm,
+AiSIO architectures combine the strengths of diverse processing units, memory
+tiers, and software layers within a single system. Host Orchestrated Multipath
+I/O (HOMI) serves as a reference architecture and implementation within the
+AiSIO class. HOMI demonstrates how these principles can be realized in open and
+modifiable system software, enabling multiple I/O paths to coexist with shared
+access to storage resources while preserving operating-system semantics.

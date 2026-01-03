@@ -1,8 +1,18 @@
+@manual{pcisig:pcie_7_0,
+  title        = {{PCI Express Base Specification, Revision 7.0, Version 1.0}},
+  author       = {{PCI-SIG}},
+  organization = {Peripheral Component Interconnect Special Interest Group},
+  year         = {2025},
+  month        = {June},
+  note         = {Section 9: Virtualization (The primary definition of SR-IOV and MR-IOV hardware architecture)},
+  url          = {https://pcisig.com/specifications}
+}
+
 @manual{nvme-base-2.3,
   title        = {NVM Express Base Specification Revision 2.3},
   organization = {NVM Express, Inc.},
   year         = {2025},
-  month        = aug,
+  month        = {August},
   url          = {https://nvmexpress.org/wp-content/uploads/NVM-Express-Base-Specification-Revision-2.3-2025.08.01-Ratified.pdf}
 }
 
@@ -10,7 +20,7 @@
   title        = {NVM Express NVM Command Set Specification Revision 1.2},
   organization = {NVM Express, Inc.},
   year         = {2025},
-  month        = aug,
+  month        = {August},
   url          = {https://nvmexpress.org/wp-content/uploads/NVM-Express-NVM-Command-Set-Specification-Revision-1.2-2025.08.01-Ratified.pdf}
 }
 
@@ -18,7 +28,7 @@
   title        = {NVM Express Zoned Namespace Command Set Specification Revision 1.4},
   organization = {NVM Express, Inc.},
   year         = {2025},
-  month        = aug,
+  month        = {August},
   url          = {https://nvmexpress.org/wp-content/uploads/NVM-Express-Zoned-Namespace-Command-Set-Specification-Revision-1.4-2025.08.01-Ratified.pdf}
 }
 
@@ -26,7 +36,7 @@
   title        = {NVM Express Key-Value Command Set Specification Revision 1.3},
   organization = {NVM Express, Inc.},
   year         = {2025},
-  month        = aug,
+  month        = {August},
   url          = {https://nvmexpress.org/wp-content/uploads/NVM-Express-Key-Value-Command-Set-Specification-Revision-1.3-2025.08.01-Ratified.pdf}
 }
 
@@ -34,7 +44,7 @@
   title        = {NVM Express Computational Programs Command Set Specification Revision 1.2},
   organization = {NVM Express, Inc.},
   year         = {2025},
-  month        = aug,
+  month        = {August},
   url          = {https://nvmexpress.org/wp-content/uploads/NVM-Express-Computational-Programs-Command-Set-Specification-Revision-1.2-2025.08.01-Ratified.pdf}
 }
 
@@ -42,7 +52,7 @@
   title        = {NVM Express Subsystem Local Memory Command Set Specification Revision 1.2},
   organization = {NVM Express, Inc.},
   year         = {2025},
-  month        = aug,
+  month        = {August},
   url          = {https://nvmexpress.org/wp-content/uploads/NVM-Express-Subsystem-Local-Memory-Command-Set-Specification-Revision-1.2-2025.08.01-Ratified.pdf}
 }
 
@@ -50,7 +60,7 @@
   title        = {NVM Express NVMe over PCIe Transport Specification Revision 1.3},
   organization = {NVM Express, Inc.},
   year         = {2025},
-  month        = aug,
+  month        = {August},
   url          = {https://nvmexpress.org/wp-content/uploads/NVM-Express-NVMe-over-PCIe-Transport-Specification-Revision-1.3-2025.08.01-Ratified.pdf}
 }
 
@@ -58,7 +68,7 @@
   title        = {NVM Express NVMe over RDMA Transport Specification Revision 1.2},
   organization = {NVM Express, Inc.},
   year         = {2025},
-  month        = aug,
+  month        = {August},
   url          = {https://nvmexpress.org/wp-content/uploads/NVM-Express-NVMe-over-RDMA-Transport-Specification-Revision-1.2-2025.08.01-Ratified.pdf}
 }
 
@@ -66,7 +76,7 @@
   title        = {NVM Express NVMe over TCP Transport Specification Revision 1.2},
   organization = {NVM Express, Inc.},
   year         = {2025},
-  month        = aug,
+  month        = {August},
   url          = {https://nvmexpress.org/wp-content/uploads/NVM-Express-NVMe-over-TCP-Transport-Specification-Revision-1.2-2025.08.01-Ratified.pdf}
 }
 
@@ -77,17 +87,61 @@
   year      = {2017},
   pages     = {154--161},
   doi       = {10.1109/CloudCom.2017.14},
-  url       = {https://ieeexplore.ieee.org/abstract/document/8241103}
+  url       = {https://ieeexplore.ieee.org/document/8241103}
 }
 
-@article{lund2024xnvme,
-  author  = {Lund, Simon A. F. and Shah, Vivek},
-  title   = {{xNVMe}: Unleashing Storage Hardware-Software Co-design},
-  journal = {arXiv},
-  year    = {2024},
-  eprint  = {2411.06980},
-  doi     = {10.48550/arXiv.2411.06980},
-  url     = {https://arxiv.org/abs/2411.06980}
+@misc{linux-fiemap,
+  title        = {Linux Filesystem FIEMAP Interface},
+  author       = {{Linux Kernel Developers}},
+  howpublished = {\url{https://docs.kernel.org/filesystems/fiemap.html}},
+  year         = {2024},
+  note         = {Documentation of the FIEMAP ioctl for retrieving file extent mappings}
+}
+
+@misc{xallib,
+  title        = {xallib: eXtents Access Library},
+  author       = {{xallib Project}},
+  howpublished = {\url{https://github.com/safl/xallib}},
+  year         = {2024},
+  note         = {Open-source library for extracting file extent metadata from Linux file systems}
+}
+
+@inproceedings{xnvme_systor,
+author = {Lund, Simon A. F. and Bonnet, Philippe and Jensen, Klaus B. A. and Gonzalez, Javier},
+title = {I/O interface independence with xNVMe},
+year = {2022},
+isbn = {9781450393805},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3534056.3534936},
+doi = {10.1145/3534056.3534936},
+abstract = {The tight coupling of data-intensive systems and I/O interface has been a problem for years. A database system, relying on an specific I/O backend for direct asynchronous I/Os such as libaio, inherits its limitations in terms of portability, expressiveness and performance. The emergence of high-performance NVMe Solid-State Drives (SSDs), enabling new command sets, compounds this problem. Indeed, efforts to streamline the I/O stack have led to the introduction of new, complex and idiosyncratic I/O interfaces such as SPDK, io_uring or asynchronous ioctls. What is the appropriate I/O interface for a given system? How can applications effectively leverage SSD and end-to-end I/O interface innovations? Is I/O interface lock-in a necessary evil for data-intensive systems and storage services? Our answer to the latter question is no. Our answer to the former questions is xNVMe, a cross-platform user-space library that provides I/O-interface independence to user-space software. In this paper, we present the xNVMe API, we detail its design and we show that xNVMe has a negligible cost atop the most efficient I/O interfaces on Linux, FreeBSD and Windows.},
+booktitle = {Proceedings of the 15th ACM International Conference on Systems and Storage},
+pages = {108–119},
+numpages = {12},
+keywords = {I/O interface, NVMe SSD, SPDK, io_uring},
+location = {Haifa, Israel},
+series = {SYSTOR '22}
+}
+
+@article{xnvme_preprint,
+  author        = {Lund, Simon A. F. and Shah, Vivek},
+  title         = {{xNVMe}: Unleashing Storage Hardware-Software Co-design},
+  journal       = {arXiv preprint},
+  year          = {2024},
+  eprint        = {2411.06980},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.OS},
+  doi           = {10.48550/arXiv.2411.06980},
+  url           = {https://arxiv.org/abs/2411.06980}
+}
+
+@misc{xnvme-io,
+  title        = {xNVMe Project Website},
+  author       = {{xNVMe Project}},
+  howpublished = {\url{https://xnvme.io/}},
+  year         = {2024},
+  note         = {Official project website for xNVMe, including documentation, source code links, and usage examples}
 }
 
 @inproceedings{torp2025gpu_initiated_io,
@@ -99,29 +153,28 @@
   publisher = {Association for Computing Machinery},
   address   = {Berlin, Germany},
   doi       = {10.1145/3736227.3736232},
-  url       = {https://dl.acm.org/doi/full/10.1145/3736227.3736232}
+  url       = {https://dl.acm.org/doi/10.1145/3736227.3736232}
 }
 
-@inproceedings{qureshi2023bam,
+@inproceedings{bam2023,
   author    = {Qureshi, Zaid and Mailthody, Vikram Sharma and Gelado, Isaac and Min, Seung Won and Masood, Amna and Park, Jeongmin and Xiong, Jinjun and Newburn, C. J. and Vainbrand, Dmitri and Chung, I-Hsin and Garland, Michael and Dally, William and Hwu, Wen-mei},
   title     = {BaM: A Case for Enabling Fine-grain High Throughput {GPU}-Orchestrated Access to Storage},
-  booktitle = {Proceedings of the 28th ACM International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS '23)},
+  booktitle = {Proceedings of the 28th ACM International Conference on Architectural Support for Programming Languages and Operating Systems},
   year      = {2023},
   doi       = {10.1145/3534056.3534936},
-  url       = {https://dl.acm.org/doi/abs/10.1145/3534056.3534936}
+  url       = {https://dl.acm.org/doi/10.1145/3534056.3534936}
 }
 
-@inproceedings{294787,
+@inproceedings{joshi2024iopassthru,
   author    = {Joshi, Kanchan and Gupta, Anuj and Gonzalez, Javier and Kumar, Ankit and Reddy, Krishna Kanth and George, Arun and Lund, Simon and Axboe, Jens},
   title     = {{I/O} Passthru: Upstreaming a Flexible and Efficient {I/O} Path in Linux},
   booktitle = {22nd USENIX Conference on File and Storage Technologies (FAST 24)},
   year      = {2024},
-  isbn      = {978-1-939133-38-0},
-  address   = {Santa Clara, CA},
   pages     = {107--121},
-  url       = {https://www.usenix.org/conference/fast24/presentation/joshi},
   publisher = {USENIX Association},
-  month     = feb
+  address   = {Santa Clara, CA},
+  url       = {https://www.usenix.org/conference/fast24/presentation/joshi},
+  month     = {February}
 }
 
 @inproceedings{geminifs2025,
@@ -131,10 +184,10 @@
   year      = {2025},
   articleno = {14},
   numpages  = {16},
-  url       = {https://www.usenix.org/conference/fast25/presentation/qiu},
   publisher = {USENIX Association},
   address   = {Santa Clara, CA},
-  series    = {FAST '25}
+  series    = {FAST '25},
+  url       = {https://www.usenix.org/conference/fast25/presentation/qiu}
 }
 
 @inproceedings{gofs2025,
@@ -143,17 +196,90 @@
   booktitle = {Proceedings of the ACM SIGOPS 31st Symposium on Operating Systems Principles},
   year      = {2025},
   pages     = {979--995},
-  numpages  = {17},
   doi       = {10.1145/3731569.3764857},
-  url       = {https://doi.org/10.1145/3731569.3764857},
   publisher = {Association for Computing Machinery},
   address   = {New York, NY, USA},
-  series    = {SOSP '25}
+  series    = {SOSP '25},
+  url       = {https://doi.org/10.1145/3731569.3764857}
 }
 
-@manual{linux-numa,
-  title     = {Linux Memory Management Documentation: What is NUMA?},
-  year      = {1999},
-  author    = {Sarcar, Kanoj},
-  url       = {https://www.kernel.org/doc/html/v5.0/vm/numa.html}
+@misc{linux-numa,
+  title        = {Linux Memory Management Documentation: NUMA},
+  author       = {{Linux Kernel Developers}},
+  howpublished = {\url{https://docs.kernel.org/mm/numa.html}},
+  year         = {2024},
+  note         = {Linux kernel documentation describing Non-Uniform Memory Access (NUMA) architecture and memory management}
+}
+
+@misc{linux-nvme,
+  title        = {Linux NVMe Subsystem Documentation},
+  author       = {{Linux Kernel Developers}},
+  howpublished = {\url{https://docs.kernel.org/nvme/index.html}},
+  year         = {2024},
+  note         = {Describes the Linux NVMe driver architecture, including controller ownership, admin queue handling, and error recovery semantics}
+}
+
+@inproceedings {nvmedirect,
+	author = {Hyeong-Jun Kim and Young-Sik Lee and Jin-Soo Kim},
+	title = {{NVMeDirect}: A User-space {I/O} Framework for Application-specific Optimization on {NVMe} {SSDs}},
+	booktitle = {8th USENIX Workshop on Hot Topics in Storage and File Systems (HotStorage 16)},
+	year = {2016},
+	address = {Denver, CO},
+	url = {https://www.usenix.org/conference/hotstorage16/workshop-program/presentation/kim},
+	publisher = {USENIX Association},
+	month = jun,
+    note = {Out-of-tree Linux kernel extensions enabling direct NVMe--GPU data paths while preserving kernel ownership of NVMe controllers}
+}
+
+@misc{nvidia-gds,
+  title        = {GPUDirect Storage: A Direct Path Between Storage and GPU Memory},
+  author       = {{NVIDIA Corporation}},
+  howpublished = {\url{https://developer.nvidia.com/gpudirect-storage}},
+  year         = {2020},
+  note         = {Vendor-supported Linux kernel and driver modifications accelerating GPU--storage data movement while retaining kernel ownership of NVMe devices}
+}
+
+@article{Markussen2021,
+author = {Markussen, Jonas and Kristiansen, Lars Bj\o{}rlykke and Halvorsen, P\r{a}l and Kielland-Gyrud, Halvor and Stensland, H\r{a}kon Kvale and Griwodz, Carsten},
+title = {SmartIO: Zero-Overhead Device Sharing through PCIe Networking},
+year = {2021},
+issue_date = {May 2020},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {38},
+number = {1–2},
+issn = {0734-2071},
+url = {https://doi.org/10.1145/3462545},
+doi = {10.1145/3462545},
+abstract = {The large variety of compute-heavy and data-driven applications accelerate the need for a distributed I/O solution that enables cost-effective scaling of resources between networked hosts. For example, in a cluster system, different machines may have various devices available at different times, but moving workloads to remote units over the network is often costly and introduces large overheads compared to accessing local resources. To facilitate I/O disaggregation and device sharing among hosts connected using Peripheral Component Interconnect Express (PCIe) non-transparent bridges, we present SmartIO. NVMes, GPUs, network adapters, or any other standard PCIe device may be borrowed and accessed directly, as if they were local to the remote machines. We provide capabilities beyond existing disaggregation solutions by combining traditional I/O with distributed shared-memory functionality, allowing devices to become part of the same global address space as cluster applications. Software is entirely removed from the data path, and simultaneous sharing of a device among application processes running on remote hosts is enabled. Our experimental results show that I/O devices can be shared with remote hosts, achieving native PCIe performance. Thus, compared to existing device distribution mechanisms, SmartIO provides more efficient, low-cost resource sharing, increasing the overall system performance.},
+journal = {ACM Transactions on Computer Systems},
+month = {jul},
+articleno = {2},
+numpages = {78},
+keywords = {Resource sharing, composable infrastructure, I/O disaggregation, NTB, cluster architecture, distributed I/O, NVMe, Device Lending, PCIe, GPU}
+}
+
+
+@misc{ublk,
+  title        = {ublk: User Space Block Device},
+  author       = {{Linux Kernel Developers}},
+  howpublished = {\url{https://docs.kernel.org/block/ublk.html}},
+  year         = {2023},
+  note         = {Linux kernel framework enabling block device implementations in user space}
+}
+
+@misc{spdk,
+  title        = {Storage Performance Development Kit (SPDK)},
+  author       = {{Intel Corporation}},
+  howpublished = {\url{https://spdk.io}},
+  year         = {2019},
+  note         = {User-space framework providing high-performance NVMe drivers and block device abstractions}
+}
+
+@misc{nvidia-linux-platforms,
+  title        = {NVIDIA Platforms and Linux},
+  author       = {{NVIDIA Corporation}},
+  howpublished = {\url{https://www.nvidia.com/en-us/data-center/}},
+  year         = {2024},
+  note         = {Describes NVIDIA platforms such as DGX systems, Jetson devices, and DPU environments that rely on Linux as the foundational operating system}
 }

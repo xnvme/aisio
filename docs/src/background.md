@@ -9,6 +9,30 @@ initiates and manages I/O. Readers already familiar with these topics may
 proceed directly to the architecture, while others may return here as needed
 when later sections depend on concepts introduced in this groundwork.
 
+(sec-terminology)=
+## Terminology
+
+This section introduces a small set of terms used throughout the document to
+avoid implicit assumptions about where coordination occurs, where data moves,
+and what constitutes a minimal I/O sequence. The terms “control plane” and “data
+path” are used to describe logical roles rather than fixed subsystems or
+deployment boundaries.
+
+**Control plane**
+: Logical coordination and management operations associated with I/O, such as
+device configuration, queue allocation and management, metadata handling, and
+permission or policy enforcement. Control-plane operations may execute on the
+same processing elements as data-path operations, depending on system design.
+
+**Data path**
+: The movement of I/O payloads through DMA engines and interconnects, including
+device-to-host and device-to-device transfers.
+
+**Fast path**
+: The minimal sequence of operations required to complete an I/O request under a
+given execution and memory model, excluding optional monitoring, fallback
+handling, or recovery procedures.
+
 ## CPUs
 
 Modern CPU architecture is a sophisticated evolution of the **Von Neumann
@@ -360,17 +384,35 @@ that serve several roles or expose multiple ports through the same silicon.
 
 #### SR-IOV
 
-SR-IOV extends the multi-function concept by enabling a device to dynamically
-create many lightweight virtual functions (VFs) alongside one physical function
-(PF). Each VF appears as its own BDF entry. The PF manages and provisions
-resources, and each VF exposes its own configuration space and BAR regions and
-can be assigned to a distinct software or hardware tenant such as a virtual
-machine, a container, or another isolated execution domain.
+SR-IOV{cite}`pcisig:pcie_7_0` builds on the PCIe multi-function model by defining a
+control relationship between a *physical function* (PF) and a set of lightweight
+*virtual functions* (VFs) exposed by a single physical PCIe device. Each VF is
+enumerated as an independent PCIe function with its own BDF, configuration
+space, and BARs. The PF retains exclusive responsibility for device-wide
+management and resource provisioning, while VFs expose isolated PCIe interfaces
+that are bound to, possibly distinct, host-side device drivers and can be
+assigned to separate software or hardware tenants, such as virtual machines,
+containers, or accelerators.
 
-SR-IOV provides a PCIe-level mechanism for carving a device’s internal resources
-into multiple independent and securely separated interfaces, without assuming
-anything about the higher-level protocols or device types implemented behind
-those interfaces.
+At the PCIe level, SR-IOV provides a standardized mechanism for partitioning a
+device’s internal resources into multiple independently addressable interfaces
+with hardware-enforced isolation at the granularity of PCIe functions. This
+isolation applies to configuration space, MMIO regions, interrupt delivery, and
+DMA access as defined by the device, but does not imply isolation of higher-level
+protocol state, shared media, or software-visible data structures unless
+explicitly enforced by the device implementation.
+
+For PCIe-attached NVMe controllers, the specification
+standardizes{cite}`nvme-pcie-transport-1.3,nvme-base-2.3,nvme-nvm-cs-1.2` the use
+of SR-IOV. The PF is responsible for controller initialization, administrative
+operations, and the allocation of controller resources across VFs, including
+I/O queue pairs, interrupt resources, and namespace access.
+
+Of particular relevance is that NVMe permits namespaces to be shared across the
+PF and multiple VFs. This enables concurrent access to the same underlying
+storage through multiple PCIe functions, providing a standardized foundation for
+multipath and multi-initiator I/O while preserving isolation between execution
+domains at the level defined by the controller.
 
 ### Summary
 
@@ -474,68 +516,115 @@ the Command Identifier, and advances the Completion Queue head pointer.
 (sec-nvme-drivers)=
 ## NVMe Drivers
 
-While controller behavior is fixed by the NVMe specification, NVMe drivers
-differ widely in residency, capabilities, and access to MMIO. Driver residency
-determines how they manage queue memory, construct commands, and interact with
-the operating system.
+While NVMe controller behavior is defined by the NVMe specification, NVMe drivers
+vary in residency, execution model, and access to device resources such as MMIO
+registers and DMA engines. These differences influence how NVMe commands are
+constructed, how submission and completion queues are allocated and managed,
+where payloads are allocated, and how I/O processing is scheduled within the
+system.
+
+At a structural level, NVMe I/O consists of submission queue entries (SQEs),
+completion queue entries (CQEs), and data transfer descriptors, such as physical
+region pages (PRPs) or scatter–gather lists (SGLs), which describe the location
+of I/O payloads in memory. NVMe drivers are responsible for constructing these
+structures, placing them in memory accessible to the controller, and issuing
+MMIO doorbell writes to notify the device of new work.
 
 ### Driver Residency
 
-**Kernel resident drivers** integrate with the operating system block layer,
-rely on kernel scheduling, and use host memory for all queues and data buffers.
+**Kernel-resident drivers**
+integrate with the operating system block layer and rely on kernel scheduling.
+They construct NVMe commands in host memory, allocate and manage submission and
+completion queues on behalf of the kernel, and interact with controllers through
+kernel-managed MMIO and DMA mechanisms. User-space I/O submission interfaces
+such as libaio and io_uring operate on top of kernel-resident NVMe drivers and
+provide alternative mechanisms for submitting I/O requests to the kernel.
 
-**User space drivers** avoid kernel scheduling overhead through polling and
-minimize system calls. Examples include SPDK and io uring based drivers. They
-remain CPU centered and use host memory.
+**User-space drivers**
+execute outside the kernel and typically rely on polling rather than interrupts
+to reduce scheduling overhead. An example is SPDK {cite}`yang2017spdk`, which
+implements an NVMe driver entirely in user space and bypasses the kernel NVMe
+stack. In this model, NVMe command construction, queue management, and MMIO
+interaction are handled directly from user space.
 
-**Accelerator resident drivers** run on GPUs, DPUs, or FPGAs. They may place
-queue pairs and data buffers in accelerator memory and may perform MMIO
-doorbell writes directly if the accelerator supports outbound PCIe and peer to
-peer DMA. This model enables accelerators to participate directly in I/O.
+**Device-resident drivers**
+execute on PCIe-attached devices such as GPUs, DPUs, or FPGAs. Depending on
+hardware capabilities, such drivers may construct NVMe commands using
+device-local or device-accessible memory and may perform MMIO operations
+directly, provided the device supports outbound PCIe transactions and
+peer-to-peer DMA.
 
 (sec-io-initiator)=
 ### I/O Initiator Roles
 
-Driver residency determines the processing unit that initiates I/O.
+The purpose of distinguishing I/O initiator roles is to make explicit which
+processing entity is responsible for constructing and submitting NVMe commands
+in a given I/O path. These definitions are introduced to avoid implicit
+assumptions about execution context, memory placement, or data movement when
+referring to NVMe I/O behavior, and to provide precise terminology that can be
+used consistently throughout the document.
 
-**CPU initiated**
-Commands and DMA buffers are located in host memory.
+An I/O initiator is the processing entity that constructs NVMe commands and
+submits them to the controller. This includes populating submission queue
+entries, configuring data transfer descriptors such as PRPs or SGLs, and
+triggering command processing through MMIO doorbells. Initiator roles can be
+classified independently of driver residency, although the two are often
+related.
 
-**CPU initiated with peer to peer transfers**
-Commands originate on the CPU, but DMA moves data directly between devices.
+**CPU-initiated I/O**
+originates from software executing on the host CPU, either in kernel space or
+user space. NVMe commands, including SQEs and associated PRPs or SGLs, are
+constructed by the CPU, and PRPs or SGLs reference host memory for the data
+payloads.
 
-**Accelerator initiated**
-A driver running on the accelerator issues commands and uses accelerator local
-memory for queues and data.
+**CPU-initiated I/O with peer-to-peer data movement**
+originates from software executing on the host CPU, either in kernel space or
+user space. NVMe commands, including SQEs and associated PRPs or SGLs, are
+constructed by the CPU, but PRPs or SGLs reference device-local or
+device-accessible memory for the data payloads.
 
-AiSIO originally aimed to unlock accelerator initiated I/O. Experimental results
-showed that no single initiator is always optimal. AiSIO therefore exposes a
-multipath I/O model where CPUs, GPUs, DPUs, and other accelerators can initiate
-I/O as appropriate for the workload and hardware capabilities.
+**Device-initiated I/O**
+originates from software executing on a PCIe-attached device. NVMe commands,
+including SQEs and associated PRPs or SGLs, are constructed by the device, and
+PRPs or SGLs reference device-local or device-accessible memory for the data
+payloads.
 
-(sec-filesystems)=
-## Files and File Systems
+These classifications are descriptive rather than prescriptive, and are not
+mutually exclusive; practical systems may combine different driver residency and
+I/O initiator roles depending on hardware capabilities and software design.
 
-File systems define on disk layout, metadata, and allocation.
+(sec-dma-reachability)=
+## DMA Reachability Requirements
 
-**Extents** represent contiguous file regions through a starting block and
-length.
+NVMe command processing makes DMA reachability constraints explicit because
+the controller retrieves submission queue entries (SQEs) through DMA and
+resolves data movement based on addresses carried in the command, including any
+indirection structures referenced by `DPTR`.
 
-**On disk format** encodes superblocks, inodes, allocation groups, and B tree
-metadata.
+The core requirement is:
 
-**FIEMAP** reveals the physical extents of a file but requires the file system
-to be mounted and does not expose all metadata needed for accelerator resident
-scheduling.
+All memory that the controller may dereference during command execution must
+be DMA reachable under the platform’s configured addressing, translation, and
+routing mechanisms (for example, host physical addressing or IOVA mappings).
 
-(sec-posix)=
-## POSIX Semantics
+This includes:
 
-POSIX defines the interface for file access, specifying consistency rules,
-permissions, and durability. These semantics assume CPU initiated access and
-enforce memory coordination between user space and kernel space. This assumption
-reinforces CPU centered I/O paths and limits how accelerators can interact with
-storage.
+- **Payload references (`DPTR`)**, whether direct (`PRP1`/`PRP2`) or indirect via
+  PRP lists or SGLs
+- **Indirection metadata**, including PRP list pages and SGL descriptor tables
+  and any chained continuation structures
+- **Auxiliary metadata**, such as buffers referenced via `MPTR` (when used)
+- **Queue memory**, including SQEs and CQEs for both Admin and I/O queues
+
+When `DPTR` uses PRP or SGL indirection, the PRP and SGL structures themselves
+must be DMA reachable, since the controller must read them in order to resolve
+the final payload addresses.
+
+DMA reachability is typically straightforward when queues, payloads, and
+indirection metadata reside in host DRAM. When any of these reside outside
+host memory, such as in device-attached memory, reachability depends on
+platform configuration, including PCIe routing behavior and IOMMU mappings and
+permissions.
 
 (sec-block-devices)=
 ## Block Devices
@@ -570,126 +659,75 @@ entirely, exposing the concrete NVMe protocol rather than the higher-level block
 interface. Understanding the underlying constraints therefore becomes essential
 when building systems where devices interact without traditional OS mediation.
 
-### Software Components and Integration
+(sec-filesystems)=
+## Files and File Systems
+
+File systems define on disk layout, metadata, and allocation.
+
+**Extents** represent contiguous file regions through a starting block and
+length.
+
+**On disk format** encodes superblocks, inodes, allocation groups, and B tree
+metadata.
+
+**FIEMAP** reveals the physical extents of a file but requires the file system
+to be mounted and does not expose all metadata needed for accelerator resident
+scheduling.
+
+(sec-posix)=
+## POSIX Semantics
+
+POSIX defines the interface for file access, specifying consistency rules,
+permissions, and durability. These semantics assume CPU initiated access and
+enforce memory coordination between user space and kernel space. This assumption
+reinforces CPU centered I/O paths and limits how accelerators can interact with
+storage.
+
+## Software Components
+
+This section briefly describes software components that are relevant to modern
+Linux-based storage systems and user-space I/O stacks. The descriptions focus on
+the functionality provided by each component, without prescribing how they are
+combined or used.
 
 **ublk**
-: A Linux kernel mechanism that exposes block devices implemented in user
-space. HOMI uses ublk to bridge kernel I/O requests to user-space handlers. When
-applications or the kernel VFS layer issue I/O to the ublk block device, these
-requests are delivered to HOMI's user-space process, which forwards them to the
-cooperative NVMe driver. This enables the conventional OS path to coexist with
-accelerator-initiated paths while presenting a standard block device interface
-to the kernel.
+: A Linux kernel mechanism for implementing block devices in user space
+{cite}`ublk`. ublk provides a kernel-facing block device interface while
+forwarding I/O requests to a user-space process for handling. It integrates with
+the Linux block layer and virtual file system through standard block device
+semantics.
 
 **SPDK**
-: The Storage Performance Development Kit provides a user-space NVMe driver
-that bypasses the kernel I/O stack for reduced latency. HOMI configures SPDK
-as a cooperative driver: unlike traditional SPDK deployments that consume all
-available NVMe queue pairs, HOMI-managed SPDK reserves a subset of queues for
-CPU-initiated I/O and leaves the remainder available for GPU assignment. This
-partitioning is static and configured during system initialization based on
-expected workload characteristics.
+: The Storage Performance Development Kit is a collection of libraries and
+drivers for building high-performance storage software in user space
+{cite}`yang2017spdk,spdk`. SPDK includes a user-space NVMe driver that bypasses
+the kernel I/O stack and employs polling-based I/O for low-latency access to NVMe
+controllers. The framework exposes explicit control over NVMe queues, memory
+management, and command submission.
 
 **xNVMe**
-: Provides a unified cross-platform NVMe API layer that abstracts differences
-between operating systems, backends, and execution contexts. HOMI uses xNVMe to
-manage NVMe controller initialization, admin queue operations, and to provide
-consistent interfaces whether commands originate from host code or GPU kernels.
-xNVMe extensions support GPU memory addressing and direct queue access patterns
-required for accelerator-initiated I/O.
+: A cross-platform NVMe abstraction layer that provides a unified API for
+NVMe command submission and completion across operating systems and backends
+{cite}`xnvme_systor,xnvme_preprint,xnvme-io`. xNVMe abstracts differences in
+NVMe command interfaces, queue management, and completion handling, allowing
+NVMe interactions to be expressed through a consistent programming model.
 
-**XAL (eXtent Access Library)**
-: Integrated within HOMI, XAL decodes filesystem metadata to provide
-file-to-block mappings without kernel involvement. XAL reads XFS on-disk
-structures directly—including superblocks, allocation groups, inodes, and
-extent trees—and constructs an in-memory index that GPU kernels can query
-efficiently. When the filesystem is mounted and supports it, XAL uses FIEMAP
-ioctls to retrieve extent information. For unmounted filesystems or when FIEMAP
-is unavailable, XAL parses raw on-disk format structures to extract extent
-mappings.
-
-### Interaction with OS Kernel and Devices
-
-
-**Conventional kernel path**
-
-Applications using standard POSIX file I/O interact with the kernel VFS and
-filesystem layers. These requests eventually reach the ublk block device, which
-delivers them to HOMI's user-space process. HOMI forwards them to SPDK, which
-executes the I/O using its reserved NVMe queue pairs. Completions propagate
-back through the same path. This path maintains full compatibility with existing
-applications and kernel infrastructure.
-
-**Host-initiated fast path**
-: Applications using user-space I/O libraries (io_uring, SPDK APIs) bypass
-the kernel and submit I/O directly to HOMI-managed SPDK queues. This reduces
-software overhead while still using CPU-initiated I/O and host memory buffers.
-
-**Device-initiated fast path**
-: GPU kernels query HOMI's extent cache to translate file offsets into
-physical block addresses, construct NVMe commands in GPU memory, submit them
-to GPU-resident queue pairs, and process completions via polling. The NVMe
-controller performs peer-to-peer DMA directly between SSD and GPU memory. The
-CPU is not involved in data movement.
-
-All three paths operate concurrently on the same filesystem. HOMI ensures
-coherency by maintaining up-to-date extent information and coordinating queue
-access. The kernel path provides safety and compatibility. The accelerator path
-provides maximum performance for data-intensive operations.
-
-
-(sec-dma-visibility)=
-## DMA Visibility Requirements
-
-A central constraint across all components in this background is that any
-memory region accessed by the NVMe controller must be reachable through DMA.
-This requirement applies to all structures that participate in an I/O
-operation:
-
-* data buffers referenced through PRPs or SGLs
-* PRP list pages and SGL descriptor chains
-* Submission Queue Entries for administrative and I/O queues
-* Completion Queue Entries for administrative and I/O queues
-* the memory pages containing ASQ, ACQ, I/O Submission Queues, and I/O Completion Queues
-
-For CPU resident drivers this is straightforward because DRAM is inherently DMA
-visible. For accelerator resident drivers, device memory may not be reachable
-unless the accelerator supports mechanisms to export physical addresses or to
-reference memory through pretranslated I/O mappings. Some accelerators depend on
-ATS or similar services, while others cannot provide DMA visible memory at all.
-
-If any memory region referenced by DPTR, PRP lists, SGL descriptors, SQEs, or
-CQEs is not DMA visible, the command may be submitted but will not complete
-successfully.
-
-Ensuring DMA visibility for these structures is therefore a core requirement for
-any I/O path in AiSIO. This requirement influences driver design, queue
-placement, payload construction, and the feasibility of fast paths in systems
-that combine CPUs with GPUs, DPUs, and other accelerators.
-
-(sec-nomenclature)=
-## Nomenclature
-
-**Control path** refers to coordination and metadata operations rather than
-bulk data movement.
-
-**Data path** refers to the movement of payload data through DMA engines or peer
-to peer transfers.
-
-**Fast path** refers to the minimal sequence of operations needed to move data
-efficiently.
-
-In AiSIO, these concepts determine which processing unit performs coordination
-and which performs data movement in each I/O flow.
+**XAL (eXtents Access Library)**
+: A library for retrieving file extent information from file systems
+{cite}`xallib`. XAL obtains logical-to-physical block mappings either through
+kernel-provided interfaces, such as the FIEMAP ioctl {cite}`linux-fiemap`, or
+by decoding on-disk filesystem metadata structures directly. For example, XAL
+can parse the on-disk format of the XFS filesystem, including superblocks,
+allocation groups, inodes, and extent trees, to extract extent information
+independently of the filesystem mount state.
 
 ## Transition to Architecture
 
-The components described in this background outline the constraints, mechanisms,
-and responsibilities that define how storage I/O operates in contemporary
-systems. They also highlight the hardware and software limitations that prevent
-accelerators from participating directly in data movement.
+The background above summarizes the mechanisms and constraints that shape modern
+storage I/O, spanning PCIe transport and routing, memory and DMA visibility,
+NVMe controller operation, and the software interfaces used to construct and
+submit commands.
 
-The next section builds on this foundation by presenting the AiSIO architecture,
-which unifies these elements into a multipath design that enables CPUs, GPUs,
-xPUs, and other accelerators to cooperate efficiently as peers in the storage
-system.
+The next section builds on this foundation by presenting the system
+architecture, using the terminology and models introduced here to describe its
+components and I/O flows precisely.
