@@ -1,5 +1,5 @@
 (sec-related-work)=
-## Related Work
+# Related Work
 
 A range of systems seek to reduce CPU involvement in accelerator data access,
 each making different trade-offs between performance, programmability,

@@ -80,13 +80,13 @@ interval.
 As bdevperf uses busy polling, it will always result in approx. N\*100% CPU
 utilisation, where N is the number of used logical CPUs.
 
-The CPU frequencies of each logical CPU is collected by a minimal shell script that
-reads from ``/sys/devices/system/cpu/cpuX/cpufreq/scaling_cur_freq`` every 0.5
-seconds for each used CPU with ID ``X``. The read frequencies, reported in kHz,
-are appended to a log and later averaged. This script is started before running
-the benchmarks and stopped immediately after. To account for the time before and
-after the benchmarks where the script is running, but bdevperf is not, the first
-and last 10% of the reported cpu frequencies are discarded.
+The CPU frequencies of each logical CPU is collected by a minimal shell script
+that reads from ``/sys/devices/system/cpu/cpuX/cpufreq/scaling_cur_freq`` every
+0.5 seconds for each used CPU with ID ``X``. The read frequencies, reported in
+kHz, are appended to a log and later averaged. This script is started before
+running the benchmarks and stopped immediately after. To account for the time
+before and after the benchmarks where the script is running, but bdevperf is
+not, the first and last 10% of the reported cpu frequencies are discarded.
 
 ### Environment
 
