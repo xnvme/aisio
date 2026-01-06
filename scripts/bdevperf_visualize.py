@@ -50,7 +50,7 @@ def main(args, cijoe):
     template_loader = jinja2.FileSystemLoader(template_path)
     template_env = jinja2.Environment(loader=template_loader)
 
-    template = template_env.get_template("benchmark-visualisation.html.jinja2")
+    template = template_env.get_template("benchmark-visualization.html.jinja2")
     with html_path.open("w") as body:
         body.write(template.render({ "datasets": datasets }))
 
