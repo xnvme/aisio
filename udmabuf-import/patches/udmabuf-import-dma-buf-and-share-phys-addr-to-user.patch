@@ -1,4 +1,4 @@
-From d012769cc60ab53b4107084ee7dd8df262bf4cb9 Mon Sep 17 00:00:00 2001
+From 4e4d86f2229e941eff7a350bd50726bfd079c227 Mon Sep 17 00:00:00 2001
 From: Karl Bonde Torp <k.torp@samsung.com>
 Date: Tue, 16 Dec 2025 16:41:57 +0100
 Subject: [PATCH] udmabuf: import dma-buf and share phys addr to user
@@ -264,7 +264,7 @@ index c40645999648..878536570c91 100644
  		ret = -ENOTTY;
  		break;
 diff --git a/include/uapi/linux/udmabuf.h b/include/uapi/linux/udmabuf.h
-index 46b6532ed855..f6a7b5326afc 100644
+index 46b6532ed855..f440108c5f66 100644
 --- a/include/uapi/linux/udmabuf.h
 +++ b/include/uapi/linux/udmabuf.h
 @@ -30,4 +30,43 @@ struct udmabuf_create_list {
@@ -286,9 +286,9 @@ index 46b6532ed855..f6a7b5326afc 100644
 + */
 +struct udmabuf_dma_map {
 +	/** @dma_addr: Address to physical page */
-+	__u32 dma_addr;
++	__u64 dma_addr;
 +	/** @dma_addr: Size of physical page */
-+	__u32 dma_len;
++	__u64 dma_len;
 +};
 +
 +/**
