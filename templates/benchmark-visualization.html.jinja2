@@ -55,14 +55,21 @@
     align-items: center;
     gap: 4px;
     position: relative;
-    width: 32px;
+  }
+  .controls label:not(:first-child)::before {
+    content: "";
+    position: absolute;
+    border-top: 2px solid #999;
+    width: calc(50% - 1px);
+    left: -5px;
+    top: 9px;
   }
   .controls label:not(:last-child)::after {
     content: "";
     position: absolute;
     border-top: 2px solid #999;
-    width: 29px;
-    left: 23px;
+    width: calc(50% - 3px);
+    left: calc(50% + 8px);
     top: 9px;
   }
   .button-row {
@@ -83,7 +90,8 @@
     }
   }
   .controls .disabled,
-  .controls .disabled + * {
+  .controls .disabled + *,
+  label:has(input[disabled]) {
     pointer-events: none;
     opacity: 0.2;
   }
@@ -91,6 +99,21 @@
     max-height: 70vh;
   }
 </style>
+<script>
+  function disableInvalidRadios (element) {
+    if (element.getAttribute("name") !== "SMT") return;
+    const htRadio2 = document.querySelector(`#htRadios input[value="2"]`);
+    if (element.getAttribute("value") === "0") {
+      if (htRadio2.checked) {
+        const htRadio1 = document.querySelector(`#htRadios input[value="1"]`);
+        htRadio1.click();
+      }
+      htRadio2.disabled = true;
+    } else {
+      htRadio2.disabled = false; 
+    }
+  }
+</script>
 </head>
 <body>
 
@@ -100,32 +123,32 @@
 <div class="controls">
   <strong>Turbo boost:</strong>
   <span id="turboBoostRadios">
-    <label><input type="radio" name="turbo" value="0"> Off</label>
-    <label><input type="radio" name="turbo" value="1" checked> Both</label>
-    <label><input type="radio" name="turbo" value="2"> On</label>
+    <label><input type="radio" name="turbo" value="0">Off</label>
+    <label><input type="radio" name="turbo" value="1" checked>Both</label>
+    <label><input type="radio" name="turbo" value="2">On</label>
   </span>
   <strong>SMT:</strong>
-  <span id="turboBoostRadios">
-    <label><input type="radio" name="SMT" value="0"> Off</label>
-    <label><input type="radio" name="SMT" value="1" checked> Both</label>
-    <label><input type="radio" name="SMT" value="2"> On</label>
+  <span id="smtRadios">
+    <label><input type="radio" name="SMT" value="0" onclick="disableInvalidRadios(this)">Off</label>
+    <label><input type="radio" name="SMT" value="1" onclick="disableInvalidRadios(this)" checked>Both</label>
+    <label><input type="radio" name="SMT" value="2" onclick="disableInvalidRadios(this)">On</label>
   </span>
-  <strong>Hyper Threading:</strong>
-  <span id="turboBoostRadios">
-    <label><input type="radio" name="ht" value="0"> Off</label>
-    <label><input type="radio" name="ht" value="1" checked> Both</label>
-    <label><input type="radio" name="ht" value="2"> On</label>
+  <strong>Using thread siblings:</strong>
+  <span id="htRadios">
+    <label><input type="radio" name="ht" value="0">No</label>
+    <label><input type="radio" name="ht" value="1" checked>Both</label>
+    <label><input type="radio" name="ht" value="2">Yes</label>
   </span>
   <strong>Stress:</strong>
-  <span id="turboBoostRadios">
-    <label><input type="radio" name="stress" value="0"> Off</label>
-    <label><input type="radio" name="stress" value="1" checked> Both</label>
-    <label><input type="radio" name="stress" value="2"> On</label>
+  <span id="stressRadios">
+    <label><input type="radio" name="stress" value="0">Off</label>
+    <label><input type="radio" name="stress" value="1" checked>Both</label>
+    <label><input type="radio" name="stress" value="2">On</label>
   </span>
 </div>
 <div class="controls">
   <div>
-    <strong>Queue Depth:</strong>
+    <strong>Queue Depth:</strong><br />
     <span class="note">(1 queue pair per device)</span>
   </div>
   <span id="qdepthRadios"></span>
@@ -135,15 +158,15 @@
   <span id="devicesRadios"></span>
   <strong>I/O Size:</strong>
   <span id="iosizeRadios"></span>
-  <strong>Fixed CPU Frequency (GHz):</strong>
+  <strong>CPU Frequency or Governor:</strong>
   <span id="cpufreqRadios"></span>
   <strong>Value on x-axis:</strong>
   <div class="button-row">
     <button value="0">Queue Depth</button>
-    <button value="1">Number of Physical Cores</button>
-    <button value="2">Number of Devices</button>
+    <button value="1"># Physical Cores</button>
+    <button value="2"># Devices</button>
     <button value="3">I/O Size</button>
-    <button value="4">CPU Frequency</button>
+    <button value="4" style="display:none">CPU Frequency or Governor</button>
   </div>
 </div>
 </div>
@@ -155,6 +178,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+const colours = ["blue", "red", "green", "pink", "lime", "purple", "cyan", "orange", "violet", "skyblue", "brown", "olive"];
+
 const results = [
   {%- for dataset in datasets %}
   {
@@ -168,7 +193,11 @@ const results = [
     {% endif %}
   },
   {%- endfor %}
-];
+].map((res,idx) => ({
+  ...res,
+  color: colours[idx % colours.length],
+  data: res.data.map(d => ({...d, fixed_freq: (d.fixed_freq ? d.fixed_freq : d.cpu_governor)})),
+}));
 
 const cpusSet = [...new Set(results[0].data.map(d => d.ncpus))].sort((a,b) => a - b);
 const devicesSet = [...new Set(results[0].data.map(d => d.ndevs))].sort((a,b) => a - b);
@@ -181,13 +210,13 @@ const sets = [
   {elemId: "cpusRadios", set: cpusSet, key: "ncpus", prettyName: "Number of Physical Cores"},
   {elemId: "devicesRadios", set: devicesSet, key: "ndevs", prettyName: "Number of Devices"},
   {elemId: "iosizeRadios", set: iosizeSet, key: "iosize", prettyName: "I/O Size"},
-  {elemId: "cpufreqRadios", set: cpufreqSet, key: "fixed_freq", prettyName: "Fixed CPU Frequency (GHz)" },
+  {elemId: "cpufreqRadios", set: cpufreqSet, key: "fixed_freq", prettyName: "CPU Frequency or Governor" },
 ];
 
-CUR_X_AXIS = 1;
+CUR_X_AXIS = 2;
+const radioDefaults = [128, 8, 16, 512, "performance"];
 
-
-function createRadios(containerId, values, name) {
+function createRadios(containerId, values, name, checkedValue) {
   const container = document.getElementById(containerId);
 
   container.innerHTML = "";
@@ -198,17 +227,26 @@ function createRadios(containerId, values, name) {
     radio.name = name;
     radio.value = v;
     label.appendChild(radio);
-    label.appendChild(document.createTextNode(v));
+    if (name === "fixed_freq" && !isNaN(v)) {
+      label.appendChild(document.createTextNode(`${v} GHz`));
+    } else {
+      label.appendChild(document.createTextNode(v));
+    }
     container.appendChild(label);
   });
-  container.querySelector('input').checked = true; // default
+
+  let defaultChecked = container.querySelector(`input[value="${checkedValue}"]`);
+  if (!defaultChecked) {
+    defaultChecked = container.querySelector(`input`);
+  }
+  defaultChecked.checked = true;
 }
-sets.forEach(({elemId, set, key}) => {
-  createRadios(elemId, set, key);
+sets.forEach(({elemId, set, key}, idx) => {
+  createRadios(elemId, set, key, radioDefaults[idx]);
 });
 document.querySelectorAll(`input[type="radio"]`).forEach(radio => {
     radio.addEventListener('change', () => updateChart());
-})
+});
 
 function updateRadios() {
   sets.forEach(({elemId, set, key}, i) => {
@@ -233,10 +271,6 @@ const freq_ctx = document.getElementById('freq-chart').getContext('2d');
 let freq_chart;
 
 function updateChart() {
-  let colours = ["blue", "red", "green", "pink", "lime", "purple"];
-  let styles = ["circle", "rectRot", "rect", "star", "triangle"];
-  let radius = [3, 5, 4];
-
   const x_axis = sets[CUR_X_AXIS].key;
   const logarithmic = ["qdepth", "iosize"].includes(x_axis);
   let iopsData = [];
@@ -246,15 +280,15 @@ function updateChart() {
     const selectedRadio = document.querySelector(`input[name="${key}"]:checked`).value;
     if (key == "ht") {
       if (selectedRadio == 0) {
-        filtered_results = filtered_results.filter(res => res.label.includes(`Not using`));
+        filtered_results = filtered_results.filter(res => res.label.includes(`Not using`)).map(res => ({...res, label: res.label.replace(`Not using thread siblings; `, "")}));
       } else if (selectedRadio == 2) {
-        filtered_results = filtered_results.filter(res => res.label.includes(`Using`));
+        filtered_results = filtered_results.filter(res => res.label.includes(`Using`)).map(res => ({...res, label: res.label.replace(`Using thread siblings; `, "")}));
       }
     } else {
       if (selectedRadio == 0) {
-        filtered_results = filtered_results.filter(res => res.label.includes(`${key} off`));
+        filtered_results = filtered_results.filter(res => res.label.includes(`${key} off`)).map(res => ({...res, label: res.label.replace(`${key} off;`, "")})).map(res => ({...res, label: res.label.replace(`${key} off`, "")}));
       } else if (selectedRadio == 2) {
-        filtered_results = filtered_results.filter(res => res.label.includes(`${key} on`));
+        filtered_results = filtered_results.filter(res => res.label.includes(`${key} on`)).map(res => ({...res, label: res.label.replace(`${key} on;`, "")})).map(res => ({...res, label: res.label.replace(`${key} on`, "")}));
       }
     }
   }
@@ -279,20 +313,6 @@ function updateChart() {
     iopsData.push(graphData);
   }
 
-  let extra = [];
-  if (x_axis === "fixed_freq") {
-    extra = iopsData.map(data => data.filter(d => d.x === 0));
-    extra = extra.map((data, idx) => ({
-      data,
-      borderColor: colours[idx % colours.length],
-      backgroundColor: colours[idx % colours.length],
-      pointStyle: styles[idx % styles.length],
-      pointRadius: radius[idx % radius.length],
-    }));
-
-    iopsData = iopsData.map(dataset => dataset.filter(d => d.x));
-  }
-
   const maxPeak = iopsData.flat().length ? Math.max(...iopsData.flat().map(d => d.data.peakiops)) : 1000;
   const maxXvalue = Math.max(...filtered_results[0].data.map(d => d[x_axis])) * (logarithmic ? 2 : 1) + (logarithmic ? 0 : 1);
 
@@ -300,11 +320,11 @@ function updateChart() {
 
   const datasets = iopsData.map((data, idx) => ({
     data,
-    label: filtered_results[idx].label,
-    borderColor: colours[idx % colours.length],
-    backgroundColor: colours[idx % colours.length],
-    pointStyle: styles[idx % styles.length],
-    pointRadius: radius[idx % radius.length],
+    label: filtered_results[idx].label.trim() || "Reached IOPS",
+    borderColor: filtered_results[idx].color,
+    backgroundColor: filtered_results[idx].color,
+    pointStyle: "circle",
+    pointRadius: Math.floor(idx*0.2)+3,
   }));
 
   chart = new Chart(ctx, {
@@ -319,8 +339,7 @@ function updateChart() {
           backgroundColor: 'white',
           pointRadius: 0,
           borderDash: [10,10]
-        },
-        ...extra
+        }
       ]
     },
     options: {
@@ -363,7 +382,7 @@ function updateChart() {
             title: () => "",
             label: (context) => {
               const d = context.raw;
-              if (context.dataset.label.includes("Using")) {
+              if (d.data.thr_sib) {
                 return [`IOPS: ${d.y}`,`Hyper threads: ${d.data.hyperthreads}`];
               }
               else if (context.dataset.label.includes("Peak IOPS")) {
