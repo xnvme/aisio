@@ -1,9 +1,9 @@
 """
-Convert benchmark results to CSV
-================================
+Visualize the bdevperf benchmarks
+=================================
 
-Convert the results from running scripts/bdevperf_runall.py from JSON format, and
-create the html file, which visualises the data.
+Parse the results from running scripts/bdevperf_runall.py from JSON format, and
+create the HTML file, which visualizes the data.
 
 Retargetable: False
 -------------------
@@ -21,7 +21,7 @@ def add_args(parser: ArgumentParser):
 
 
 def main(args, cijoe):
-    """Convert the benchmark results to CSV format"""
+    """Visualize the benchmark results"""
 
     artifacts = Path(args.output) / "artifacts"
     json_path = args.path if args.path else artifacts / "benchmark-results.json"
@@ -40,7 +40,7 @@ def main(args, cijoe):
     for res in results.items():
         datasets.append(convert_to_data(*res))
 
-    template_resource = get_resources().get("templates", {}).get("benchmark-visualisation.html", {})
+    template_resource = get_resources().get("templates", {}).get("benchmark-visualization.html", {})
     if not template_resource:
         log.error("Failed: could not find template resource")
         return 1

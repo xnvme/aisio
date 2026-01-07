@@ -58,13 +58,13 @@ steps:
     depths: [64, 128, 256]
     sizes: [512, 4096]
     numcpus_range: [1, 8]
-    numdevs_range: [1, 8]
-    results_dir: "{{ local.env.HOME }}/bench-results"
+    numdevs_range: [1, 16]
     cpu_freqs: ["ondemand", "performance", 3.0]
     turbo: [0,1]
     smt: [0,1]
     hyperthreads: [0,1]
     stress: [0,1]
+    results_dir: "{{ local.env.HOME }}/bench-results"
 
-- name: visualise
-  uses: bdevperf_visualise
+- name: visualize
+  uses: bdevperf_visualize
