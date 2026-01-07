@@ -1,5 +1,5 @@
-(sec-experiment)=
-# Experiment
+(sec-experiments)=
+# Experiments
 
 (meta text)
 

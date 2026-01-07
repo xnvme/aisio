@@ -9,9 +9,9 @@ background
 architecture
 related
 implementation
-experiment
-environment
-evaluation
+experiments
+environments
+results
 future_work
 references
 ```

@@ -1,5 +1,5 @@
 (sec-environment)=
-# Environment
+# Environments
 
 This section describes the system configurations used for experimenting
 with AiSIO system software architectures, including the initial AiSIO
