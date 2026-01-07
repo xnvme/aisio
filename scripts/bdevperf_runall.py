@@ -83,16 +83,28 @@ def main(args, cijoe: Cijoe):
     if 1 in args.hyperthreads:
         test_cpus = range(test_cpus[0]*2-1, test_cpus[-1]*2+1) # shift range to match cpu hyperthreads
         tests += product([1], args.turbo, args.smt, args.stress, args.cpu_freqs, test_devs, test_cpus, args.sizes, args.depths)
-    
+
     tests = [(ht,tu,sm,st,f,d,c,o,q) for (ht,tu,sm,st,f,d,c,o,q) in tests if not (not sm and ht)]
 
     finished, total = 0, len(tests)
     all_results = defaultdict(list)
 
     for ht, tu, sm, st, freq, devs, cpus, iosz, qd in tests:
-        cfm.toggle_smt(sm)
-        cfm.toggle_turbo(tu)
-        bdevperf.use_thread_siblings(ht)
+        err = cfm.toggle_smt(sm)
+        if err:
+            log.error(f"Failed: cfm.toggle_smt({sm})")
+            return err
+
+        err = cfm.toggle_turbo(tu)
+        if err:
+            log.error(f"Failed: cfm.toggle_turbo({tu})")
+            return err
+
+        err = bdevperf.use_thread_siblings(ht)
+        if err:
+            log.error(f"Failed: bdevperf.use_thread_siblings({ht})")
+            return err
+
         bdevperf.stress = st
 
         label = (
