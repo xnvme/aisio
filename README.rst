@@ -37,9 +37,10 @@ You can now go ahead and familiarize yourself, with the code-base, and adjust as
 you see fit. To run benchmarks, then do::
 
 	cijoe --monitor \
-		-c configs/transport.toml
+		-c configs/transport.toml \
 		-c configs/aisio.toml \
-		tasks/benchmark.yaml
+		-c configs/datasets.toml \
+		tasks/bench_sil_files.yaml
 
 Prerequisites
 -------------
