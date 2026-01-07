@@ -20,12 +20,6 @@ steps:
     cd "{{ config.xnvme.repository.path }}"; ./toolbox/pkgs/{{ config.os.name }}-{{ config.os.version }}.sh
     cd "{{ config.xnvme.repository.path }}"; make config build install
 
-- name: fio_install
-  run: |
-    cd "{{ config.fio.repository.path }}"; ./configure
-    cd "{{ config.fio.repository.path }}"; make
-    cd "{{ config.fio.repository.path }}"; make install
-
 - name: spdk_install
   run: |
     cd "{{ config.spdk.repository.path }}"; ./scripts/pkgdep.sh
