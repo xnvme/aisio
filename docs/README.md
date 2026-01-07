@@ -14,24 +14,29 @@ systems:
 
 * texlive, texlive-full, texlive-extra
 
-With the above in place do, from within ``aisio/docs`` run::
+With the above in place do, from within ``aisio/docs`` run:
 
-  pipx install tooling
+```bash
+pipx install tooling
+```
 
-Afterwhich you can run::
+Afterwhich you can run:
 
-  aisio-docs-serve
+```bash
+aisio-docs-serve
+```
 
 Then whenever the documentation sources ``aisio/docs/src/`` change, then the
 **HTML** and **PDF** version of the docs are rebuilt. point your browser to:
-
-  https://localhost:8000
+https://localhost:8000
 
 It has a status page of the build-process along with links to **HTML** and
 **PDF**. To explicitly build only **HTML** or **PDF** then run:
 
-  # Build HTML
-  aisio-docs-build-html
+```bash
+# Build HTML
+aisio-docs-build-html
 
-  # Build PDF
-  aisio-docs-build-pdf
+# Build PDF
+aisio-docs-build-pdf
+```
