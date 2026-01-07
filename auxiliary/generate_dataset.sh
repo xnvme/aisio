@@ -5,7 +5,7 @@
 # Deterministic pseudo dataset generator (ImageFolder layout) using GNU parallel.
 #
 # Layout:
-#   <path>/{train,val,test}/<class>/*.bin
+#   <path>/<class>/*.bin
 #
 # Each file contains pseudorandom binary content of an exact byte size,
 # produced from /dev/zero via AES-256-CTR with a per-file raw key and IV
@@ -51,13 +51,12 @@ function mkbytes_exact() {
 # At the end, print a single "done" line for this batch.
 function range_worker() {
   local cname="${1:?\$1(cname) required}"
-  local split="${2:?\$2(split) required}"
-  local start="${3:?\$3(start) required}"
-  local end="${4:?\$4(end) required}"
-  local class_seed="${5:?\$5(class_seed) required}"
-  local filesize_min="${6:?\$6(filesize_min) required}"
-  local filesize_max="${7:?\$7(filesize_max) required}"
-  local root="${8:?\$8(root) required}"
+  local start="${2:?\$2(start) required}"
+  local end="${3:?\$3(end) required}"
+  local class_seed="${4:?\$4(class_seed) required}"
+  local filesize_min="${5:?\$5(filesize_min) required}"
+  local filesize_max="${6:?\$6(filesize_max) required}"
+  local root="${7:?\$7(root) required}"
 
   local t0
   t0=$(date +%s)
@@ -171,7 +170,6 @@ function main() {
     -n "$FILESIZE_MIN" && -n "$FILESIZE_MAX" && -n "$SEED" && -n "$JOBS" ]] || usage
 
   for t in openssl head cksum mkdir parallel; do need "$t"; done
-  mkdir -p "$ROOT"/{train,val,test}
 
   echo "Root: $ROOT"
   echo "Classes: $NCLASSES"
@@ -187,19 +185,16 @@ function main() {
   trap 'rm -f "${counts_file:-}" "${tasks_file:-}"' EXIT
 
   local total_files=0
-  local c=0 cname="" class_seed="" n_total=0 n_train=0 n_val=0 n_test=0
+  local c=0 cname="" class_seed="" n_total=0
   for ((c = 1; c <= NCLASSES; c++)); do
     cname="class$(printf "%03d" "$c")"
     class_seed="$(cksum <<< "${SEED}-${cname}")"
     class_seed="${class_seed%% *}"
     n_total=$(map_range "$class_seed" "$NFILES_MIN" "$NFILES_MAX")
-    n_train=$((n_total * 80 / 100))
-    n_val=$((n_total * 10 / 100))
-    n_test=$((n_total - n_train - n_val))
     total_files=$((total_files + n_total))
 
-    mkdir -p "$ROOT/train/$cname" "$ROOT/val/$cname" "$ROOT/test/$cname"
-    printf "%s\t%s\t%d\t%d\t%d\n" "$cname" "$class_seed" "$n_train" "$n_val" "$n_test" >> "$counts_file"
+    mkdir -p "$ROOT/$cname"
+    printf "%s\t%s\t%d\n" "$cname" "$class_seed" "$n_total" >> "$counts_file"
   done
 
   # Auto-size batch size from jobs and total files (about 128 tasks per job)
@@ -212,21 +207,19 @@ function main() {
   echo
 
   # Build task list: cname split start end class_seed
-  while IFS=$'\t' read -r cname class_seed n_train n_val n_test; do
+  while IFS=$'\t' read -r cname class_seed n_total; do
     enqueue() {
-      local split="${1:?\$1(split) required}" n="${2:?\$2(n) required}"
+      local n="${1:?\$1(n) required}"
       ((n <= 0)) && return 0
       local start=1 end=0
       while ((start <= n)); do
         end=$((start + batch_size - 1))
         ((end > n)) && end="$n"
-        printf "%s\t%s\t%d\t%d\t%s\n" "$cname" "$split" "$start" "$end" "$class_seed" >> "$tasks_file"
+        printf "%s\t%d\t%d\t%s\n" "$cname" "$start" "$end" "$class_seed" >> "$tasks_file"
         start=$((end + 1))
       done
     }
-    enqueue "train" "$n_train"
-    enqueue "val" "$n_val"
-    enqueue "test" "$n_test"
+    enqueue "$n_total"
   done < "$counts_file"
 
   # Build GNU parallel options, add --bar only when stdout is a TTY
