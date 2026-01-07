@@ -10,7 +10,7 @@ from argparse import ArgumentParser
 
 
 def add_args(parser: ArgumentParser):
-    parser.add_argument("--mp", type=str, default="/mnt/gds01/gds_dir")
+    parser.add_argument("--mp", type=str, default="/mnt/datasets/gds")
     parser.add_argument("--bin", type=str, default="/usr/local/cuda/gds/tools/gdsio")
     parser.add_argument("--nthreads", type=int, default=1)
     parser.add_argument("--gpu_index", type=int, default=0)
