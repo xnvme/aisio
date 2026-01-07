@@ -40,7 +40,7 @@ you see fit. To run benchmarks, then do::
 		-c configs/transport.toml \
 		-c configs/aisio.toml \
 		-c configs/datasets.toml \
-		tasks/bench_sil_files.yaml
+		tasks/bench_aisio.yaml
 
 Prerequisites
 -------------
