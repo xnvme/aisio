@@ -203,7 +203,7 @@ skipped by specifying which steps to run in the command
       -c config/YOUR_CONFIG_FILE.toml \
       run visualize
 
-In the final step, the results of the experiment is visualised on a graph in an
+In the final step, the results of the experiment is visualized on a graph in an
 interactive HTML page, which can be found in the cijoe artifacts found in
 ``cijoe-output/artifacts/benchmark-results.html``. With this HTML page, the
 results of different parametirizations can be compared.
