@@ -1,0 +1,57 @@
+doc: |
+  Run benchmarks to evaluate GDS performance
+  ==========================================
+
+  The benchmark includes:
+  - reading 3 different datasets: filesize8gib, tiktokish, imagenetish,
+  - performing synthetic benchmarks for: read, rand-read
+
+  This requires the device to be bound to `nvme`, which can be done in the following way:
+  - `devbind --device '0000:01:00.0' --bind nvme`
+  Additionally, the drive should be mounted.
+  
+  `device` should be adjusted to target the correct SSD.
+  `batch_size` and `batches` are appropriate for a H100 GPU, and should be adjusted according to hardware.
+
+  This assumes you already ran the tasks 'setup_aisio.yaml' and 'setup_dataset.yaml'
+
+
+steps:
+- name: filesize8gib
+  uses: sil
+  with:
+    backends: ["gds"]
+    dataset: "filesize8gib"
+    device: "{{ config.filesystems.dset.bdev }}"
+    batch_size: 1
+    batches: 1
+    
+- name: tiktokish
+  uses: sil
+  with:
+    backends: ["gds"]
+    dataset: "tiktokish"
+    device: "{{ config.filesystems.dset.bdev }}"
+    batch_size: 26
+    batches: 1
+    
+- name: imagenetish
+  uses: sil
+  with:
+    backends: ["gds"]
+    dataset: "imagenetish"
+    device: "{{ config.filesystems.dset.bdev }}"
+    batch_size: 4096
+    batches: 300
+
+- name: seqread
+  uses: gdsio
+  with:
+    xfer_types: [0]
+    mode: [0]
+
+- name: randread
+  uses: gdsio
+  with:
+    xfer_types: [0]
+    mode: [2]
