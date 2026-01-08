@@ -23,25 +23,27 @@ int create_udmabuf(int udmabuf_fd, struct buf_udmabuf *b, size_t size) {
   struct udmabuf_create create;
   int memfd, dmabuf_fd;
   void *p;
-  int ret;
-
+  int err;
 
   memfd = memfd_create("udmabuf-test", MFD_ALLOW_SEALING);
   if (memfd < 0) {
-    printf("Failed to create memfd, %d\n", memfd);
-    return memfd;
+    err = errno;
+    printf("Failed to create memfd, errno: %d\n", err);
+    return err;
   }
 
-  ret = fcntl(memfd, F_ADD_SEALS, F_SEAL_SHRINK);
-  if (ret < 0) {
-    printf("Failed to set seals, %d\n", ret);
-    return ret;
+  err = fcntl(memfd, F_ADD_SEALS, F_SEAL_SHRINK);
+  if (err) {
+    err = errno;
+    printf("Failed to set seals, errno: %d\n", err);
+    return err;
   }
 
-  ret = ftruncate(memfd, size);
-  if (ret == -1) {
-    printf("Failed to resize udmabuf, %d\n", ret);
-    return ret;
+  err = ftruncate(memfd, size);
+  if (err) {
+    err = errno;
+    printf("Failed to resize udmabuf, errno: %d\n", err);
+    return err;
   }
 
   memset(&create, 0, sizeof(create));
@@ -50,14 +52,16 @@ int create_udmabuf(int udmabuf_fd, struct buf_udmabuf *b, size_t size) {
   create.size = size;
   dmabuf_fd = ioctl(udmabuf_fd, UDMABUF_CREATE, &create);
   if (dmabuf_fd < 0) {
-    printf("Failed to create udmabuf, %d\n", dmabuf_fd);
-    return dmabuf_fd;
+    err = errno;
+    printf("Failed to create udmabuf, errno: %d\n", err);
+    return err;
   }
 
   p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, dmabuf_fd, 0);
   if (p == MAP_FAILED) {
-    printf("Failed to mmap udmabuf\n");
-    return -1;
+    err = errno;
+    printf("Failed to mmap udmabuf, errno: %d\n", err);
+    return err;
   }
 
   b->size = size;
@@ -72,20 +76,20 @@ int main(int argc, char *argv[]) {
   struct udmabuf_attach *attach;
   struct udmabuf_get_map *map;
   struct buf_udmabuf dmabuf;
-  int udmabuf_fd, dmabuf_fd, ret;
+  int udmabuf_fd, dmabuf_fd, err;
   long buf_size = 8 * 4096;
   long map_size;
 
-  
   udmabuf_fd = open("/dev/udmabuf", O_RDWR);
   if (udmabuf_fd < 0) {
-    printf("Failed to open udmabuf dev, %d\n", udmabuf_fd);
-    return udmabuf_fd;
+    err = errno;
+    printf("Failed to open udmabuf dev, errno: %d\n", err);
+    return err;
   }
 
-  ret = create_udmabuf(udmabuf_fd, &dmabuf, buf_size);
-  if (ret) {
-    return ret;
+  err = create_udmabuf(udmabuf_fd, &dmabuf, buf_size);
+  if (err) {
+    return err;
   }
 
   dmabuf_fd = dmabuf.dmabuf_fd;
@@ -94,16 +98,17 @@ int main(int argc, char *argv[]) {
 
   attach = malloc(sizeof(struct udmabuf_attach));
   if (!attach) {
-    printf("Failed to alloc attach struct\n");
-    return -1;
+    err = errno;
+    printf("Failed to alloc attach struct, errno: %d\n", err);
+    return err;
   }
   attach->fd = dmabuf_fd;
 
-  ret = ioctl(udmabuf_fd, UDMABUF_ATTACH, attach);
-  if (ret) {
-    ret = errno;
-    printf("IOCTL UDMABUF_ATTACH failed, %d\n", ret);
-    return ret;
+  err = ioctl(udmabuf_fd, UDMABUF_ATTACH, attach);
+  if (err) {
+    err = errno;
+    printf("IOCTL UDMABUF_ATTACH failed, errno: %d\n", err);
+    return err;
   }
 
   printf("dma-buf contains %u addresses\n", attach->count);
@@ -112,19 +117,20 @@ int main(int argc, char *argv[]) {
 
   map = malloc(sizeof(struct udmabuf_get_map) + map_size);
   if (!map) {
-    printf("Failed to alloc map struct\n");
-    return -1;
+    err = errno;
+    printf("Failed to alloc map struct, errno: %d\n", err);
+    return err;
   }
   memset(map->dma_arr, 0, map_size);
 
   map->fd = dmabuf_fd;
   map->count = attach->count;
 
-  ret = ioctl(udmabuf_fd, UDMABUF_GET_MAP, map);
-  if (ret) {
-    ret = errno;
-    printf("IOCTL UDMABUF_GET_MAP failed, %d\n", ret);
-    return ret;
+  err = ioctl(udmabuf_fd, UDMABUF_GET_MAP, map);
+  if (err) {
+    err = errno;
+    printf("IOCTL UDMABUF_GET_MAP failed, errno: %d\n", err);
+    return err;
   }
 
   for (int i = 0; i < map->count; i++) {
@@ -132,14 +138,14 @@ int main(int argc, char *argv[]) {
     printf("len %d: 0x%d\n", i, map->dma_arr[i].dma_len);
   }
 
-  ret = ioctl(udmabuf_fd, UDMABUF_DETACH, &dmabuf_fd);
-  if (ret) {
-    ret = errno;
-    printf("IOCTL UDMABUF_DETACH failed, %d\n", ret);
-    return ret;
+  err = ioctl(udmabuf_fd, UDMABUF_DETACH, &dmabuf_fd);
+  if (err) {
+    err = errno;
+    printf("IOCTL UDMABUF_DETACH failed, errno: %d\n", err);
+    return err;
   }
 
   close(udmabuf_fd);
 
-  return ret;
+  return err;
 }

@@ -23,38 +23,43 @@ int create_nvidia_dmabuf_fd(struct gpu_dmabuf_info *gdi, size_t buf_size) {
   CUdeviceptr vaddr;
   CUdevice dev;
   CUcontext ctx;
-  CUresult res;
+  CUresult err;
   int gpu_id = 0;
 
-  res = cuInit(0);
-  if (res != CUDA_SUCCESS) {
-    printf("cuInit failed with error code %d\n", res);
-    return 1;
+  err = cuInit(0);
+  if (err) {
+    printf("cuInit failed: %d, %s, %s\n", err, cuGetErrorName(err),
+           cuGetErrorString(err));
+    return err;
   }
 
-  res = cuDeviceGet(&dev, gpu_id);
-  if (res != CUDA_SUCCESS) {
-    printf("cuDeviceGet failed with error code %d\n", res);
-    return 1;
+  err = cuDeviceGet(&dev, gpu_id);
+  if (err) {
+    printf("cuDeviceGet failed: %d, %s, %s\n", err, cuGetErrorName(err),
+           cuGetErrorString(err));
+    return err;
   }
 
-  res = cuCtxCreate(&ctx, 0, dev);
-  if (res != CUDA_SUCCESS) {
-    printf("cuCtxCreate failed with error code %d\n", res);
-    return 1;
+  err = cuCtxCreate(&ctx, 0, dev);
+  if (err) {
+    printf("cuCtxCreate failed: %d, %s, %s\n", err, cuGetErrorName(err),
+           cuGetErrorString(err));
+    return err;
   }
 
-  res = cuMemAlloc(&vaddr, buf_size);
-  if (res != CUDA_SUCCESS) {
-    printf("cuMemAlloc failed with error code %d\n", res);
-    return 1;
+  err = cuMemAlloc(&vaddr, buf_size);
+  if (err) {
+    printf("cuMemAlloc failed: %d, %s, %s\n", err, cuGetErrorName(err),
+           cuGetErrorString(err));
+    return err;
   }
 
-  res = cuMemGetHandleForAddressRange(&dmabuf_fd, vaddr, buf_size,
+  err = cuMemGetHandleForAddressRange(&dmabuf_fd, vaddr, buf_size,
                                       CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD, 0);
-  if (res != CUDA_SUCCESS) {
-    printf("cuMemGetHandleForAddressRange failed with error code %d\n", res);
-    return 1;
+  if (err) {
+    printf("cuMemGetHandleForAddressRange failed: %d, %s, %s\n", err,
+           cuGetErrorName(err), cuGetErrorString(err));
+    return err;
   }
 
   gdi->dmabuf_fd = dmabuf_fd;
@@ -64,49 +69,48 @@ int create_nvidia_dmabuf_fd(struct gpu_dmabuf_info *gdi, size_t buf_size) {
   return 0;
 }
 
-int destroy_nvidia_dmabuf_fd(struct gpu_dmabuf_info *gdi) {
+void destroy_nvidia_dmabuf_fd(struct gpu_dmabuf_info *gdi) {
   cuCtxDestroy(gdi->ctx);
   cuMemFree(gdi->vaddr);
-  return 0;
 }
 
 int main(int argc, char *argv[]) {
   struct udmabuf_attach *attach;
   struct udmabuf_get_map *map;
   struct gpu_dmabuf_info gpu_dmabuf_info;
-  int udmabuf_fd, dmabuf_fd, ret;
+  int udmabuf_fd, dmabuf_fd, err;
   size_t buf_size = 8 * 65536; // 8 GPU pages
   long map_size;
 
   udmabuf_fd = open("/dev/udmabuf", O_RDWR);
   if (udmabuf_fd < 0) {
-    printf("Failed to open udmabuf dev, %d\n", udmabuf_fd);
-    return udmabuf_fd;
+    err = errno;
+    printf("Failed to open udmabuf dev, errno: %d\n", err);
+    return err;
   }
 
-  ret = create_nvidia_dmabuf_fd(&gpu_dmabuf_info, buf_size);
-  if (ret) {
-    fprintf(stderr, "DMABUF setup failed: %d\n", ret);
-    return 1;
+  err = create_nvidia_dmabuf_fd(&gpu_dmabuf_info, buf_size);
+  if (err) {
+    return err;
   }
 
   dmabuf_fd = (int)gpu_dmabuf_info.dmabuf_fd;
 
   printf("DMABUF FD: %d\n", dmabuf_fd);
 
-  
   attach = malloc(sizeof(struct udmabuf_attach));
   if (!attach) {
-    printf("Failed to alloc attach struct\n");
-    return -1;
+    err = errno;
+    printf("Failed to alloc attach struct, errno: %d\n", err);
+    return err;
   }
   attach->fd = dmabuf_fd;
 
-  ret = ioctl(udmabuf_fd, UDMABUF_ATTACH, attach);
-  if (ret) {
-    ret = errno;
-    printf("IOCTL UDMABUF_ATTACH failed, %d\n", ret);
-    return ret;
+  err = ioctl(udmabuf_fd, UDMABUF_ATTACH, attach);
+  if (err) {
+    err = errno;
+    printf("IOCTL UDMABUF_ATTACH failed, errno: %d\n", err);
+    return err;
   }
 
   printf("dma-buf contains %u addresses\n", attach->count);
@@ -115,8 +119,9 @@ int main(int argc, char *argv[]) {
 
   map = malloc(sizeof(struct udmabuf_get_map) + map_size);
   if (!map) {
-    printf("Failed to alloc map struct\n");
-    return -1;
+    err = errno;
+    printf("Failed to alloc map struct, errno: %d\n", err);
+    return err;
   }
   memset(map->dma_arr, 0, map_size);
 
@@ -135,16 +140,16 @@ int main(int argc, char *argv[]) {
     printf("len %d: 0x%d\n", i, map->dma_arr[i].dma_len);
   }
 
-  ret = ioctl(udmabuf_fd, UDMABUF_DETACH, &dmabuf_fd);
-  if (ret) {
-    ret = errno;
-    printf("IOCTL UDMABUF_DETACH failed, %d\n", ret);
-    return ret;
+  err = ioctl(udmabuf_fd, UDMABUF_GET_MAP, map);
+  if (err) {
+    err = errno;
+    printf("IOCTL UDMABUF_GET_MAP failed, errno: %d\n", err);
+    return err;
   }
 
   destroy_nvidia_dmabuf_fd(&gpu_dmabuf_info);
 
   close(udmabuf_fd);
 
-  return ret;
+  return err;
 }
