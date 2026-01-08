@@ -98,19 +98,24 @@ class CpuFrequencyHelper():
 
     def toggle_turbo(self, on: bool) -> int:
         """
-        Enable or disable turbo mode
+        Enable or disable turbo mode.
+
+        Note that on intel CPUs, this is toggled in a "no_turbo" file, meaning a
+        true value "1" means turbo will be turned OFF, while on other systems,
+        it is toggled in a "boost" file, meaning a true value "1" means turbo
+        will be turned ON.
         """
 
         if self._turbo == on:
             return 0
 
-        cmd = (
-            f"""if [[ -f "/sys/devices/system/cpu/intel_pstate/no_turbo" ]]; then
-                echo {0 if on else 1} > /sys/devices/system/cpu/intel_pstate/no_turbo
-            else
-                echo {1 if on else 0} > /sys/devices/system/cpu/cpufreq/boost
-            fi"""
-        )
+        no_turbo_path = "/sys/devices/system/cpu/intel_pstate/no_turbo"
+        cmd = f"echo {0 if on else 1} > {no_turbo_path}"
+
+        err, state = self.cijoe.run(f"ls {no_turbo_path}")
+        if err or no_turbo_path != state.output().strip():
+            boost_path = "/sys/devices/system/cpu/cpufreq/boost"
+            cmd = f"echo {1 if on else 0} > {boost_path}"
 
         err, _ = self.cijoe.run(cmd)
         if err:
