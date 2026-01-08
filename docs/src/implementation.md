@@ -14,6 +14,14 @@ demonstrate key aspects of accelerator-integrated storage I/O. These components
 are used to validate feasibility, explore performance characteristics, and
 exercise device-initiated I/O paths under controlled conditions.
 
+```{figure} _static/aisio_overview_poc.drawio.png
+:alt: Overview of the initial AiSIO PoC
+:width: 700px
+:align: center
+
+Overview of the initial AiSIO PoC
+```
+
 The **AiSIO** PoC demonstrates functionality on Linux systems using:
 
 - A ublk-based cooperative block driver that integrates with SPDK.

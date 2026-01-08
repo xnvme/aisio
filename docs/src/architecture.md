@@ -253,6 +253,14 @@ required, user-space processes. Each VF provides an independent operational
 interface with its own set of I/O queues, BAR mappings, and interrupt resources,
 while all functions continue to access the same underlying namespaces.
 
+```{figure} _static/aisio_overview_homi_userspace_mgmt.drawio.png
+:alt: HOMI via Hardware-Assisted Delegation (SR-IOV)
+:width: 700px
+:align: center
+
+Overall system architecture showing data flow between components.
+```
+
 This hardware-level partitioning allows kernel-managed I/O paths, user-space
 processes, and device-initiated I/O paths to coexist without sharing queue
 resources or requiring host-mediated queue arbitration on the data path. From
