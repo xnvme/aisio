@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
 
   for (int i = 0; i < map->count; i++) {
     printf("addr %d: 0x%lx\n", i, map->dma_arr[i].dma_addr);
-    printf("len %d: 0x%d\n", i, map->dma_arr[i].dma_len);
+    printf("len %d: %d\n", i, map->dma_arr[i].dma_len);
   }
 
   err = ioctl(udmabuf_fd, UDMABUF_DETACH, &dmabuf_fd);
