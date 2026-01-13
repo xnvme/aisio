@@ -15,6 +15,7 @@ from json import dump as json_dump
 from math import floor
 from pathlib import Path
 from sys import stderr
+from time import time
 from typing import Optional
 import logging as log
 
@@ -86,7 +87,7 @@ def main(args, cijoe: Cijoe):
 
     tests = [(ht,tu,sm,st,f,d,c,o,q) for (ht,tu,sm,st,f,d,c,o,q) in tests if not (not sm and ht)]
 
-    finished, total = 0, len(tests)
+    finished, total, now = 0, len(tests), time()
     all_results = defaultdict(list)
 
     for ht, tu, sm, st, freq, devs, cpus, iosz, qd in tests:
@@ -116,7 +117,9 @@ def main(args, cijoe: Cijoe):
         suffix = f"-SMT{sm}-turbo{tu}"
 
         if not args.monitor:
-            print_progress(finished, total)
+            print_progress(finished, total, time()-now)
+
+        now = time()
 
         err, result = bdevperf.run_benchmark(qd, iosz, devs, cpus, args.time, freq, suffix)
         if err:
@@ -130,7 +133,7 @@ def main(args, cijoe: Cijoe):
         finished += 1
 
     if not args.monitor:
-        print_progress(finished, total)
+        print_progress(finished, total, time()-now)
 
     with open(out_path / "artifacts" / "benchmark-results.json", "x") as file:
         json_dump(all_results, file, indent=2)
@@ -172,13 +175,21 @@ def create_range(default: Optional[list], arr: list) -> range:
     return range(lo, hi)
 
 
-def print_progress(finished: int, total: int):
+def print_progress(finished: int, total: int, duration_s: float):
     """Prints a loading bar to stderr to indicate the progress"""
 
     width = 20 if total < 100 else 50
     progress = floor(finished / total * width)
     bar = f"[{'▒' * (progress)}{' ' * (width-progress)}]"
-    stderr.write(f"\r{bar}  {finished} / {total} ")
+
+    remaining_time = (total-finished)*duration_s
+    m, s = divmod(remaining_time, 60)
+    h, m = divmod(m, 60)
+    d, h = divmod(h, 24)
+    s, m, h, d = map(int, [s, m, h, d])
+    remaining_string = f"({f'{d} days, ' if d else ''}{f'{h:0>2}:' if h else ''}{m:0>2}:{s:0>2} remaining)"
+
+    stderr.write(f"\r{bar}  {finished} / {total} {remaining_string if int(duration_s) else ''}  ")
     if finished == total:
         stderr.write("\n")
     stderr.flush()
