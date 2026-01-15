@@ -31,14 +31,10 @@ def main(args, cijoe):
         log.error(f"Failed: could not find benchmark results on path({json_path})")
         return 1
 
-    results = {}
-    datasets = []
-
     with open(json_path, "r") as file:
         results = json.load(file)
 
-    for res in results.items():
-        datasets.append(convert_to_data(*res))
+    datasets = convert_to_data(results)
 
     template_resource = get_resources().get("templates", {}).get("benchmark-visualization.html", {})
     if not template_resource:
@@ -57,16 +53,29 @@ def main(args, cijoe):
     return 0
 
 
-def convert_to_data(label: str, results: list[dict]):
-    data = []
+def convert_to_data(all_results: dict) -> list:
+    """
+    Convert the format of the results to fit the visualisation.
 
-    for res in results:
-        res["iops"] = res["total"]["iops"]
-        del res["devices"]
-        del res["total"]
-        for k, v in res.items():
-            if isinstance(v, bool):
-                res[k] = int(v)
-        data.append(res)
+    Converts the results from having the form:
+        {
+          label1: [...data],
+          label2: [...data],
+        }
+    To having form:
+        [
+          { label: label1, data: [...data] },
+          { label: label2, data: [...data] },
+        ]
 
-    return {"label": label, "data": data}
+    For cross-language compatibility, booleans are converted to integers, as
+    Python spells (true, false) capitalized.
+    """
+
+    datasets = []
+
+    for label, results in all_results.items():
+        data = [{k:(int(v) if isinstance(v, bool) else v) for k,v in res.items()} for res in results]
+        datasets.append({ "label": label, "data": data })
+
+    return datasets
