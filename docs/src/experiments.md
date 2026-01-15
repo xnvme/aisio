@@ -8,7 +8,9 @@
 In the first experimental setup, the I/O is CPU-driven and the host-memory is
 used for submission and completion queues, and for command payloads. All tests
 are driven by SPDK's benchmarking tool, bdevperf, wrapped in a Python script that
-automates running the experiment with different parameters.
+automates running the experiment with different parameters. The results are
+reported as the average of running each benchmark five times to reduce the impact
+of variance between runs.
 
 ### Independent variables
 
@@ -185,7 +187,8 @@ variables of the experiment. The key ``results_dir`` is optional, but allows
 continuation of previously run benchmarks. Note that the ``numcpus_range`` and
 ``numdevs_range`` are tuples describing the range of CPUs and block devices used
 for testing, both inclusive, meaning it is not a complete list of values for these
-independent variables.
+independent variables. A key ``repetitions`` can be added to change the number of
+times each benchmark is run; if not defined, the default is 5 repetitions.
 
 When the "run" step has been parameterized, the workflow can be run with command
 

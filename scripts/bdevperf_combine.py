@@ -13,6 +13,7 @@ from collections import defaultdict
 from json import dump as json_dump, load as json_load
 from pathlib import Path
 from re import match
+from typing import List, Tuple, Union
 import logging as log
 
 from cijoe.core.command import Cijoe
@@ -34,7 +35,7 @@ def main(args, cijoe: Cijoe):
     all_results = defaultdict(list)
 
     for path in bdev_results.glob("*-0.out"):
-        REGEX = r".*-thrsib(?P<ht>[01])-freq_.*-stress(?P<st>[01])-SMT(?P<sm>[01])-turbo(?P<tu>[01])"
+        REGEX = r".*-thrsib(?P<ht>[01])-freq_.*-stress(?P<st>[01])-SMT(?P<sm>[01])-turbo(?P<tu>[01])-\d"
         m = match(REGEX, path.stem)
         if not m:
             log.error(f"Failed parsing filname({path.stem})")
@@ -48,8 +49,21 @@ def main(args, cijoe: Cijoe):
             f"turbo {'on' if tu else 'off'}"
         )
 
-        with open(path) as file:
-            result = json_load(file)
+        repeated_results = []
+
+        for run in bdev_results.glob(f"{path.stem[:-1]}*"):
+            with open(run) as file:
+                repeated_results.append(json_load(file))
+
+        # err, result = get_average(repeated_results)
+        err, result = merge_dicts(repeated_results, ["cpu_freqs", "iops", "mibs", "cpu"])
+        if err:
+            log.error("Failed: merge_dicts()")
+            return err
+
+        result["iops"] = avg_stddev(result["iops"])
+        result["mibs"] = avg_stddev(result["mibs"])
+        result["cpu"] = avg_stddev(result["cpu"])
 
         all_results[label].append(result)
 
@@ -57,3 +71,45 @@ def main(args, cijoe: Cijoe):
         json_dump(all_results, file, indent=2)
 
     return 0
+
+
+def avg_stddev(ns: List[Union[int, float]]):
+    """Calculate the average and standard deviation of a list"""
+    avg = sum(ns) / len(ns)
+    stddev = (sum((x - avg) ** 2 for x in ns) / len(ns)) ** 0.5
+    return avg, stddev
+
+
+def merge_dicts(dicts: List[dict], include_all: List[str]) -> Tuple[int, dict]:
+    """
+    Merge a list of dicts into a single combined dict. All dicts must have the
+    same set of keys, and all values for each key must be the same within each
+    dict, except if the key is in the `include_all` list. In this case, the value
+    for each list will be combined into a list of values for the key in each dict.
+
+    Arguments
+    - `dicts: List[dict]`: List of dicts with same key set.
+    - `include_all: List[str]`: List of keys within the set. The call will not
+      fail if given a key that is not within the dicts.
+
+    Returns
+    - `(err, merged): Tuple[int, dict]`
+    """
+
+    first, keys, merged = dicts[0], set(first.keys()), {}
+
+    if not all([set(d.keys()) == keys for d in dicts]):
+        failed = next(d for d in dicts if set(d.keys()) != keys)
+        log.error(f"Error: Expected keys of all dicts to be equal: {set(failed.keys())} != {keys}")
+        return 1, None
+
+    for key in first.keys():
+        if key in include_all:
+            merged[key] = [d[key] for d in dicts]
+        else:
+            if not all([d[key] == first[key] for d in dicts]):
+                log.error(f"Error: Expected all values for non-excluded key({key}) to be equal")
+                return 1, None
+            merged[key] = first[key]
+
+    return 0, merged

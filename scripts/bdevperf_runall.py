@@ -35,6 +35,7 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--stress", type=int, default=[0,1], nargs="+", help="0 for not stressing unused CPUs, 1 for stressing unused CPUs, [0,1] for testing both")
     parser.add_argument("--time", type=int, default=10, help="Time for for bdevperf to run for each test")
     parser.add_argument("--results_dir", type=Path, default=None, help="Path to existing directory in which the results should be saved. Note: Already existing results will not be benchmarked again")
+    parser.add_argument("--repetitions", type=int, default=5, help="The amount of times each benchmark will be repeated. The result will be average of the repetitions")
 
 
 def main(args, cijoe: Cijoe):
@@ -112,13 +113,15 @@ def main(args, cijoe: Cijoe):
 
         now = time()
 
-        err, result = bdevperf.run_benchmark(qd, iosz, devs, cpus, args.time, freq, suffix)
-        if err:
-            log.error("Failed: run_bdevperf()")
-            return err, None
+        for i in range(args.repetitions):
+            err, result = bdevperf.run_benchmark(qd, iosz, devs, cpus, args.time, freq, f"{suffix}-{i}")
+            if err:
+                log.error("Failed: run_bdevperf()")
+                return err
 
-        if not result:
-            continue
+            if not result:
+                log.error("Got no results")
+                return 1
 
         finished += 1
 
