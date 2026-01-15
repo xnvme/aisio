@@ -64,7 +64,12 @@ steps:
     smt: [0,1]
     hyperthreads: [0,1]
     stress: [0,1]
-    results_dir: "{{ local.env.HOME }}/bench-results"
+    results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
+
+- name: combine
+  uses: bdevperf_combine
+  with:
+    results_dir: *results-dir
 
 - name: visualize
   uses: bdevperf_visualize
