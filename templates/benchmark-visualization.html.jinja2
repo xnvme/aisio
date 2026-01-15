@@ -14,6 +14,7 @@
     max-width: 90vw;
     height: 800px;
     max-height: 90vh;
+    padding-bottom: 30px;
   }
   dialog button {
     float: right;
@@ -110,7 +111,7 @@
       }
       htRadio2.disabled = true;
     } else {
-      htRadio2.disabled = false; 
+      htRadio2.disabled = false;
     }
   }
 </script>
@@ -172,6 +173,7 @@
 </div>
 
 <dialog>
+  <strong>CPU frequencies</strong>
   <button onclick="document.querySelector('dialog').close()">x</button>
   <canvas id="freq-chart" width="100%" height="100%"></canvas>
 </dialog>
@@ -306,7 +308,8 @@ function updateChart() {
 
     const graphData = filtered.map(d => ({
       x: logarithmic ? Math.log2(d[x_axis]) : d[x_axis],
-      y: d.iops,
+      y: d.iops[0],
+      v: d.iops[1],
       data: d
     }));
 
@@ -342,6 +345,38 @@ function updateChart() {
         }
       ]
     },
+    plugins: [{
+      id: "shadingArea",
+      beforeDatasetsDraw(chart, args, pluginOptions) {
+        const { ctx, chartArea: { top, bottom, left, right, width, height }, scales: {x,y} } = chart;
+
+        const tickHeight = y.height / y.max;
+
+        for (var i = 0; i < chart.data.datasets.length - 1; i++) {
+          const dataset = chart.data.datasets[i];
+          const dataset_meta = chart.getDatasetMeta(i);
+          if (!dataset_meta.data?.length) continue;
+
+          ctx.save();
+
+          ctx.beginPath();
+          ctx.fillStyle = dataset.backgroundColor;
+          ctx.strokeStyle = dataset.backgroundColor;
+          ctx.globalAlpha = 0.2;
+
+          ctx.moveTo(dataset_meta.data[0].x, dataset_meta.data[0].y - tickHeight * dataset.data[0].v);
+
+          for (var j = 0; j < dataset.data.length; j++) {
+            ctx.lineTo(dataset_meta.data[j].x, dataset_meta.data[j].y - tickHeight * dataset.data[j].v);
+          }
+          for (var j = dataset.data.length-1; j >= 0; j--) {
+            ctx.lineTo(dataset_meta.data[j].x, dataset_meta.data[j].y + tickHeight * dataset.data[j].v);
+          }
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      }
+    }],
     options: {
       animation: false,
       responsive: true,
@@ -383,13 +418,13 @@ function updateChart() {
             label: (context) => {
               const d = context.raw;
               if (d.data.thr_sib) {
-                return [`IOPS: ${d.y}`,`Hyper threads: ${d.data.hyperthreads}`];
+                return [`IOPS: ${Math.round(d.y)}`, `Standard Deviation: ${Math.round(d.v)}`, `Hyper threads: ${d.data.hyperthreads}`];
               }
               else if (context.dataset.label.includes("Peak IOPS")) {
-                return `Peak IOPS: ${d.y}`;
+                return `Peak IOPS: ${Math.round(d.y)}`;
               }
               else {
-                return `IOPS: ${d.y}`;
+                return [`IOPS: ${Math.round(d.y)}`, `Standard Deviation: ${Math.round(d.v)}`];
               }
             }
           }
@@ -401,31 +436,35 @@ function updateChart() {
             }
           }
         }
-      }
+      },
     }
   });
 }
 updateChart();
 
 function updateFreqChart(datapoint) {
-  let freqs = datapoint.cpu_freqs;
-  freqs.sort((a,b) => a[1][1] - b[1][1])
-  freqs = freqs.map(f => ({x: f[1][1], y: f[0][0], variance: f[0][1], cpu: f[1][0], data: datapoint}));
+  const datasets = [];
+  let maxXvalue = 0, maxYvalue = 0;
 
-  const maxXvalue = Math.max(...freqs.map(f => f.x)) + 1;
-  const maxYvalue = Math.max(...freqs.map(f => f.y)) + 1;
+  for (var i = 0; i < datapoint.cpu_freqs.length; i++) {
+    let freqs = datapoint.cpu_freqs[i];
+    freqs.sort((a,b) => a[1][1] - b[1][1])
+    freqs = freqs.map(f => ({x: f[1][1], y: f[0][0], variance: f[0][1], cpu: f[1][0], data: datapoint}));
+    const dataset = {
+        label: `Run ${i+1}`,
+        data: freqs,
+        borderColor: colours[i],
+        backgroundColor: colours[i],
+    }
+    datasets.push(dataset);
+    maxXvalue = Math.max(maxXvalue, Math.max(...freqs.map(f => f.x)) + 1);
+    maxYvalue = Math.max(maxYvalue, Math.max(...freqs.map(f => f.y)) + 1);
+  }
 
   if (freq_chart) freq_chart.destroy();
   freq_chart = new Chart(freq_ctx, {
     type: 'line',
-    data: {
-      datasets: [{
-        label: 'CPU frequency',
-        data: freqs,
-        borderColor: 'green',
-        backgroundColor: 'green',
-      }]
-    },
+    data: { datasets },
     options: {
       animation: false,
       responsive: true,
@@ -445,7 +484,7 @@ function updateFreqChart(datapoint) {
           }
         },
         y: {
-          title: { display: true, text: 'GHz' },
+          title: { display: true, text: 'CPU frequency (GHz)' },
           offset: true,
           min: 0,
           max: maxYvalue,
@@ -459,9 +498,9 @@ function updateFreqChart(datapoint) {
             label: (context) => {
               const d = context.raw;
               if (d.data.hyperthreads) {
-                return [`CPU Frequency: ${d.y}`,`Hyper thread ID: ${d.cpu}`];
+                return [`CPU Frequency: ${Math.round(d.y / 1e2) / 1e4} GHz`,`Hyper thread ID: ${d.cpu}`];
               } else {
-                return `CPU Frequency: ${d.y}`;
+                return `CPU Frequency: ${Math.round(d.y / 1e2) / 1e4} GHz`;
               }
             }
           }
