@@ -147,13 +147,14 @@ class BdevperfHelper():
         if err:
             log.error("Failed: cpu_usage()")
             return err, None
+        bench_result = self._parse_bdevperf_result(output)
 
         err, cpu_freqs = self.cfm.stop_logging_and_parse()
         if err:
             log.error("Failed: CpuFrequencyHelper.stop_logging_and_parse()")
             return err, None
 
-        cpu_freqs = [(cpu_freqs[idx], self.cpu_pairs[idx]) for idx in selected_cpus]
+        cpu_freqs = [[cpu_freqs[idx], self.cpu_pairs[idx]] for idx in selected_cpus]
         peak_iops = sum(map(lambda dev: dev["iops"], self.devices[0:ndevs]))
 
         result = {
@@ -167,7 +168,8 @@ class BdevperfHelper():
             "fixed_freq": self.cfm.fixed_freq,
             "cpu_governor": self.cfm.governor,
             "thr_sib": self.use_thrsib,
-            **self._parse_bdevperf_result(output)
+            "iops": bench_result["total"]["iops"],
+            "mibs": bench_result["total"]["mibs"],
         }
 
         with open(res_path, "x") as file:
