@@ -9,9 +9,7 @@ Retargetable: True
 """
 
 from argparse import ArgumentParser
-from collections import defaultdict
 from itertools import product
-from json import dump as json_dump
 from math import floor
 from pathlib import Path
 from sys import stderr
@@ -44,7 +42,7 @@ def main(args, cijoe: Cijoe):
 
     out_path = Path(args.output)
     bdev_configs = out_path / cijoe.output_ident / "bdevperf-configs"
-    bdev_results = out_path / cijoe.output_ident / "bdevperf-results"
+    bdev_results = out_path / "artifacts" / "bdevperf-results"
 
     if args.results_dir:
         bdev_results = args.results_dir
@@ -88,7 +86,6 @@ def main(args, cijoe: Cijoe):
     tests = [(ht,tu,sm,st,f,d,c,o,q) for (ht,tu,sm,st,f,d,c,o,q) in tests if not (not sm and ht)]
 
     finished, total, now = 0, len(tests), time()
-    all_results = defaultdict(list)
 
     for ht, tu, sm, st, freq, devs, cpus, iosz, qd in tests:
         err = cfm.toggle_smt(sm)
@@ -108,12 +105,6 @@ def main(args, cijoe: Cijoe):
 
         bdevperf.stress = st
 
-        label = (
-            f"{'U' if ht else 'Not u'}sing thread siblings; "
-            f"SMT {'on' if sm else 'off'}; "
-            f"stress {'on' if st else 'off'}; "
-            f"turbo {'on' if tu else 'off'}"
-        )
         suffix = f"-SMT{sm}-turbo{tu}"
 
         if not args.monitor:
@@ -129,14 +120,10 @@ def main(args, cijoe: Cijoe):
         if not result:
             continue
 
-        all_results[label].append(result)
         finished += 1
 
     if not args.monitor:
         print_progress(finished, total, time()-now)
-
-    with open(out_path / "artifacts" / "benchmark-results.json", "x") as file:
-        json_dump(all_results, file, indent=2)
 
     return 0
 
