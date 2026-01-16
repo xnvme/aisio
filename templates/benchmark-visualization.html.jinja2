@@ -197,11 +197,13 @@ const results = [
     {% endif %}
   },
   {%- endfor %}
-].map((res,idx) => ({
-  ...res,
-  color: colours[idx % colours.length],
-  data: res.data.map(d => ({...d, fixed_freq: (d.fixed_freq ? d.fixed_freq : d.cpu_governor)})),
-}));
+]
+  .sort((a,b) => a.label.localeCompare(b.label))
+  .map((res,idx) => ({
+    ...res,
+    color: colours[idx % colours.length],
+    data: res.data.map(d => ({...d, fixed_freq: (d.fixed_freq ? d.fixed_freq : d.cpu_governor)})),
+  }));
 
 const cpusSet = [...new Set(results[0].data.map(d => d.ncpus))].sort((a,b) => a - b);
 const devicesSet = [...new Set(results[0].data.map(d => d.ndevs))].sort((a,b) => a - b);
@@ -267,6 +269,10 @@ function updateRadios() {
   });
 }
 updateRadios();
+
+function separatedNumber(x) {
+    return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
 
 const ctx = document.getElementById('chart').getContext('2d');
 let chart;
@@ -357,7 +363,7 @@ function updateChart() {
         for (var i = 0; i < chart.data.datasets.length - 1; i++) {
           const dataset = chart.data.datasets[i];
           const dataset_meta = chart.getDatasetMeta(i);
-          if (!dataset_meta.data?.length) continue;
+          if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
 
           ctx.save();
 
@@ -389,7 +395,7 @@ function updateChart() {
           for (var i = 0; i < chart.data.datasets.length - 1; i++) {
             const dataset = chart.data.datasets[i];
             const dataset_meta = chart.getDatasetMeta(i);
-            if (!dataset_meta.data?.length) continue;
+            if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
 
             ctx.save();
 
@@ -398,7 +404,7 @@ function updateChart() {
 
             const lastPoint = dataset.data[dataset.data.length-1];
             const lastPointMeta = dataset_meta.data[dataset.data.length-1];
-            const text = `${Math.round(lastPoint.y)}`;
+            const text = separatedNumber(lastPoint.y);
 
             const coord = { x: lastPointMeta.x + 10, y: lastPointMeta.y-6, w: ctx.measureText(text).width, h: 10 };
 
@@ -467,14 +473,12 @@ function updateChart() {
             title: () => "",
             label: (context) => {
               const d = context.raw;
-              if (d.data.thr_sib) {
-                return [`IOPS: ${Math.round(d.y)}`, `Standard Deviation: ${Math.round(d.v)}`, `Hyper threads: ${d.data.hyperthreads}`];
-              }
-              else if (context.dataset.label.includes("Peak IOPS")) {
-                return `Peak IOPS: ${Math.round(d.y)}`;
-              }
-              else {
-                return [`IOPS: ${Math.round(d.y)}`, `Standard Deviation: ${Math.round(d.v)}`];
+              if (context.dataset.label.includes("Peak IOPS")) {
+                return `Peak IOPS: ${separatedNumber(d.y)}`;
+              } else if (d.data.thr_sib) {
+                return [`IOPS: ${separatedNumber(d.y)}`, `Standard Deviation: ${separatedNumber(d.v)}`, `Hyper threads: ${d.data.hyperthreads}`];
+              } else {
+                return [`IOPS: ${separatedNumber(d.y)}`, `Standard Deviation: ${separatedNumber(d.v)}`];
               }
             }
           }
