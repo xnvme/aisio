@@ -28,37 +28,32 @@ int create_nvidia_dmabuf_fd(struct gpu_dmabuf_info *gdi, size_t buf_size) {
 
   err = cuInit(0);
   if (err) {
-    printf("cuInit failed: %d, %s, %s\n", err, cuGetErrorName(err),
-           cuGetErrorString(err));
+    printf("cuInit failed: %d\n", err);
     return err;
   }
 
   err = cuDeviceGet(&dev, gpu_id);
   if (err) {
-    printf("cuDeviceGet failed: %d, %s, %s\n", err, cuGetErrorName(err),
-           cuGetErrorString(err));
+    printf("cuDeviceGet failed: %d\n", err);
     return err;
   }
 
   err = cuCtxCreate(&ctx, 0, dev);
   if (err) {
-    printf("cuCtxCreate failed: %d, %s, %s\n", err, cuGetErrorName(err),
-           cuGetErrorString(err));
+    printf("cuCtxCreate failed: %d\n", err);
     return err;
   }
 
   err = cuMemAlloc(&vaddr, buf_size);
   if (err) {
-    printf("cuMemAlloc failed: %d, %s, %s\n", err, cuGetErrorName(err),
-           cuGetErrorString(err));
+    printf("cuMemAlloc failed: %d\n", err);
     return err;
   }
 
   err = cuMemGetHandleForAddressRange(&dmabuf_fd, vaddr, buf_size,
                                       CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD, 0);
   if (err) {
-    printf("cuMemGetHandleForAddressRange failed: %d, %s, %s\n", err,
-           cuGetErrorName(err), cuGetErrorString(err));
+    printf("cuMemGetHandleForAddressRange failed: %d\n", err);
     return err;
   }
 
@@ -128,11 +123,11 @@ int main(int argc, char *argv[]) {
   map->fd = dmabuf_fd;
   map->count = attach->count;
 
-  ret = ioctl(udmabuf_fd, UDMABUF_GET_MAP, map);
-  if (ret) {
-    ret = errno;
-    printf("IOCTL UDMABUF_GET_MAP failed, %d\n", ret);
-    return ret;
+  err = ioctl(udmabuf_fd, UDMABUF_GET_MAP, map);
+  if (err) {
+    err = errno;
+    printf("IOCTL UDMABUF_GET_MAP failed, %d\n", err);
+    return err;
   }
 
   for (int i = 0; i < map->count; i++) {
