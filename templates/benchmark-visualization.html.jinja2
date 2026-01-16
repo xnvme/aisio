@@ -146,6 +146,8 @@
     <label><input type="radio" name="stress" value="1" checked>Both</label>
     <label><input type="radio" name="stress" value="2">On</label>
   </span>
+  <strong>Show final value of each line:</strong>
+  <input id="show-max-value" type="checkbox">
 </div>
 <div class="controls">
   <div>
@@ -338,7 +340,7 @@ function updateChart() {
         {
           label: 'Peak IOPS with given devices',
           data: [...Array(Math.round(maxXvalue+2)).keys()].map(x => ({x: x-1, y: maxPeak})),
-          borderColor: 'orange',
+          borderColor: 'rgba(0,0,0,0.15)',
           backgroundColor: 'white',
           pointRadius: 0,
           borderDash: [10,10]
@@ -374,6 +376,54 @@ function updateChart() {
           }
           ctx.fill();
           ctx.globalAlpha = 1;
+        }
+      }
+    },
+    {
+      id: "showMax",
+      afterDatasetsDraw(chart, args, pluginOptions) {
+        const { ctx } = chart;
+        const drawn_labels = [];
+
+        if (document.getElementById("show-max-value").checked) {
+          for (var i = 0; i < chart.data.datasets.length - 1; i++) {
+            const dataset = chart.data.datasets[i];
+            const dataset_meta = chart.getDatasetMeta(i);
+            if (!dataset_meta.data?.length) continue;
+
+            ctx.save();
+
+            ctx.fillStyle = dataset.backgroundColor;
+            ctx.strokeStyle = dataset.backgroundColor;
+
+            const lastPoint = dataset.data[dataset.data.length-1];
+            const lastPointMeta = dataset_meta.data[dataset.data.length-1];
+            const text = `${Math.round(lastPoint.y)}`;
+
+            const coord = { x: lastPointMeta.x + 10, y: lastPointMeta.y-6, w: ctx.measureText(text).width, h: 10 };
+
+            let goUp = coord.y;
+            let goDown = coord.y;
+
+            while (drawn_labels.some(r =>
+              goDown < r.y + r.h &&
+              goDown + coord.h > r.y
+            )) {
+              goDown += 4;
+            }
+            while (drawn_labels.some(r =>
+              goUp < r.y + r.h &&
+              goUp + coord.h > r.y
+            )) {
+              goUp -= 4;
+            }
+
+            if (coord.y-goUp < goDown-coord.y) coord.y = goUp;
+            else coord.y = goDown;
+
+            ctx.fillText(text, coord.x, coord.y+6);
+            drawn_labels.push({ ...coord, y: coord.y });
+          }
         }
       }
     }],
