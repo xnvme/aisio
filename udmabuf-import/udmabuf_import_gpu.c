@@ -99,6 +99,7 @@ int main(int argc, char *argv[]) {
     printf("Failed to alloc attach struct, errno: %d\n", err);
     return err;
   }
+  memset(attach, 0, sizeof(*attach));
   attach->fd = dmabuf_fd;
 
   err = ioctl(udmabuf_fd, UDMABUF_ATTACH, attach);
@@ -110,7 +111,7 @@ int main(int argc, char *argv[]) {
 
   printf("dma-buf contains %u addresses\n", attach->count);
 
-  map_size = attach->count * sizeof(struct udmabuf_get_map);
+  map_size = attach->count * sizeof(struct udmabuf_dma_map);
 
   map = malloc(sizeof(struct udmabuf_get_map) + map_size);
   if (!map) {
@@ -118,7 +119,7 @@ int main(int argc, char *argv[]) {
     printf("Failed to alloc map struct, errno: %d\n", err);
     return err;
   }
-  memset(map->dma_arr, 0, map_size);
+  memset(map, 0, sizeof(*map));
 
   map->fd = dmabuf_fd;
   map->count = attach->count;
@@ -145,6 +146,8 @@ int main(int argc, char *argv[]) {
   destroy_nvidia_dmabuf_fd(&gpu_dmabuf_info);
 
   close(udmabuf_fd);
+  free(attach);
+  free(map);
 
   return err;
 }
