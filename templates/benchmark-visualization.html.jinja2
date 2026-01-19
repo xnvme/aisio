@@ -163,8 +163,17 @@
   <span id="iosizeRadios"></span>
   <strong>CPU Frequency or Governor:</strong>
   <span id="cpufreqRadios"></span>
+</div>
+<div class="controls">
+  <strong>Value on y-axis:</strong>
+  <div class="button-row y">
+    <button value="0">IOPS</button>
+    <button value="1">MiB/s</button>
+  </div>
+</div>
+<div class="controls">
   <strong>Value on x-axis:</strong>
-  <div class="button-row">
+  <div class="button-row x">
     <button value="0">Queue Depth</button>
     <button value="1"># Physical Cores</button>
     <button value="2"># Devices</button>
@@ -205,21 +214,22 @@ const results = [
     data: res.data.map(d => ({...d, fixed_freq: (d.fixed_freq ? d.fixed_freq : d.cpu_governor)})),
   }));
 
-const cpusSet = [...new Set(results[0].data.map(d => d.ncpus))].sort((a,b) => a - b);
-const devicesSet = [...new Set(results[0].data.map(d => d.ndevs))].sort((a,b) => a - b);
-const iosizeSet = [...new Set(results[0].data.map(d => d.iosize))].sort((a,b) => a - b);
-const qdepthSet = [...new Set(results[0].data.map(d => d.qdepth))].sort((a,b) => a - b);
-const cpufreqSet = [...new Set(results[0].data.map(d => d.fixed_freq))].sort((a,b) => a - b);
+const getXvalues = () => {
+  const allData = results.map(({data}) => data).flat();
+  return [
+    {elemId: "qdepthRadios", key: "qdepth", prettyName: "Queue Depth"},
+    {elemId: "cpusRadios", key: "ncpus", prettyName: "Number of Physical Cores"},
+    {elemId: "devicesRadios", key: "ndevs", prettyName: "Number of Devices"},
+    {elemId: "iosizeRadios", key: "iosize", prettyName: "I/O Size"},
+    {elemId: "cpufreqRadios", key: "fixed_freq", prettyName: "CPU Frequency or Governor" },
+  ].map(s => ({...s, set: [...new Set(allData.map(d => d[s.key]))].sort((a,b) => a - b) }));
+}
 
-const sets = [
-  {elemId: "qdepthRadios", set: qdepthSet, key: "qdepth", prettyName: "Queue Depth"},
-  {elemId: "cpusRadios", set: cpusSet, key: "ncpus", prettyName: "Number of Physical Cores"},
-  {elemId: "devicesRadios", set: devicesSet, key: "ndevs", prettyName: "Number of Devices"},
-  {elemId: "iosizeRadios", set: iosizeSet, key: "iosize", prettyName: "I/O Size"},
-  {elemId: "cpufreqRadios", set: cpufreqSet, key: "fixed_freq", prettyName: "CPU Frequency or Governor" },
-];
+const xValues = getXvalues();
+const yValues = [{ key: "iops", prettyName: "IOPS", unit: "millions" }, { key: "mibs", prettyName: "Bandwidth", unit: "MiB/s" }];
 
-CUR_X_AXIS = 2;
+let CUR_X_AXIS = 2;
+let CUR_Y_AXIS = 0;
 const radioDefaults = [128, 8, 16, 512, "performance"];
 
 function createRadios(containerId, values, name, checkedValue) {
@@ -247,7 +257,7 @@ function createRadios(containerId, values, name, checkedValue) {
   }
   defaultChecked.checked = true;
 }
-sets.forEach(({elemId, set, key}, idx) => {
+xValues.forEach(({elemId, set, key}, idx) => {
   createRadios(elemId, set, key, radioDefaults[idx]);
 });
 document.querySelectorAll(`input[type="radio"]`).forEach(radio => {
@@ -255,8 +265,8 @@ document.querySelectorAll(`input[type="radio"]`).forEach(radio => {
 });
 
 function updateRadios() {
-  sets.forEach(({elemId, set, key}, i) => {
-    let button = document.querySelector(`.controls .button-row button[value="${i}"]`);
+  xValues.forEach(({elemId, set, key}, i) => {
+    let button = document.querySelector(`.controls .button-row.x button[value="${i}"]`);
     const container = document.getElementById(elemId);
 
     if (i == CUR_X_AXIS) {
@@ -267,6 +277,12 @@ function updateRadios() {
       container.previousElementSibling.classList.remove("disabled");
     }
   });
+
+  const query = ".controls .button-row.y button";
+  document.querySelectorAll(query).forEach(button => {
+    button.classList.remove("selected");
+  });
+  document.querySelector(`${query}[value="${CUR_Y_AXIS}"]`).classList.add("selected");
 }
 updateRadios();
 
@@ -281,7 +297,8 @@ const freq_ctx = document.getElementById('freq-chart').getContext('2d');
 let freq_chart;
 
 function updateChart() {
-  const x_axis = sets[CUR_X_AXIS].key;
+  const x_axis = xValues[CUR_X_AXIS].key;
+  const y_axis = yValues[CUR_Y_AXIS];
   const logarithmic = ["qdepth", "iosize"].includes(x_axis);
   let iopsData = [];
   let filtered_results = results;
@@ -306,7 +323,7 @@ function updateChart() {
   for (let result of filtered_results) {
     let filtered = result.data;
 
-    sets.forEach(({elemId, set, key}, i) => {
+    xValues.forEach(({elemId, set, key}, i) => {
       if (i === CUR_X_AXIS) return;
       selectedRadio = document.querySelector(`input[name="${key}"]:checked`).value;
       filtered = filtered.filter(d => d[key] == selectedRadio);
@@ -316,41 +333,43 @@ function updateChart() {
 
     const graphData = filtered.map(d => ({
       x: logarithmic ? Math.log2(d[x_axis]) : d[x_axis],
-      y: d.iops[0],
-      v: d.iops[1],
+      y: d[y_axis.key][0],
+      v: d[y_axis.key][1],
       data: d
     }));
 
     iopsData.push(graphData);
   }
 
-  const maxPeak = iopsData.flat().length ? Math.max(...iopsData.flat().map(d => d.data.peakiops)) : 1000;
   const maxXvalue = Math.max(...filtered_results[0].data.map(d => d[x_axis])) * (logarithmic ? 2 : 1) + (logarithmic ? 0 : 1);
-
-  if (chart) chart.destroy();
 
   const datasets = iopsData.map((data, idx) => ({
     data,
-    label: filtered_results[idx].label.trim() || "Reached IOPS",
+    label: filtered_results[idx].label.trim() || `Reached ${y_axis.prettyName}`,
     borderColor: filtered_results[idx].color,
     backgroundColor: filtered_results[idx].color,
     pointStyle: "circle",
     pointRadius: Math.floor(idx*0.2)+3,
   }));
 
+  if (y_axis.key === "iops") {
+    const maxPeak = iopsData.flat().length ? Math.max(...iopsData.flat().map(d => d.data.peakiops)) : 1000;
+    datasets.push({
+      label: 'Peak IOPS with given devices',
+      data: [...Array(Math.round(maxXvalue+2)).keys()].map(x => ({x: x-1, y: maxPeak})),
+      borderColor: 'rgba(0,0,0,0.15)',
+      backgroundColor: 'white',
+      pointRadius: 0,
+      borderDash: [10,10]
+    });
+  }
+
+  if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: 'line',
     data: {
       datasets: [
         ...datasets,
-        {
-          label: 'Peak IOPS with given devices',
-          data: [...Array(Math.round(maxXvalue+2)).keys()].map(x => ({x: x-1, y: maxPeak})),
-          borderColor: 'rgba(0,0,0,0.15)',
-          backgroundColor: 'white',
-          pointRadius: 0,
-          borderDash: [10,10]
-        }
       ]
     },
     plugins: [{
@@ -359,8 +378,10 @@ function updateChart() {
         const { ctx, chartArea: { top, bottom, left, right, width, height }, scales: {x,y} } = chart;
 
         const tickHeight = y.height / y.max;
+        let count = chart.data.datasets.length;
+        if (y_axis.key === "iops") count--;
 
-        for (var i = 0; i < chart.data.datasets.length - 1; i++) {
+        for (var i = 0; i < count; i++) {
           const dataset = chart.data.datasets[i];
           const dataset_meta = chart.getDatasetMeta(i);
           if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
@@ -392,7 +413,10 @@ function updateChart() {
         const drawn_labels = [];
 
         if (document.getElementById("show-max-value").checked) {
-          for (var i = 0; i < chart.data.datasets.length - 1; i++) {
+          let count = chart.data.datasets.length;
+          if (y_axis.key === "iops") count--;
+
+          for (var i = 0; i < count; i++) {
             const dataset = chart.data.datasets[i];
             const dataset_meta = chart.getDatasetMeta(i);
             if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
@@ -440,7 +464,7 @@ function updateChart() {
         x: {
           type: "linear",
           offset: x_axis === "fixed_freq",
-          title: { display: true, text: sets[CUR_X_AXIS].prettyName },
+          title: { display: true, text: `${xValues[CUR_X_AXIS].prettyName}` },
           min: 0,
           max: logarithmic ? Math.log2(maxXvalue) : maxXvalue,
           ticks: {
@@ -452,10 +476,9 @@ function updateChart() {
           }
         },
         y: {
-          title: { display: true, text: 'IOPS (millions)' },
+          title: { display: true, text: `${y_axis.prettyName} (${y_axis.unit})` },
           min: 0,
-          max: maxPeak * 1.2,
-          ticks: { callback: (v) => v / 1e6 },
+          ticks: { callback: (v) => y_axis.key === "iops" ? v / 1e6 : v },
         }
       },
       onClick: (evt, activeElements) => {
@@ -476,9 +499,16 @@ function updateChart() {
               if (context.dataset.label.includes("Peak IOPS")) {
                 return `Peak IOPS: ${separatedNumber(d.y)}`;
               } else if (d.data.thr_sib) {
-                return [`IOPS: ${separatedNumber(d.y)}`, `Standard Deviation: ${separatedNumber(d.v)}`, `Hyper threads: ${d.data.hyperthreads}`];
+                return [
+                  `${y_axis.prettyName}: ${separatedNumber(d.y)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
+                  `Standard Deviation: ${separatedNumber(d.v)}`,
+                  `Hyper threads: ${d.data.hyperthreads}`
+                ];
               } else {
-                return [`IOPS: ${separatedNumber(d.y)}`, `Standard Deviation: ${separatedNumber(d.v)}`];
+                return [
+                  `${y_axis.prettyName}: ${separatedNumber(d.y)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
+                  `Standard Deviation: ${separatedNumber(d.v)}`
+                ];
               }
             }
           }
@@ -571,10 +601,18 @@ function updateFreqChart(datapoint) {
   });
 }
 
-document.querySelectorAll(".controls .button-row button").forEach(button => {
+document.querySelectorAll(".controls .button-row.x button").forEach(button => {
   button.addEventListener("click", (e) => {
     let selected = Number(button.getAttribute("value"));
     CUR_X_AXIS = selected;
+    updateRadios();
+    updateChart();
+  })
+});
+document.querySelectorAll(".controls .button-row.y button").forEach(button => {
+  button.addEventListener("click", (e) => {
+    let selected = Number(button.getAttribute("value"));
+    CUR_Y_AXIS = selected;
     updateRadios();
     updateChart();
   })
