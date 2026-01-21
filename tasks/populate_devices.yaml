@@ -1,0 +1,14 @@
+doc: |
+  Populate NVMe block devices
+  ===========================
+
+  Warning: This will overwrite everything on the devices defined
+  in the config file.
+
+steps:
+- name: bind_to_userspace
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: populate
+  uses: bdevperf_populate
