@@ -67,3 +67,13 @@ steps:
     mkdir -p "{{ config.upcie.repository.path }}/builddir"
     cd "{{ config.upcie.repository.path }}"; meson setup builddir
     cd "{{ config.upcie.repository.path }}"; meson install -C builddir
+
+- name: fio
+  run: |
+    cd "{{ config.fio.repository.path }}"; ./configure; make; make install
+
+- name: spdk
+  run: |
+    cd "{{ config.spdk.repository.path }}"; ./scripts/pkgdep.sh
+    cd "{{ config.spdk.repository.path }}"; ./configure --disable-unit-tests --disable-tests --enable-lto --with-fio="{{ config.fio.repository.path }}" --without-crypto --without-idxd --without-iscsi-initiator --without-nvme-cuse --without-ocf --without-rbd --without-uring --without-usdt --without-vfio-user --without-vhost --without-virtio --without-vtune --without-xnvme
+    cd "{{ config.spdk.repository.path }}"; make -j $(nproc)

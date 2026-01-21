@@ -30,15 +30,15 @@ doc: |
   During installation, ensure the following:
 
   * Kernel selection:
-      (X) GA Kernel  
+      (X) GA Kernel
       ( ) HWE Kernel  ← must be disabled
 
   * Installation Base:
-      (X) Ubuntu Server  
+      (X) Ubuntu Server
       ( ) Ubuntu Server (minimized)
 
   * Storage (guided):
-      (X) Use an entire disk  
+      (X) Use an entire disk
       [ ] Set up this disk as an LVM group
 
   * Profile:
@@ -99,7 +99,7 @@ steps:
 - name: packages
   run: |
     apt-get -qy update && apt-get -qy upgrade
-    apt-get -qy install build-essential linux-headers-$(uname -r) wget git htop vim cmake stress-ng parallel
+    apt-get -qy install build-essential linux-headers-$(uname -r) linux-tools-common linux-tools-$(uname -r) wget git htop vim cmake stress-ng parallel sysstat time
     apt-get -qy autoremove
 
 - name: blacklist_nouveau
@@ -123,7 +123,7 @@ steps:
   with:
     state: down
     timeout: 60
-    
+
 - name: wait_up
   uses: core.wait_for_transport
   with:
@@ -148,7 +148,7 @@ steps:
   with:
     state: down
     timeout: 60
-    
+
 - name: wait_up_driver
   uses: core.wait_for_transport
   with:
@@ -161,7 +161,7 @@ steps:
     dpkg -i workdir/cuda_keyring.deb
     wget -O /etc/apt/preferences.d/cuda-repository-pin-600 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin
     apt-get update
-    
+
 - name: cuda
   run: |
     apt-get install -y cuda-toolkit-12-8

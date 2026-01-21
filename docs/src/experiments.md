@@ -115,36 +115,27 @@ how other processes in the system impact the achievable IOPS.
 
 ### Execution of the Experiment
 
-The setup and execution of the experiment is automated by two cijoe workflows,
-which necessitates a cijoe configuration file. See ``configs/bench-amd.toml`` for
-an example configuration file.
+The execution of the experiment is automated by a cijoe workflow, which
+necessitates multiple cijoe configuration files. Most are given in this
+repository, but the ``configs/devices_16.toml`` configuration file is an example
+and must be edited to match the system you are running on.
 
 #### Configuration file
 
-The configuration file must contain the information about the following:
+A configuration file must contain the information about the following:
 
-1. SSH transport info
 1. Block devices
 1. A prefix for the ``xnvme-driver`` script
-1. OS name and version
-1. Necessary repositories
 
-You must change the values under the ``cijoe.transport.bench`` key to have the
-correct remote hostname, username and path to a ssh key (or password). If you run
-the cijoe script on same machine as the benchmarks, delete the full
-``cijoe.transport.bench`` key completely. You may change the ``bench`` part of the
-key, if you want. For example, if you want multiple transports to different remote
-machines. Be aware that the it is only the first defined transport that is used.
-
-The configuration file must also define a list of NVMe block devices. To find
+This configuration file must define a list of NVMe block devices. To find
 these, run
 
     lspci | grep Non-Volatile
 
 and change the `pci_addr` keys in the `[[devices]]` to match the PCI addresses of
-the found devices. There are 12 block devices in the configuration file, but you
-can add more or remove devices as needed. The ``iops`` key should describe the
-expected peak IOPS the device is able to reach. If this is unknown, write any
+the found devices. There are 16 block devices in the example configuration file,
+but you can add more or remove devices as needed. The ``iops`` key should describe
+the expected peak IOPS the device is able to reach. If this is unknown, write any
 number and run the benchmarks to find the value. These values are just used in the
 visualisation to create a horizontal marker to indicate the peak IOPS.
 
@@ -160,23 +151,9 @@ It's important that if the boot device is also an NVMe device that it is added i
 the ``PCI_BLACKLIST``, since the xnvme-driver script otherwise might unbind it,
 making the machine unusable (until next reboot).
 
-The OS name and version should be lowercasem and can be found by running
-
-    cat /etc/os-release
-
-Lastly, this experiment requires SPDK and xNVMe to be installed on the system. The
-example configuration file does not need any changes for the ``spdk.repository``
-and ``xnvme.repository`` keys.
-
 #### Setup of the experiment
 
-The cijoe workflow in ``tasks/setup_benchmark_bdevperf.yaml`` is responsible for
-installing all dependencies on the system. When the configuration file is created,
-it can be run with command
-
-    cijoe --monitor \
-      tasks/setup_benchmark_bdevperf.yaml \
-      -c config/YOUR_CONFIG_FILE.toml
+The machine must be provisioned as described in the AiSIO repository README file.
 
 #### Running the experiment
 
@@ -194,17 +171,19 @@ When the "run" step has been parameterized, the workflow can be run with command
 
     cijoe --monitor \
       tasks/bench_bdevperf_cpu.yaml \
-      -c config/YOUR_CONFIG_FILE.toml
+      -c configs/aisio.toml \
+      -c configs/devices_16.toml
 
 This workflow makes sure to allocate hugepages and bind the block devices to
 userspace drivers before running the benchmarks. This is not necessary to do
 repeatedly if running the benchmarks multiple times in a row. These steps can be
 skipped by specifying which steps to run in the command
 
-    cijoe --monitor \
+    cijoe \
       tasks/bench_bdevperf_cpu.yaml \
-      -c config/YOUR_CONFIG_FILE.toml \
-      run visualize
+      -c configs/aisio.toml \
+      -c configs/devices_16.toml
+      run combine visualize
 
 In the final step, the results of the experiment is visualized on a graph in an
 interactive HTML page, which can be found in the cijoe artifacts found in
