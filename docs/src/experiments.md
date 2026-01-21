@@ -153,7 +153,15 @@ making the machine unusable (until next reboot).
 
 #### Setup of the experiment
 
-The machine must be provisioned as described in the AiSIO repository README file.
+The machine must be provisioned as described in the AiSIO repository README file,
+and the devices on the machine can be populated with the task defined in
+``tasks/populate_devices.yaml`. When the configuration file is created,
+it can be run with command
+
+    cijoe --monitor \
+      tasks/populate_devices.yaml \
+      -c configs/aisio.toml \
+      -c configs/devices_16.toml
 
 #### Running the experiment
 
