@@ -27,3 +27,8 @@ path = "/root/git/upcie"
 remote = "https://github.com/ankit-sam/spdk.git"
 branch = "xnvme_bam"
 path = "/root/git/spdk"
+
+[fio.repository]
+remote = "https://github.com/axboe/fio"
+tag = "fio-3.41"
+path = "/root/git/fio"

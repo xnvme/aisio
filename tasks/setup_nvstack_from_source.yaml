@@ -78,7 +78,7 @@ steps:
 - name: packages
   run: |
     apt-get -qy update && apt-get -qy upgrade
-    apt-get -qy install build-essential linux-headers-$(uname -r) wget git htop vim cmake
+    apt-get -qy install build-essential linux-headers-$(uname -r) linux-tools-common linux-tools-$(uname -r) wget git htop vim cmake stress-ng sysstat time
     apt-get -qy autoremove
 
 - name: blacklist_nouveau
