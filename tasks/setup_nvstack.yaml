@@ -7,7 +7,7 @@ doc: |
   components and versions:
 
   * Ubuntu Server 24.04.3
-  * Linux 6.8 GA kernel (HWE must be disabled)
+  * Linux 6.8 GA kernel (HWE must be disabled) / Linux 6.8 UDMABUF-IMPORT Kernel
   * NVIDIA Open Kernel Modules (NOKM) v570 (via apt)
   * CUDA Toolkit v12.8 (via apt)
   * CUDA Samples v12.8 (from source)

@@ -5,8 +5,8 @@ This repository provides documentation, tools, and scripts for setting up and
 exploring the Accelerator-integrated Storage I/O Proof-of-Concept.
 
 In the following, then it is assumed that ``transport.toml`` has the connection
-info to a freshly installed Ubuntu 24.04. With that in place, then you can use
-**cijoe** as below.
+info to a freshly installed Ubuntu 24.04 (for instructions see
+``tasks/nvstack.toml``). With that in place, then you can use **cijoe** as below.
 
 Note: add a minimal cijoe install description along with the transport change
 needed.
