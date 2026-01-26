@@ -11,7 +11,14 @@ info to a freshly installed Ubuntu 24.04. With that in place, then you can use
 Note: add a minimal cijoe install description along with the transport change
 needed.
 
-Installation of the **NVIDIA** Software Stack on top of **Ubuntu** 24.04.3::
+Start by installing a **custom Linux Kernel** with support for UDMABUF import::
+
+	cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/udmabuf_import.toml \
+      tasks/setup_udmabuf_import.yaml
+
+Then install the **NVIDIA** Software Stack::
 
 	cijoe --monitor \
 		-c configs/transport.toml \

@@ -1,6 +1,6 @@
 [xnvme.repository]
 remote = "https://github.com/karlowich/xnvme"
-branch = "bam_unified"
+branch = "bam_dmabuf"
 path = "/root/git/xnvme"
 
 [bam.repository]
