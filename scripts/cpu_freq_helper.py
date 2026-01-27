@@ -50,7 +50,7 @@ class CpuFrequencyHelper():
             `err` where 0 indicates success and a non-zero value indicates an error.
         """
         if match(r"\d+(.\d+)?", str(value)):
-            freq, gvnr = float(value), "performance"
+            freq, gvnr = float(value), "userspace"
         else:
             freq, gvnr = 0, value
 
