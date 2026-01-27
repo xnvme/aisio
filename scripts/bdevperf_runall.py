@@ -26,8 +26,10 @@ from cpu_freq_helper import CpuFrequencyHelper
 def add_args(parser: ArgumentParser):
     parser.add_argument("--depths", type=int, default=[64], nargs="+", help="Queue depth to test")
     parser.add_argument("--sizes", type=int, default=[4096], nargs="+", help="I/O sizes to test")
-    parser.add_argument("--numcpus_range", type=int, default=[1,1], nargs="*", help="Range of how many CPUs to test")
-    parser.add_argument("--numdevs_range", type=int, default=[1,1], nargs="*", help="Range of how many devices to test")
+    parser.add_argument("--numcpus_range", type=int, default=None, nargs="*", help="Range of how many CPUs to test")
+    parser.add_argument("--numcpus_specific", type=int, default=None, nargs="*", help="The amount of CPUs to test")
+    parser.add_argument("--numdevs_range", type=int, default=None, nargs="*", help="Range of how many devices to test")
+    parser.add_argument("--numdevs_specific", type=int, default=None, nargs="*", help="The amount of devices to test")
     parser.add_argument("--cpu_freqs", type=str, default=["ondemand"], nargs="*", help="List of fixed CPU frequencies (in GHz) and governors to test")
     parser.add_argument("--turbo", type=int, default=[0,1], nargs="+", help="0 for turbo boost off, 1 for turbo boost on, [0,1] for testing both")
     parser.add_argument("--smt", type=int, default=[0,1], nargs="+", help="0 for SMT off, 1 for SMT on, [0,1] for testing both")
@@ -50,6 +52,14 @@ def main(args, cijoe: Cijoe):
 
     cijoe.run_local(f"mkdir -p {bdev_configs} {bdev_results}")
 
+    if (args.numcpus_range and args.numcpus_specific) or (not args.numcpus_range and not args.numcpus_specific):
+        log.error("Failed: You must define exactly 1 of arguments: numcpus_range, numcpus_specific")
+        return 1
+
+    if (args.numdevs_range and args.numdevs_specific) or (not args.numdevs_range and not args.numdevs_specific):
+        log.error("Failed: You must define exactly 1 of arguments: numdevs_range, numdevs_specific")
+        return 1
+
     devices: list = cijoe.getconf("devices")
     if not devices:
         log.error("Failed: No devices defined in config")
@@ -66,22 +76,27 @@ def main(args, cijoe: Cijoe):
         log.error("Failed: couldn't not initialise the bdevperf")
         return 1
 
-    test_devs = create_range(args.numdevs_range, devices)
+    test_devs = args.numdevs_specific
+    if not test_devs:
+        test_devs = create_range(args.numdevs_range, devices)
 
-    # The CPU range `test_cpus` describes the amount of CPUs that should be tested.
-    # Without hyper threading, the range 4-8 describe that the benchmark will be run
-    # first with 4 physical cores (0-3), then 5 physical cores (0-4), and so on. When
-    # hyper threading is enabled, the amount of logical CPUs is doubled, and the IDs
-    # shift. Now, the same range 4-8 need to be shifted to (7-16), as 1-6 describe the
-    # hyper threads on the first 3 cores which are not in the 4-8 range.
-    test_cpus = create_range(args.numcpus_range, bdevperf.cpu_pairs)
+    test_cpus = args.numcpus_specific
+    if not test_cpus:
+        # The CPU range `test_cpus` describes the amount of CPUs that should be tested.
+        # Without hyper threading, the range 4-8 describe that the benchmark will be run
+        # first with 4 physical cores (0-3), then 5 physical cores (0-4), and so on. When
+        # hyper threading is enabled, the amount of logical CPUs is doubled, and the IDs
+        # shift. Now, the same range 4-8 need to be shifted to (7-16), as 1-6 describe the
+        # hyper threads on the first 3 cores which are not in the 4-8 range.
+        test_cpus = create_range(args.numcpus_range, bdevperf.cpu_pairs)
 
     tests = []
 
     if 0 in args.hyperthreads:
         tests += product([0], args.turbo, args.smt, args.stress, args.cpu_freqs, test_devs, test_cpus, args.sizes, args.depths)
     if 1 in args.hyperthreads:
-        test_cpus = range(test_cpus[0]*2-1, test_cpus[-1]*2+1) # shift range to match cpu hyperthreads
+        # shift range to match cpu hyperthreads
+        test_cpus = [x for cpu in test_cpus for x in [cpu*2-1, cpu*2]]
         tests += product([1], args.turbo, args.smt, args.stress, args.cpu_freqs, test_devs, test_cpus, args.sizes, args.depths)
 
     tests = [(ht,tu,sm,st,f,d,c,o,q) for (ht,tu,sm,st,f,d,c,o,q) in tests if not (not sm and ht)]
