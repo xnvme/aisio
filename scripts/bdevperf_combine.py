@@ -96,14 +96,15 @@ def merge_dicts(dicts: List[dict], include_all: List[str]) -> Tuple[int, dict]:
     - `(err, merged): Tuple[int, dict]`
     """
 
-    first, keys, merged = dicts[0], set(first.keys()), {}
+    first, merged = dicts[0], {}
+    keys = set(first.keys())
 
     if not all([set(d.keys()) == keys for d in dicts]):
         failed = next(d for d in dicts if set(d.keys()) != keys)
         log.error(f"Error: Expected keys of all dicts to be equal: {set(failed.keys())} != {keys}")
         return 1, None
 
-    for key in first.keys():
+    for key in keys:
         if key in include_all:
             merged[key] = [d[key] for d in dicts]
         else:
