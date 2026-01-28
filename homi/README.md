@@ -5,7 +5,14 @@ this is purely a skeleton daemon.
 
 ## Installation
 
-This is a guide on how to test the daemon skeleton.
+This is a guide on how to test the daemon skeleton. Installation can be done using
+the Makefile by running
+
+```bash
+make build
+```
+
+Or by following these steps:
 
 1. Compile the daemon.
 
@@ -25,15 +32,21 @@ This is a guide on how to test the daemon skeleton.
     cp ./homi.service /etc/systemd/system
     ```
 
-1. Start the service, and check the service journal.
+## Running HOMI
+
+This can be done using the Makefile, or by using the systemd commands.
+
+- With the Makefile:
+
+    ```bash
+    make start
+    makse stop
+    ```
+
+- Using systemd directly.
 
     ```bash
     systemctl start homi
     journalctl -u homi
-    ```
-
-1. Stop the service.
-
-    ```bash
     systemctl stop homi
     ```
