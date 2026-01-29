@@ -35,9 +35,11 @@ Brief introduction to CIJOE, configs / workflows / scripts.
 
 ## H100 80G
 
-1x Intel ..
-2x H100 Discrete
-16x PM1753
+| Hardware | Details                              |
+| -------- | ------------------------------------ |
+| CPU      | 2x Intel® Xeon® Gold 6442Y Processor |
+| GPU      | 2x NVIDIA H100 Discrete              |
+| Storage  | 16x Samsung SSD PM1753 32TB SSD      |
 
 ## RTX A5000 24GB
 
@@ -47,6 +49,6 @@ Brief introduction to CIJOE, configs / workflows / scripts.
 
 ## RTX A2000 6GB
 
-1x 
+1x
 1x RTX A2000 6GB
 1x Samsung 980 PRO 1TB
