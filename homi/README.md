@@ -5,32 +5,21 @@ this is purely a skeleton daemon.
 
 ## Installation
 
-This is a guide on how to test the daemon skeleton. Installation can be done using
-the Makefile by running
+This is a guide on how to test the daemon skeleton. Installation is done with
+meson and simplified with make.
 
 ```bash
-make build
+make clean build install
 ```
 
-Or by following these steps:
+or
 
-1. Compile the daemon.
-
-    ```bash
-    gcc daemon.c -o daemon.o
-    ```
-
-1. Check the service configuration file, ``home.service``. The Service.ExecStart
-   field assumes the ``daemon.o`` location. Change this if necessary.
-
-    - TODO: An build system should place the executable in a more permanent
-      location.
-
-1. Copy the service configuration file to the systemd files.
-
-    ```bash
-    cp ./homi.service /etc/systemd/system
-    ```
+```bash
+make clean
+meson setup builddir
+meson compile -C builddir
+meson install -C builddir
+```
 
 ## Running HOMI
 
@@ -40,13 +29,13 @@ This can be done using the Makefile, or by using the systemd commands.
 
     ```bash
     make start
-    makse stop
+    make stop
     ```
 
-- Using systemd directly.
+- Using systemd directly. `journalctl` can be used to inspect the syslogs.
 
     ```bash
     systemctl start homi
-    journalctl -u homi
+    journalctl -u homi -n10
     systemctl stop homi
     ```
