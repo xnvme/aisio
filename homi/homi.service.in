@@ -5,7 +5,7 @@ Description=Host Orchestrated Multipath I/O
 Type=simple
 StandardOutput=journal
 StandardError=journal
-ExecStart=/root/git/aisio/homi/daemon.o
+ExecStart=@bindir@/homi
 
 [Install]
 WantedBy=multi-user.target

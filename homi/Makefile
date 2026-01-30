@@ -2,17 +2,29 @@ define default-help
 # Build and start
 endef
 .PHONY: default
-default: build start
+default: clean build install start
+
+define clean-help
+# Remove builddir
+endef
+.PHONY: clean
+clean:
+	@rm -r builddir || echo "Nothing to clean, continuing"
 
 define build-help
 # Compile and configure HOMI service
 endef
 .PHONY: build
 build:
-	gcc daemon.c -o daemon.o
-	cp ./homi.service /etc/systemd/system
-	@echo "## Replace assumed location of executable"
-	sed -i "s|/root/git/aisio/homi|$(CURDIR)|" /etc/systemd/system/homi.service
+	meson setup builddir
+	meson compile -C builddir
+
+define install-help
+# Compile and configure HOMI service
+endef
+.PHONY: install
+install:
+	meson install -C builddir
 	systemctl daemon-reload
 
 define start-help
