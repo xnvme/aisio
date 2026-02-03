@@ -10,12 +10,12 @@ path = "/root/git/bam"
 
 [xal.repository]
 remote = "https://github.com/safl/xallib"
-tag = "068c567a2603ca251f96f84e579f3be44e79e248"
+tag = "v0.1.0"
 path = "/root/git/xal"
 
 [sil.repository]
 remote = "https://github.com/karlowich/sil"
-branch = "main"
+tag = "v0.1.0"
 path = "/root/git/sil"
 
 [upcie.repository]
