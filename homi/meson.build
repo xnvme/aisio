@@ -12,13 +12,17 @@ homi_dependencies = []
 
 sources = files(
   'src/daemon.c',
+  'src/homi_log.c',
 )
+
+include_dirs = include_directories('include')
 
 bindir = join_paths(get_option('prefix'), get_option('bindir'))
 
 executable('homi',
   sources: sources,
   dependencies: homi_dependencies,
+  include_directories: include_dirs,
   install: true,
   install_dir: bindir,
 )
