@@ -42,3 +42,10 @@ endef
 stop:
 	systemctl stop homi
 	@echo "## Stopped HOMI service"
+
+define log-help
+# See the 10 last log entries for the HOMI service
+endef
+.PHONY: log
+log:
+	journalctl -u homi -n10

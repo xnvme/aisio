@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <homi_log.h>
 
 static int initialize()
 {
@@ -27,19 +28,19 @@ int main()
 
 	err = initialize();
 	if (err) {
-		syslog(LOG_CRIT, "Failed: Could not initialize the HOMI deamon");
+		homi_log(LOG_CRIT, "Could not initialize the HOMI deamon");
 		exit(EXIT_FAILURE);
 	}
-	syslog(LOG_NOTICE, "Daemon initialized");
+	homi_log(LOG_NOTICE, "Daemon initialized");
 
 	while (1)
 	{
 		//TODO: Insert daemon code here.
-		syslog(LOG_NOTICE, "Info: we are doing something");
+		homi_log(LOG_INFO, "We are doing something");
 		sleep(20);
 	}
 
-	syslog (LOG_NOTICE, "Daemon terminated");
+	homi_log(LOG_NOTICE, "Daemon terminated");
 	closelog();
 
 	return EXIT_SUCCESS;
