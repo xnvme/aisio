@@ -16,9 +16,7 @@ doc: |
     `lspci | grep Non-Volatile`
 
   and change the `pci_addr` keys in the `[[devices]]` to match the PCI addresses of the
-  found devices. The `iops` key should describe the expected peak IOPS the device is
-  able to reach. If this is unknown, write any number and run the benchmarks to find the
-  value.
+  found devices.
 
   If the boot device is an NVMe device, see "Binding to userspace" below.
 
