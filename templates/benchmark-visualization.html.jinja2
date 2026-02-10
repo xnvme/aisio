@@ -191,9 +191,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const colours = ["blue", "red", "green", "pink", "lime", "purple", "cyan", "orange", "violet", "skyblue", "brown", "olive"];
+const colours = ["blue", "purple", "olive", "pink", "lime", "red", "cyan", "orange", "violet", "skyblue", "brown", "green"];
 
-const results = [
+let results = [
   {%- for dataset in datasets %}
   {
     label: "{{dataset.label}}",
@@ -207,12 +207,14 @@ const results = [
   },
   {%- endfor %}
 ]
-  .sort((a,b) => a.label.localeCompare(b.label))
-  .map((res,idx) => ({
-    ...res,
-    color: colours[idx % colours.length],
-    data: res.data.map(d => ({...d, fixed_freq: (d.fixed_freq ? d.fixed_freq : d.cpu_governor)})),
-  }));
+  .sort((a,b) => a.label.localeCompare(b.label));
+
+const devCap = results.map(({data}) => data.filter(({ndevs}) => ndevs === 1)).flat().sort((a,b) => b.iops[0]-a.iops[0])[0].iops[0];
+results = results.map((res,idx) => ({
+  ...res,
+  color: colours[idx % colours.length],
+  data: res.data.map(d => ({...d, peakiops: d.ndevs*devCap, fixed_freq: (d.fixed_freq ? d.fixed_freq : d.cpu_governor) })),
+}));
 
 const getXvalues = () => {
   const allData = results.map(({data}) => data).flat();

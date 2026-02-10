@@ -155,7 +155,6 @@ class BdevperfHelper():
             return err, None
 
         cpu_freqs = [[cpu_freqs[idx], self.cpu_pairs[idx]] for idx in selected_cpus]
-        peak_iops = sum(map(lambda dev: dev["iops"], self.devices[0:ndevs]))
 
         result = {
             "qdepth": depth,
@@ -163,7 +162,6 @@ class BdevperfHelper():
             "ndevs": ndevs,
             "ncpus": ncpus,
             "cpu": cpu_usage,
-            "peakiops": peak_iops,
             "cpu_freqs": cpu_freqs,
             "fixed_freq": self.cfm.fixed_freq,
             "cpu_governor": self.cfm.governor,

@@ -148,10 +148,7 @@ these, run
 
 and change the `pci_addr` keys in the `[[devices]]` to match the PCI addresses of
 the found devices. There are 16 block devices in the example configuration file,
-but you can add more or remove devices as needed. The ``iops`` key should describe
-the expected peak IOPS the device is able to reach. If this is unknown, write any
-number and run the benchmarks to find the value. These values are just used in the
-visualisation to create a horizontal marker to indicate the peak IOPS.
+but you can add more or remove devices as needed.
 
 The cijoe workflow assumes that if the boot device is an NVMe device, then the
 ``xnvme.driver.prefix`` key has been defined in the configuration file to add the
