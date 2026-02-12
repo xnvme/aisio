@@ -4,15 +4,12 @@
  * Compile with
  *   gcc daemon.c -o daemon.o
  */
-#include <fcntl.h>
 #include <signal.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <syslog.h>
 #include <unistd.h>
+
 #include <homi_log.h>
 
 static int initialize()
