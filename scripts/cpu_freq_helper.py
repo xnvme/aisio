@@ -8,8 +8,6 @@ import logging as log
 class CpuFrequencyHelper():
     def __init__(self, cijoe: Cijoe):
         self.cijoe = cijoe
-        self.fixed_freq = 0
-        self.governor = None
 
         self._bin = Path("/tmp/cpu_freq_logger.sh")
         self._output = Path("/tmp/cpu_freq_logger.out")
@@ -54,9 +52,6 @@ class CpuFrequencyHelper():
         else:
             freq, gvnr = 0, value
 
-        if self.fixed_freq == freq and self.governor == gvnr:
-            return 0
-
         err = self._clear_fixed_cpu_freq()
         if err:
             return err
@@ -73,9 +68,6 @@ class CpuFrequencyHelper():
             log.error("Failed: cpupower")
             return 1
 
-        self.fixed_freq = freq
-        self.governor = gvnr
-
         return 0
 
     def _clear_fixed_cpu_freq(self, governor: str = "ondemand") -> int:
@@ -90,9 +82,6 @@ class CpuFrequencyHelper():
         if err:
             log.error("Failed: cpupower")
             return 1
-
-        self.fixed_freq = 0
-        self.governor = governor
 
         return 0
 
