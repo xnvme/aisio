@@ -1,8 +1,5 @@
 /**
  * Host Orchestrated Multipath I/O
- *
- * Compile with
- *   gcc daemon.c -o daemon.o
  */
 #include <signal.h>
 #include <stdlib.h>
