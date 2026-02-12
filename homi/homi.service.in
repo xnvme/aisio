@@ -5,7 +5,7 @@ Description=Host Orchestrated Multipath I/O
 Type=simple
 StandardOutput=journal
 StandardError=journal
-ExecStart=@bindir@/homid
+ExecStart=@bindir@/homid --config @config@
 
 [Install]
 WantedBy=multi-user.target
