@@ -9,6 +9,13 @@
 
 #include <homi_log.h>
 
+
+volatile sig_atomic_t stop = 0;
+
+void handle_signal(int sig __attribute__((unused))) {
+	stop = 1;
+}
+
 static int initialize()
 {
 	openlog("homi", LOG_PID, LOG_DAEMON);
@@ -23,11 +30,15 @@ int main()
 	err = initialize();
 	if (err) {
 		homi_log(LOG_CRIT, "Could not initialize the HOMI deamon");
-		exit(EXIT_FAILURE);
+		goto exit;
 	}
+
 	homi_log(LOG_NOTICE, "Daemon initialized");
 
-	while (1)
+	signal(SIGTERM, handle_signal);
+	signal(SIGINT, handle_signal);
+
+	while (!stop)
 	{
 		//TODO: Insert daemon code here.
 		homi_log(LOG_INFO, "We are doing something");
@@ -35,7 +46,9 @@ int main()
 	}
 
 	homi_log(LOG_NOTICE, "Daemon terminated");
+
+exit:
 	closelog();
 
-	return EXIT_SUCCESS;
+	return err;
 }
