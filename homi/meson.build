@@ -29,6 +29,9 @@ executable('homid',
   install_dir: bindir,
 )
 
+config_dir = join_paths('/etc', 'homi')
+config_name = 'homi.conf'
+
 configure_file(
   input: 'homi.service.in',
   output: 'homi.service',
@@ -36,5 +39,15 @@ configure_file(
   install_dir: systemd.get_variable('systemdsystemunitdir'),
   configuration: {
     'bindir': bindir,
+    'config': join_paths(config_dir, config_name),
   },
+)
+
+message('Please edit the configuration file at /etc/homi/homi.conf')
+configure_file(
+  input: 'config/homi.conf.in',
+  output: config_name,
+  install: true,
+  install_dir: config_dir,
+  copy: true,
 )
