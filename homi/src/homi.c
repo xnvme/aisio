@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <homi_log.h>
+#include <homi_opts.h>
 
 
 volatile sig_atomic_t stop = 0;
@@ -40,15 +41,23 @@ parse_args(int argc, char *argv[], struct homi_cli_args *args)
 	return 0;
 }
 
-
-static int initialize()
+static int
+initialize(struct homi_opts *opts)
 {
+	homi_log_set_level(opts->log_level);
+
+	// For now, we just log the devices given in the configuration file.
+	for (int i = 0; i < opts->ndevs; i++) {
+		homi_log(LOG_NOTICE, "Device: %s", opts->dev_uris[i]);
+	}
+
 	return 0;
 }
 
 int main(int argc, char **argv)
 {
 	struct homi_cli_args args = {0};
+	struct homi_opts opts = {0};
 	int err;
 
 	openlog("homi", LOG_PID, LOG_DAEMON);
@@ -59,7 +68,13 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	err = initialize();
+	err = homi_opts_from_toml(args.config_file, &opts);
+	if (err) {
+		homi_log(LOG_CRIT, "Error while parsing the configuration file");
+		goto exit;
+	}
+
+	err = initialize(&opts);
 	if (err) {
 		homi_log(LOG_CRIT, "Could not initialize the HOMI deamon");
 		goto exit;
@@ -74,13 +89,14 @@ int main(int argc, char **argv)
 	{
 		//TODO: Insert daemon code here.
 		homi_log(LOG_INFO, "We are doing something");
-		sleep(20);
+		sleep(10);
 	}
 
 	homi_log(LOG_NOTICE, "Daemon terminated");
 
 exit:
 	closelog();
+	free(opts.dev_uris);
 
 	return err;
 }

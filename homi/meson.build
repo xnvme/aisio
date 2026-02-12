@@ -10,11 +10,15 @@ project('homi', 'c',
 
 systemd = dependency('systemd')
 
-homi_dependencies = []
+toml = subproject('tomlc17')
+toml_dep = toml.get_variable('toml_dep')
+
+homi_dependencies = [toml_dep]
 
 sources = files(
   'src/homi.c',
   'src/homi_log.c',
+  'src/homi_opts.c',
 )
 
 include_dirs = include_directories('include')
