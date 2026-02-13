@@ -72,3 +72,6 @@ platform for exploring host-orchestrated multipath I/O, rather than as a
 production-ready storage system. Development is ongoing, and future work
 focuses on incrementally integrating existing PoC components into this broader
 HOMI framework.
+
+Information about building, installing and managing HOMI is found in the README
+file in the ``homi`` directory of the AiSIO reference implementation.
