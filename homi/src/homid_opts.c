@@ -1,7 +1,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <syslog.h>
 #include <tomlc17.h>
 
 #include <homid_log.h>

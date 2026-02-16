@@ -1,3 +1,5 @@
+#include <syslog.h>
+
 void
 homid_log_set_level(int level);
 
