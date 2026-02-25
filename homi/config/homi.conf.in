@@ -6,3 +6,12 @@ log_level = 2
 # Devices is a list of dev URIs as strings, e.g.
 # devices = [ "/dev/nvme0n1", "/dev/nvme1n1" ]
 devices = [ ]
+
+# Backends: aisio, posix, etc.
+backend = "aisio"
+
+# Number of GPU queues (only relevant with aisio backend)
+gpu_nqueues = 128
+
+# Number of GPU threadblocks (only relevant with aisio backend)
+gpu_tbsize = 64

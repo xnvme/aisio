@@ -4,6 +4,9 @@ struct homi_opts {
 	int log_level;
 	int ndevs;
 	char (*dev_uris)[HOMI_DEVURI_MAXLEN];
+	int backend;
+	int gpu_nqueues;
+	int gpu_tbsize;
 };
 
 /**

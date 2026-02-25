@@ -19,6 +19,7 @@ sources = files(
   'src/homi.c',
   'src/homi_log.c',
   'src/homi_opts.c',
+  'src/homi_device.c',
 )
 
 include_dirs = include_directories('include')

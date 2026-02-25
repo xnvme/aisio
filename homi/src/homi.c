@@ -10,7 +10,7 @@
 
 #include <homi_log.h>
 #include <homi_opts.h>
-
+#include <homi_device.h>
 
 volatile sig_atomic_t stop = 0;
 
@@ -50,6 +50,8 @@ initialize(struct homi_opts *opts)
 	for (int i = 0; i < opts->ndevs; i++) {
 		homi_log(LOG_NOTICE, "Device: %s", opts->dev_uris[i]);
 	}
+
+	homi_device_set_backend(opts);
 
 	return 0;
 }
