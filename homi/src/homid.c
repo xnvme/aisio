@@ -17,7 +17,9 @@ struct homid_cli_args {
 	char *config_file;
 };
 
-void handle_signal(int sig __attribute__((unused))) {
+static void
+handle_signal(int sig __attribute__((unused)))
+{
 	stop = 1;
 }
 
