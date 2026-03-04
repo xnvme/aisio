@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <homid.h>
 #include <homid_log.h>
 #include <homid_opts.h>
 
@@ -16,6 +17,9 @@ volatile sig_atomic_t stop = 0;
 struct homid_cli_args {
 	char *config_file;
 };
+
+static int
+homid_close(struct homid *homid);
 
 static void
 handle_signal(int sig __attribute__((unused)))
@@ -43,13 +47,38 @@ parse_args(int argc, char *argv[], struct homid_cli_args *args)
 }
 
 static int
-initialize(struct homid_opts *opts)
+homid_initialize(struct homid_opts *opts, struct homid **homid)
 {
+	struct homid *cand;
+	int err;
+
 	homid_log_set_level(opts->log_level);
+
+	cand = calloc(1, sizeof(*cand));
+	if (!cand) {
+		homid_log(LOG_CRIT, "FAILED: calloc(); errno(%d)", errno);
+		return -errno;
+	}
 
 	// For now, we just log the devices given in the configuration file.
 	for (int i = 0; i < opts->ndevs; i++) {
 		homid_log(LOG_NOTICE, "Device: %s", opts->dev_uris[i]);
+	}
+
+	*homid = cand;
+
+	return 0;
+
+failed:
+	homid_close(cand);
+	return err;
+}
+
+static int
+homid_close(struct homid *homid) {
+	if (!homid) {
+		homid_log(LOG_INFO, "No homid given; skipping homid_close()");
+		return 0;
 	}
 
 	return 0;
@@ -59,6 +88,7 @@ int main(int argc, char **argv)
 {
 	struct homid_cli_args args = {0};
 	struct homid_opts opts = {0};
+	struct homid *homid = NULL;
 	int err;
 
 	openlog("homi", LOG_PID, LOG_DAEMON);
@@ -75,7 +105,7 @@ int main(int argc, char **argv)
 		goto exit;
 	}
 
-	err = initialize(&opts);
+	err = homid_initialize(&opts, &homid);
 	if (err) {
 		homid_log(LOG_CRIT, "Could not initialize the HOMI deamon");
 		goto exit;
@@ -96,6 +126,8 @@ int main(int argc, char **argv)
 	homid_log(LOG_NOTICE, "Daemon terminated");
 
 exit:
+	homid_close(homid);
+	free(homid);
 	closelog();
 	free(opts.dev_uris);
 
