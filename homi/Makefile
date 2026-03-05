@@ -25,6 +25,7 @@ endef
 .PHONY: install
 install:
 	meson install -C builddir
+	ldconfig
 	systemctl daemon-reload
 
 define start-help
