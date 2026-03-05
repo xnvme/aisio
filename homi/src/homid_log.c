@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <syslog.h>
 
-static int g_homi_log_level = LOG_NOTICE;
+static int g_homid_log_level = LOG_NOTICE;
 
 void
-homi_log_set_level(int level)
+homid_log_set_level(int level)
 {
 	switch (level)
 	{
@@ -17,24 +17,24 @@ homi_log_set_level(int level)
 	case LOG_WARNING:
 	case LOG_ERR:
 	case LOG_CRIT:
-		g_homi_log_level = level;
+		g_homid_log_level = level;
 		break;
 
 	default:
 		syslog(LOG_WARNING, "WARN: Unknown log level, defaulting to LOG_NOTICE");
-		g_homi_log_level = LOG_NOTICE;
+		g_homid_log_level = LOG_NOTICE;
 		break;
 	}
 }
 
 void
-homi_log(int level, const char *fmt, ...)
+homid_log(int level, const char *fmt, ...)
 {
 	va_list args;
 	const char *prefix;
 	char prefixed_fmt[256];
 
-	if (level > g_homi_log_level) {
+	if (level > g_homid_log_level) {
 		return;
 	}
 

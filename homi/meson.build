@@ -16,9 +16,9 @@ toml_dep = toml.get_variable('toml_dep')
 homi_dependencies = [toml_dep]
 
 sources = files(
-  'src/homi.c',
-  'src/homi_log.c',
-  'src/homi_opts.c',
+  'src/homid.c',
+  'src/homid_log.c',
+  'src/homid_opts.c',
 )
 
 include_dirs = include_directories('include')

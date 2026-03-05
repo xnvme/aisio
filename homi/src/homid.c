@@ -8,13 +8,13 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <homi_log.h>
-#include <homi_opts.h>
+#include <homid_log.h>
+#include <homid_opts.h>
 
 
 volatile sig_atomic_t stop = 0;
 
-struct homi_cli_args {
+struct homid_cli_args {
 	char *config_file;
 };
 
@@ -23,17 +23,17 @@ void handle_signal(int sig __attribute__((unused))) {
 }
 
 static int
-parse_args(int argc, char *argv[], struct homi_cli_args *args)
+parse_args(int argc, char *argv[], struct homid_cli_args *args)
 {
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--config") == 0) {
 			if (i+1 >= argc) {
-				homi_log(LOG_CRIT, "Error: Config argument must define a path to a configuration file");
+				homid_log(LOG_CRIT, "Error: Config argument must define a path to a configuration file");
 				return -EINVAL;
 			}
 			args->config_file = argv[++i];
 		} else {
-			homi_log(LOG_CRIT, "Unexpected argument: %s", argv[i]);
+			homid_log(LOG_CRIT, "Unexpected argument: %s", argv[i]);
 			return -EINVAL;
 		}
 	}
@@ -42,13 +42,13 @@ parse_args(int argc, char *argv[], struct homi_cli_args *args)
 }
 
 static int
-initialize(struct homi_opts *opts)
+initialize(struct homid_opts *opts)
 {
-	homi_log_set_level(opts->log_level);
+	homid_log_set_level(opts->log_level);
 
 	// For now, we just log the devices given in the configuration file.
 	for (int i = 0; i < opts->ndevs; i++) {
-		homi_log(LOG_NOTICE, "Device: %s", opts->dev_uris[i]);
+		homid_log(LOG_NOTICE, "Device: %s", opts->dev_uris[i]);
 	}
 
 	return 0;
@@ -56,31 +56,31 @@ initialize(struct homi_opts *opts)
 
 int main(int argc, char **argv)
 {
-	struct homi_cli_args args = {0};
-	struct homi_opts opts = {0};
+	struct homid_cli_args args = {0};
+	struct homid_opts opts = {0};
 	int err;
 
 	openlog("homi", LOG_PID, LOG_DAEMON);
 
 	err = parse_args(argc, argv, &args);
 	if (err) {
-		homi_log(LOG_CRIT, "Error while parsing the arguments");
+		homid_log(LOG_CRIT, "Error while parsing the arguments");
 		exit(EXIT_FAILURE);
 	}
 
-	err = homi_opts_from_toml(args.config_file, &opts);
+	err = homid_opts_from_toml(args.config_file, &opts);
 	if (err) {
-		homi_log(LOG_CRIT, "Error while parsing the configuration file");
+		homid_log(LOG_CRIT, "Error while parsing the configuration file");
 		goto exit;
 	}
 
 	err = initialize(&opts);
 	if (err) {
-		homi_log(LOG_CRIT, "Could not initialize the HOMI deamon");
+		homid_log(LOG_CRIT, "Could not initialize the HOMI deamon");
 		goto exit;
 	}
 
-	homi_log(LOG_NOTICE, "Daemon initialized");
+	homid_log(LOG_NOTICE, "Daemon initialized");
 
 	signal(SIGTERM, handle_signal);
 	signal(SIGINT, handle_signal);
@@ -88,11 +88,11 @@ int main(int argc, char **argv)
 	while (!stop)
 	{
 		//TODO: Insert daemon code here.
-		homi_log(LOG_INFO, "We are doing something");
+		homid_log(LOG_INFO, "We are doing something");
 		sleep(10);
 	}
 
-	homi_log(LOG_NOTICE, "Daemon terminated");
+	homid_log(LOG_NOTICE, "Daemon terminated");
 
 exit:
 	closelog();

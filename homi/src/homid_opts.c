@@ -4,11 +4,11 @@
 #include <syslog.h>
 #include <tomlc17.h>
 
-#include <homi_log.h>
-#include <homi_opts.h>
+#include <homid_log.h>
+#include <homid_opts.h>
 
 static int
-get_default_opts(struct homi_opts *opts)
+get_default_opts(struct homid_opts *opts)
 {
 	opts->log_level = LOG_NOTICE;
 
@@ -16,7 +16,7 @@ get_default_opts(struct homi_opts *opts)
 }
 
 int
-homi_opts_from_toml(char *config_file, struct homi_opts *opts)
+homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 {
 	toml_result_t result;
 	toml_datum_t log_level, devices;
@@ -25,10 +25,10 @@ homi_opts_from_toml(char *config_file, struct homi_opts *opts)
 	result = toml_parse_file_ex(config_file);
 
 	if (!result.ok) {
-		homi_log(LOG_INFO, "Configuration file did not exit. Returning to defaults");
+		homid_log(LOG_INFO, "Configuration file did not exit. Returning to defaults");
 		err = get_default_opts(opts);
 		if (err) {
-			homi_log(LOG_CRIT, "Error while getting default options");
+			homid_log(LOG_CRIT, "Error while getting default options");
 		}
 		goto exit;
 	}
@@ -36,7 +36,7 @@ homi_opts_from_toml(char *config_file, struct homi_opts *opts)
 	log_level = toml_seek(result.toptab, "log_level");
 
 	if (log_level.type != TOML_INT64) {
-		homi_log(LOG_WARNING, "Missing or invalid 'log_level' property in config, defaulting to LOG_NOTICE");
+		homid_log(LOG_WARNING, "Missing or invalid 'log_level' property in config, defaulting to LOG_NOTICE");
 	}
 
 	switch (log_level.u.int64)
@@ -57,7 +57,7 @@ homi_opts_from_toml(char *config_file, struct homi_opts *opts)
 		opts->log_level = LOG_DEBUG;
 		break;
 	default:
-		homi_log(LOG_WARNING, "Missing or invalid 'log_level' property in config, defaulting to LOG_NOTICE");
+		homid_log(LOG_WARNING, "Missing or invalid 'log_level' property in config, defaulting to LOG_NOTICE");
 		opts->log_level = LOG_NOTICE;
 		break;
 	}
@@ -65,7 +65,7 @@ homi_opts_from_toml(char *config_file, struct homi_opts *opts)
 	devices = toml_seek(result.toptab, "devices");
 
 	if (devices.type != TOML_ARRAY) {
-		homi_log(LOG_ERR, "Missing or invalid 'devices' property in config");
+		homid_log(LOG_ERR, "Missing or invalid 'devices' property in config");
 		err = -EINVAL;
 		goto exit;
 	}
@@ -74,7 +74,7 @@ homi_opts_from_toml(char *config_file, struct homi_opts *opts)
 	opts->dev_uris = malloc(devices.u.arr.size * sizeof(*opts->dev_uris));
 	if (!opts->dev_uris) {
 		err = -errno;
-		homi_log(LOG_ERR, "Faied: malloc(); errno(%d)", errno);
+		homid_log(LOG_ERR, "Faied: malloc(); errno(%d)", errno);
 		goto exit;
 	}
 
@@ -82,7 +82,7 @@ homi_opts_from_toml(char *config_file, struct homi_opts *opts)
 		toml_datum_t elem = devices.u.arr.elem[i];
 
 		if (elem.type != TOML_STRING) {
-			homi_log(LOG_ERR, "Invalid device URI: not a string");
+			homid_log(LOG_ERR, "Invalid device URI: not a string");
 			err = -EINVAL;
 			goto exit;
 		}
