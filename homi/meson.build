@@ -35,6 +35,14 @@ executable('homid',
   install_dir: bindir,
 )
 
+library('homic',
+  sources: ['src/homic.c', 'src/homi_proto.c'],
+  include_directories: include_dirs,
+  install: true,
+)
+
+install_headers('include/homic.h')
+
 config_dir = join_paths('/etc', 'homi')
 config_name = 'homi.conf'
 
