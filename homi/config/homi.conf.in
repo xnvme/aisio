@@ -6,3 +6,6 @@ log_level = 2
 # Devices is a list of dev URIs as strings, e.g.
 # devices = [ "/dev/nvme0n1", "/dev/nvme1n1" ]
 devices = [ ]
+
+# IPC socket
+ipc_socket = "/run/homi/homi.sock"

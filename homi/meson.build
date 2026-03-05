@@ -17,8 +17,10 @@ homi_dependencies = [toml_dep]
 
 sources = files(
   'src/homid.c',
+  'src/homid_ipc.c',
   'src/homid_log.c',
   'src/homid_opts.c',
+  'src/homi_proto.c',
 )
 
 include_dirs = include_directories('include')

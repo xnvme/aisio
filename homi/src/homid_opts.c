@@ -18,7 +18,7 @@ int
 homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 {
 	toml_result_t result;
-	toml_datum_t log_level, devices;
+	toml_datum_t log_level, devices, ipc_socket;
 	int err = 0;
 
 	result = toml_parse_file_ex(config_file);
@@ -88,6 +88,22 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 
 		strcpy(opts->dev_uris[i], elem.u.s);
 	}
+
+	ipc_socket = toml_seek(result.toptab, "ipc_socket");
+
+	if (ipc_socket.type != TOML_STRING) {
+		homid_log(LOG_ERR, "Missing or invalid 'ipc_socket' property in config");
+		err = -EINVAL;
+		goto exit;
+	}
+
+	opts->ipc_socket = malloc(strlen(ipc_socket.u.s) + 1);
+	if (!opts->ipc_socket) {
+		err = -errno;
+		homid_log(LOG_ERR, "Failed: malloc(); errno(%d)", errno);
+		goto exit;
+	}
+	strcpy(opts->ipc_socket, ipc_socket.u.s);
 
 exit:
 	toml_free(result);

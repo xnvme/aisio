@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include <homid.h>
+#include <homid_ipc.h>
 #include <homid_log.h>
 #include <homid_opts.h>
 
@@ -60,6 +61,12 @@ homid_initialize(struct homid_opts *opts, struct homid **homid)
 		return -errno;
 	}
 
+	err = homid_ipc_open(opts->ipc_socket, &cand->conn);
+	if (err) {
+		homid_log(LOG_ERR, "Failed: homid_ipc_open()");
+		goto failed;
+	}
+
 	// For now, we just log the devices given in the configuration file.
 	for (int i = 0; i < opts->ndevs; i++) {
 		homid_log(LOG_NOTICE, "Device: %s", opts->dev_uris[i]);
@@ -80,6 +87,8 @@ homid_close(struct homid *homid) {
 		homid_log(LOG_INFO, "No homid given; skipping homid_close()");
 		return 0;
 	}
+
+	homid_ipc_close(homid->conn);
 
 	return 0;
 }
@@ -113,14 +122,17 @@ int main(int argc, char **argv)
 
 	homid_log(LOG_NOTICE, "Daemon initialized");
 
-	signal(SIGTERM, handle_signal);
-	signal(SIGINT, handle_signal);
+	struct sigaction sa = {
+		.sa_handler = handle_signal,
+		.sa_flags   = 0,
+	};
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
 
 	while (!stop)
 	{
-		//TODO: Insert daemon code here.
-		homid_log(LOG_INFO, "We are doing something");
-		sleep(10);
+		homid_ipc_accept(homid->conn);
 	}
 
 	homid_log(LOG_NOTICE, "Daemon terminated");

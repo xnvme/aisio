@@ -4,6 +4,7 @@ struct homid_opts {
 	int log_level;
 	int ndevs;
 	char (*dev_uris)[HOMID_DEVURI_MAXLEN];
+	char *ipc_socket;
 };
 
 /**
