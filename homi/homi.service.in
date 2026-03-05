@@ -3,6 +3,7 @@ Description=Host Orchestrated Multipath I/O
 
 [Service]
 Type=simple
+RuntimeDirectory=homi
 StandardOutput=journal
 StandardError=journal
 ExecStart=@bindir@/homid --config @config@
