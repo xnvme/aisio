@@ -37,7 +37,9 @@ class BenchHelper():
             cijoe: Cijoe,
             configs_path: Path,
             results_path: Path,
-            cfm: CpuFrequencyHelper
+            cfm: CpuFrequencyHelper,
+            backend: str = "spdk",
+            tool: str = "bdevperf",
     ):
         self.initialised = False
 
@@ -46,6 +48,8 @@ class BenchHelper():
         self.configs_path = configs_path
         self.cfm = cfm
         self.stress = False
+        self.backend = backend
+        self.tool = tool
 
         self.use_thrsib = False
         err = self._create_cpumasks(self.use_thrsib)
@@ -56,12 +60,15 @@ class BenchHelper():
         self.remote_config = Path("/tmp/bdevperf-config.json")
         self.devices: list = cijoe.getconf("devices")
 
-        spdk_path = self.cijoe.getconf("spdk.repository.path", None)
-        if not spdk_path:
-            log.error("Failed: Missing SPDK repository path in config")
-            return
+        if tool == "bdevperf":
+            spdk_path = self.cijoe.getconf("spdk.repository.path", None)
+            if not spdk_path:
+                log.error("Failed: Missing SPDK repository path in config")
+                return
 
-        self.bin = Path(spdk_path) / "build" / "examples" / "bdevperf"
+            self.bin = Path(spdk_path) / "build" / "examples" / "bdevperf"
+        else:
+            log.error(f"Failed: Unknown tool({tool})")
 
         self.initialised = True
 
@@ -92,6 +99,8 @@ class BenchHelper():
             f"c{ncpus}-"
             f"o{size}-"
             f"q{depth}-"
+            f"be_{self.backend}-"
+            f"tool_{self.tool}-"
             f"thrsib{1 if self.use_thrsib else 0}-"
             f"freq_{cpu_freq}-"
             f"stress{1 if self.stress else 0}"
@@ -105,9 +114,10 @@ class BenchHelper():
                 result = json.load(file)
                 return 0, result
 
-        config_local_path = self.configs_path / f"d{ndevs}.json"
-        self._create_config(self.devices[0:ndevs], config_local_path)
-        self.cijoe.put(config_local_path, self.remote_config)
+        if self.tool == "bdevperf":
+            config_local_path = self.configs_path / f"d{ndevs}.json"
+            self._create_bdevperf_config(self.devices[0:ndevs], config_local_path)
+            self.cijoe.put(config_local_path, self.remote_config)
 
         mask = self.cpu_masks[ncpus]
         selected_cpus = [v[0] for v in self.cpu_pairs if int(mask, 16) & (1 << v[0])]
@@ -119,35 +129,46 @@ class BenchHelper():
             log.error("Failed: CpuFrequencyHelper.start_logging()")
             return err, None
 
-        bdevperf_cmd = (
-            "/usr/bin/time "
-            f"{self.bin} -c {self.remote_config} "
-            f"-m {mask} "
-            f"-q {depth} "
-            f"-o {size} "
-            f"-t {time} "
-            "-w randread "
-        )
+        command = f"/usr/bin/time {self.bin} "
+
+        if self.tool == "bdevperf":
+            run_parameters = [
+                f"-c {self.remote_config}",
+                f"-m {mask}",
+                f"-q {depth}",
+                f"-o {size}",
+                f"-t {time}",
+                "-w randread"
+            ]
+            command += " ".join(run_parameters)
+        else:
+            log.error(f"Unkown tool: {self.tool}")
+            return -1
 
         if self.stress and (stressed_cpus := [str(x) for x in range(len(self.cpu_pairs)) if x not in selected_cpus]):
-            bdevperf_cmd = "\n".join([
+            command = "\n".join([
                 f"taskset -c {','.join(stressed_cpus)} stress-ng --cpu {len(stressed_cpus)} --timeout {time + 5}s &",
                 "STRESS_PID=$!",
-                bdevperf_cmd,
+                command,
                 "wait $STRESS_PID",
             ])
 
-        err, state = self.cijoe.run(bdevperf_cmd)
+        err, state = self.cijoe.run(command)
         if err:
-            log.error(f"Failed: {self.bin}")
+            log.error(f"Failed: {self.bin} for run with filename({filename})")
             return err, None
 
         output = state.output()
         err, cpu_usage = self._parse_time_output(output)
         if err:
-            log.error("Failed: cpu_usage()")
+            log.error("Failed: BenchHelper._parse_time_output()")
             return err, None
-        bench_result = self._parse_bdevperf_result(output)
+
+        err, bench_result = self._parse_bench_results(output)
+        if err:
+            log.error("Failed: BenchHelper._parse_bench_results()")
+            return err, None
+
 
         err, cpu_freqs = self.cfm.stop_logging_and_parse()
         if err:
@@ -166,6 +187,8 @@ class BenchHelper():
             "fixed_freq": self.cfm.fixed_freq,
             "cpu_governor": self.cfm.governor,
             "thr_sib": self.use_thrsib,
+            "tool": self.tool,
+            "backend": self.backend,
             "iops": bench_result["total"]["iops"],
             "mibs": bench_result["total"]["mibs"],
         }
@@ -224,7 +247,7 @@ class BenchHelper():
 
         return 0
 
-    def _create_config(self, devices: list, path: Path) -> int:
+    def _create_bdevperf_config(self, devices: list, path: Path) -> int:
         """
         Create a configuration json file for running bdevperf, following the format of
         /path/to/spdk/test/bdev/bdevperf/conf.json
@@ -254,17 +277,24 @@ class BenchHelper():
 
         return 0
 
-    def _parse_bdevperf_result(self, table: str) -> dict[str, list]:
+    def _parse_bench_results(self, table: str) -> Tuple[int, dict[str, list]]:
         """
-        Parse the table-formattet stdout output from running bdevperf into an ansible json
+        Parse the table-formattet stdout output from running the benchmark into an ansible json
         object.
 
-        Returns `result`, which is the json object describing the result
+        Returns `(err, result)`, where a non-zero value for `err` describes that the
+        output did not match the expected format.
         """
 
         result = { "devices": [] }
+        table_regex = None
 
-        table_regex = r"\s*(?P<name>\w+)\s+:\s+(?P<runtime>[0-9.]+)?\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<fails>[0-9.]+)\s+(?P<tos>[0-9.]+)\s+(?P<avg_lat>[0-9.]+)\s+(?P<min_lat>[0-9.]+)\s+(?P<max_lat>[0-9.]+)"
+        if self.tool == "bdevperf":
+            table_regex = r"\s*(?P<name>\w+)\s+:\s+(?P<runtime>[0-9.]+)?\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<fails>[0-9.]+)\s+(?P<tos>[0-9.]+)\s+(?P<avg_lat>[0-9.]+)\s+(?P<min_lat>[0-9.]+)\s+(?P<max_lat>[0-9.]+)"
+        else:
+            log.error(f"Unkown tool: {self.tool}")
+            return -1, None
+
         matches = filter(None, [match(table_regex, row) for row in table.split("\n")])
 
         for m in matches:
@@ -274,7 +304,7 @@ class BenchHelper():
             else:
                 result["devices"].append(device_result)
 
-        return result
+        return 0, result
 
     def _parse_time_output(self, output: str) -> Tuple[int, int]:
         """
