@@ -1,6 +1,6 @@
 """
-BdevperfHelper
-==============
+BenchHelper
+===========
 
 Helper class for running benchmarks with SPDK's I/O benchmarking tool, bdevperf.
 
@@ -31,7 +31,7 @@ import json
 import logging as log
 
 
-class BdevperfHelper():
+class BenchHelper():
     def __init__(
             self,
             cijoe: Cijoe,

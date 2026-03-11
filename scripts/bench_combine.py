@@ -1,8 +1,8 @@
 """
-Combine results from running CPU benchmarks
+Combine results from running I/O benchmarks
 ===========================================
 
-Combine the results from running the CPU benchmarks in `bdevperf_runall.py`.
+Combine the results from running the CPU benchmarks in `bench_runall.py`.
 
 Retargetable: True
 ------------------
@@ -24,10 +24,10 @@ def add_args(parser: ArgumentParser):
 
 
 def main(args, cijoe: Cijoe):
-    """Run benchmarks using bdevperf"""
+    """Combine benchmark results into a single JSON"""
 
     artifacts = Path(args.output) / "artifacts"
-    bdev_results = artifacts / "bdevperf-results"
+    bdev_results = artifacts / "bench-results"
 
     if args.results_dir:
         bdev_results = args.results_dir

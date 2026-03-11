@@ -1,6 +1,6 @@
 """
-Run I/O benchmarks using bdevperf
-=================================
+Run I/O benchmarks
+==================
 
 Run many benchmarks using SPDK's I/O benchmarking tool, bdevperf.
 
@@ -19,7 +19,7 @@ import logging as log
 
 from cijoe.core.command import Cijoe
 
-from bdevperf_helper import BdevperfHelper
+from bench_helper import BenchHelper
 from cpu_freq_helper import CpuFrequencyHelper
 
 
@@ -41,11 +41,11 @@ def add_args(parser: ArgumentParser):
 
 
 def main(args, cijoe: Cijoe):
-    """Run benchmarks using bdevperf"""
+    """Run benchmarks"""
 
     out_path = Path(args.output)
     bdev_configs = out_path / cijoe.output_ident / "bdevperf-configs"
-    bdev_results = out_path / "artifacts" / "bdevperf-results"
+    bdev_results = out_path / "artifacts" / "bench-results"
 
     if args.results_dir:
         bdev_results = args.results_dir
@@ -71,9 +71,9 @@ def main(args, cijoe: Cijoe):
         log.error("Failed: transfer_cpu_frequency_logger()")
         return err
 
-    bdevperf = BdevperfHelper(cijoe, bdev_configs, bdev_results, cfm)
-    if not bdevperf.initialised:
-        log.error("Failed: couldn't not initialise the bdevperf")
+    benchmarker = BenchHelper(cijoe, bdev_configs, bdev_results, cfm)
+    if not benchmarker.initialised:
+        log.error("Failed: could not initialise BenchHelper")
         return 1
 
     test_devs = args.numdevs_specific
@@ -88,7 +88,7 @@ def main(args, cijoe: Cijoe):
         # hyper threading is enabled, the amount of logical CPUs is doubled, and the IDs
         # shift. Now, the same range 4-8 need to be shifted to (7-16), as 1-6 describe the
         # hyper threads on the first 3 cores which are not in the 4-8 range.
-        test_cpus = create_range(args.numcpus_range, bdevperf.cpu_pairs)
+        test_cpus = create_range(args.numcpus_range, benchmarker.cpu_pairs)
 
     tests = []
 
@@ -114,12 +114,12 @@ def main(args, cijoe: Cijoe):
             log.error(f"Failed: cfm.toggle_turbo({tu})")
             return err
 
-        err = bdevperf.use_thread_siblings(ht)
+        err = benchmarker.use_thread_siblings(ht)
         if err:
-            log.error(f"Failed: bdevperf.use_thread_siblings({ht})")
+            log.error(f"Failed: benchmarker.use_thread_siblings({ht})")
             return err
 
-        bdevperf.stress = st
+        benchmarker.stress = st
 
         suffix = f"-SMT{sm}-turbo{tu}"
 
@@ -129,9 +129,9 @@ def main(args, cijoe: Cijoe):
         now = time()
 
         for i in range(args.repetitions):
-            err, result = bdevperf.run_benchmark(qd, iosz, devs, cpus, args.time, freq, f"{suffix}-{i}")
+            err, result = benchmarker.run_benchmark(qd, iosz, devs, cpus, args.time, freq, f"{suffix}-{i}")
             if err:
-                log.error("Failed: run_bdevperf()")
+                log.error("Failed: run_benchmark()")
                 return err
 
             if not result:

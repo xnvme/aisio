@@ -1,14 +1,10 @@
 doc: |
-  Run the benchmarks using SPDK's bdevperf tool
-  =============================================
+  Run I/O benchmarks
+  ==================
 
   Configuration file
   ------------------
-  See `configs/bench-amd.toml` for an example configuration file.
-
-  You must change the `cijoe.transport.bench` key to have the correct remote hostname,
-  username and path to a ssh key. If you run the cijoe script on same machine as the
-  benchmarks, delete these fields completely.
+  See `configs/devices_16.toml` for an example configuration file.
 
   The configuration file must also define a list of NVMe block devices. To find these,
   run
@@ -51,7 +47,7 @@ steps:
     {{ config.xnvme.driver.prefix }} xnvme-driver
 
 - name: run
-  uses: bdevperf_runall
+  uses: bench_runall
   with:
     depths: [64, 128, 256]
     sizes: [512, 4096]
@@ -65,9 +61,9 @@ steps:
     results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
 
 - name: combine
-  uses: bdevperf_combine
+  uses: bench_combine
   with:
     results_dir: *results-dir
 
 - name: visualize
-  uses: bdevperf_visualize
+  uses: bench_visualize
