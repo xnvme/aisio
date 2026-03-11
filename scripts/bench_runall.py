@@ -38,6 +38,8 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--time", type=int, default=10, help="Time for for bdevperf to run for each test")
     parser.add_argument("--results_dir", type=Path, default=None, help="Path to existing directory in which the results should be saved. Note: Already existing results will not be benchmarked again")
     parser.add_argument("--repetitions", type=int, default=5, help="The amount of times each benchmark will be repeated. The result will be average of the repetitions")
+    parser.add_argument("--tool", choices=["bdevperf", "xnvmeperf"], default="xnvmeperf")
+    parser.add_argument("--backend", type=str, default="upcie")
 
 
 def main(args, cijoe: Cijoe):
@@ -71,7 +73,7 @@ def main(args, cijoe: Cijoe):
         log.error("Failed: transfer_cpu_frequency_logger()")
         return err
 
-    benchmarker = BenchHelper(cijoe, bdev_configs, bdev_results, cfm)
+    benchmarker = BenchHelper(cijoe, bdev_configs, bdev_results, cfm, args.tool, args.backend)
     if not benchmarker.initialised:
         log.error("Failed: could not initialise BenchHelper")
         return 1
