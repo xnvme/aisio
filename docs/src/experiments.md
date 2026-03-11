@@ -190,7 +190,7 @@ it can be run with command
 #### Running the Experiment
 
 When the system has been setup, the cijoe workflow must be configured with the
-right benchmarking parameters. In the file ``tasks/bench_bdevperf_cpu.yaml``, the
+right benchmarking parameters. In the file ``tasks/bench_io.yaml``, the
 step "run" has multiple keys under "with" which represent the independent
 variables of the experiment. The key ``results_dir`` is optional, but allows
 continuation of previously run benchmarks. Note that the ``numcpus_range`` and
@@ -202,7 +202,7 @@ times each benchmark is run; if not defined, the default is 5 repetitions.
 When the "run" step has been parameterized, the workflow can be run with command
 
     cijoe --monitor \
-      tasks/bench_bdevperf_cpu.yaml \
+      tasks/bench_io.yaml \
       -c configs/aisio.toml \
       -c configs/devices_16.toml
 
@@ -212,7 +212,7 @@ repeatedly if running the benchmarks multiple times in a row. These steps can be
 skipped by specifying which steps to run in the command
 
     cijoe \
-      tasks/bench_bdevperf_cpu.yaml \
+      tasks/bench_io.yaml \
       -c configs/aisio.toml \
       -c configs/devices_16.toml
       run combine visualize

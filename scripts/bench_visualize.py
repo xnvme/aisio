@@ -1,8 +1,8 @@
 """
-Visualize the bdevperf benchmarks
-=================================
+Visualize the benchmarks
+========================
 
-Parse the results from running scripts/bdevperf_runall.py from JSON format, and
+Parse the results from running scripts/bench_runall.py from JSON format, and
 create the HTML file, which visualizes the data.
 
 Retargetable: False
