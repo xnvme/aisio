@@ -38,7 +38,7 @@ def main(args, cijoe: Cijoe):
         REGEX = r".*-thrsib(?P<ht>[01])-freq_.*-stress(?P<st>[01])-SMT(?P<sm>[01])-turbo(?P<tu>[01])-\d"
         m = match(REGEX, path.stem)
         if not m:
-            log.error(f"Failed parsing filname({path.stem})")
+            log.error(f"Failed parsing filename({path.stem})")
             return 1
 
         ht, st, sm, tu = map(int, m.groups())
@@ -60,6 +60,10 @@ def main(args, cijoe: Cijoe):
         if err:
             log.error("Failed: merge_dicts()")
             return err
+
+        if "tool" not in result:
+            result["tool"] = "bdevperf"
+            result["backend"] = "spdk"
 
         result["iops"] = avg_stddev(result["iops"])
         result["mibs"] = avg_stddev(result["mibs"])
