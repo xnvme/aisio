@@ -27,160 +27,200 @@ contemporary operating systems, Linux uniquely satisfies these requirements at
 scale, and therefore serves as the reference platform for the architectures and
 implementations described in this work.
 
-Modern systems require such coexistence not because workloads favor different
-initiators, but because interoperability with operating system managed storage
-is a hard requirement. Applications, filesystems, and OS infrastructure depend
-on host-initiated I/O paths that provide safety, consistency, and universal
-abstractions. These paths cannot simply be replaced. At the same time, emerging
-workloads motivate specialized fast paths that reduce host involvement and
-enable direct device-to-device data movement.
+AiSIO designs adopt a structural separation between control-oriented
+responsibilities and high-bandwidth data-path execution. Metadata management,
+protection enforcement, and system coordination remain associated with the
+operating system, while accelerators participate in data-path execution using
+mechanisms suited to parallel data movement. This separation allows each
+processing unit to operate in its area of strength, while preserving the safety
+and correctness guarantees that applications and file systems depend on.
 
-Many AiSIO designs therefore adopt a structural separation between
-control-oriented responsibilities and high-bandwidth data-path execution.
-Metadata management, protection enforcement, and system coordination remain
-associated with the operating system, while accelerators participate in
-data-path execution using mechanisms suited to parallel data movement. This
-separation allows each processing unit to operate in its area of strength, while
-preserving the safety and correctness guarantees expected from operating system
-managed storage.
+## I/O Path Taxonomy
 
-This architecture is particularly relevant for AI workloads where GPUs process
-massive datasets stored in filesystems, but the underlying requirements extend
-well beyond AI. Any scenario that demands coexistence between OS-managed storage
-and high-performance direct access benefits from multipath I/O. Scientific
-computing, database acceleration, video processing, and network-attached storage
-exhibit similar pressures on the storage stack.
+To reason about how AiSIO system architectures support multipath coexistence, we
+characterize I/O paths along three independent axes: infrastructure, initiator,
+and buffer placement.
 
-To reason about how such system software architectures support this form of
-coexistence in practice, we distinguish between three classes of I/O paths
-commonly encountered in AiSIO systems.
+**Infrastructure** describes which software layer owns the NVMe driver and
+manages the controller's queues.
 
-**OS-managed** I/O paths provide the interoperability baseline. They preserve
-the conventional kernel storage stack, including filesystems, VFS layers,
-permission enforcement, and existing applications. All file operations proceed
-through standard interfaces, ensuring correct metadata handling, consistency,
-and durability. This path maintains the safety and semantic guarantees required
-by the operating system and its applications.
+- *Kernel-managed*: the kernel NVMe driver performs controller initialization,
+  queue allocation, command submission, and completion handling. The kernel
+  retains full control over device management, file-system integration, and
+  protection enforcement.
+- *User-space managed*: a user-space NVMe driver performs these responsibilities
+  directly from user space. This eliminates kernel transitions, interrupt
+  overhead, and block-layer processing, but requires OS-provided abstractions
+  (block devices, scheduling, isolation) to be rebuilt in the user-space runtime
+  or foregone entirely.
 
-**User-space managed** I/O paths remain host-resident but shift both control and
-data plane responsibilities from kernel space to user space. Frameworks such as
-SPDK initialize and manage NVMe devices directly on the host, including driver
-bring-up, admin-queue configuration, and I/O queue management. By bypassing
-the kernel storage stack, this path eliminates interrupts, context switches,
-and redundant data copies, enabling low-latency and high-throughput I/O. As a
-result, abstractions normally provided by the operating system, such as block
-devices, scheduling, isolation, and safety guarantees, must be explicitly
-rebuilt on top of the user-space runtime.
+**Initiator** describes which processing entity constructs and submits NVMe
+commands.
 
-**Device-initiated** I/O paths extend user-space managed I/O by allowing devices
-to initiate storage operations directly. Accelerators such as GPUs issue NVMe
-commands and move data using peer-to-peer DMA, while host-side system software
-components remain responsible for device bring-up, queue management, and system
-coordination. This path reduces host involvement on the fast path, but shifts
-substantial responsibility for correctness, safety, and integration with file
-systems and applications out of the kernel and into specialized runtimes.
+- *CPU-initiated*: software executing on the host CPU constructs NVMe submission
+  queue entries, populates data transfer descriptors (PRPs or SGLs), and writes
+  doorbell registers. This applies to both kernel-managed and user-space managed
+  infrastructure.
+- *Device-initiated*: software executing on a PCIe-attached accelerator (such as
+  a GPU) constructs and submits NVMe commands from device-resident driver code.
+  Host-side software remains responsible for device initialization, queue
+  provisioning, and metadata resolution, but the accelerator drives the data
+  path independently once the queues are established.
 
-Taken in isolation, each I/O path addresses a distinct set of requirements.
-OS-managed paths preserve interoperability, safety, and file system semantics.
-User-space managed paths deliver predictable, high-performance access on the
-host. Device-initiated paths reduce host resource consumption by allowing
-accelerators to initiate and drive I/O directly.
+**Buffer placement** describes where data buffers and queue structures reside,
+and determines whether peer-to-peer (P2P) DMA is involved.
 
-AiSIO further distinguishes between hardware-partitioned coexistence and
-software-mediated coexistence. This distinction follows directly from the design
-of the Linux NVMe driver {cite}`linux-nvme`, which assumes exclusive ownership
-of a PCIe function, including administrative control, error handling, and
-queue management. While this assumption could in principle be altered, it is
-intentionally not. Prior efforts to relax function-level ownership have taken
-the form of out-of-tree extensions rather than upstream changes.
+- *Host memory*: data buffers reside in host DRAM. The NVMe controller performs
+  DMA to and from host memory. When an accelerator needs the data, a separate
+  copy from host memory to device memory is required.
+- *Device memory*: data buffers reside in accelerator-accessible memory,
+  typically GPU BAR space. The NVMe controller transfers data directly to or
+  from the accelerator over the PCIe fabric via P2P DMA, bypassing host DRAM
+  entirely. Queue structures may also reside in device memory when the
+  accelerator must access them directly.
 
-Examples include NVMeDirect {cite}`nvmedirect` and vendor-specific kernel
-modifications in GPU driver stacks used to support GPUDirect Storage
-{cite}`nvidia-gds`, which accelerate data movement while explicitly preserving
-kernel ownership of the NVMe controller. Other systems, such as libnvm
-{cite}`Markussen2021` and Big Accelerator Memory (BaM) {cite}`bam2023`, take
-the opposite approach by removing the NVMe device from kernel control entirely
-and assigning exclusive ownership to a user-space runtime or accelerator. None
-of these efforts introduce a model for fine-grained sharing of NVMe controllers
-between independent initiators.
+These axes are independent. The following table summarizes how existing and
+AiSIO system architectures map onto the three axes:
 
-As a result, safe coexistence between OS-managed and accelerator-initiated
-access within a single NVMe controller requires either hardware support for
-partitioning at the PCIe function level, such as multiple physical functions or
-SR-IOV, or a host-resident control plane that mediates access through user-space
-NVMe drivers.
+| Components                        | Infrastructure | Initiator | Buffers |
+| --------------------------------- | -------------- | --------- | ------- |
+| pread, libaio, io_uring           | Kernel         | CPU       | Host    |
+| SPDK                              | User-space     | CPU       | Host    |
+| xNVMe/uPCIe                      | User-space     | CPU       | Host    |
+| GDS                               | Kernel         | CPU       | Device  |
+| io_uring + dma-buf                | Kernel         | CPU       | Device  |
+| xNVMe/uPCIe + CUDA/dma-buf       | User-space     | CPU       | Device  |
+| xNVMe/uPCIe + ROCm/dma-buf       | User-space     | CPU       | Device  |
+| xNVMe/uPCIe + CUDA (device-resident) | User-space | Device    | Device  |
 
-The overarching goal is to evaluate the feasibility of AiSIO system
-implementations that allow these I/O paths to coexist within a single system
-without compromising operating system semantics.
+The conventional kernel paths occupy the top-left corner: kernel-managed,
+CPU-initiated, host memory. SPDK and xNVMe/uPCIe move the infrastructure to
+user space while remaining CPU-initiated with host memory buffers; benchmarks
+comparing these are presented in {ref}`sec-experiments-tool-comparison`. GDS
+changes buffer placement to device memory while remaining kernel-managed. The
+remaining rows represent the AiSIO system architectures described in the
+following sections, which combine device memory, user-space or kernel
+infrastructure, and (in the device-resident case) device-initiated I/O.
+
+### The Coexistence Problem
+
+The coexistence problem arises from the infrastructure axis. On Linux, a PCIe
+function can be bound to only one driver at a time. When the kernel NVMe driver
+owns a function, no user-space driver can access it, and vice versa. This means
+that kernel-managed and user-space managed I/O paths cannot operate on the same
+NVMe controller simultaneously through the same PCIe function. Device-initiated
+I/O inherits this constraint, since it relies on user-space infrastructure to
+provision queues and manage the controller.
+
+As a consequence, running multiple infrastructure types against a single NVMe
+controller requires either hardware support for partitioning at the PCIe
+function level (such as SR-IOV, which exposes multiple independent functions
+from a single physical device) or a software architecture that takes exclusive
+ownership of the function in user space and re-exports a block device interface
+back to the kernel (such as ublk). Without one of these mechanisms, the system
+must choose a single infrastructure type per controller, forgoing multipath
+coexistence.
+
+## AiSIO System Architectures
+
+The following subsections describe three P2P system architectures within the
+AiSIO class, realized as open-source alternatives to the proprietary and
+academic systems described in the introduction. All three use peer-to-peer
+(P2P) DMA to transfer data directly between the NVMe controller and
+accelerator memory over the PCIe fabric, bypassing host DRAM. They share a
+common foundation in upstream and open-source components (io_uring, dma-buf,
+xNVMe, and uPCIe) and differ in which entity initiates I/O and which software
+layer manages the NVMe command path.
+
+Notably, the same xNVMe and uPCIe components also support conventional
+CPU-initiated I/O with host memory buffers. Benchmarks demonstrate that this
+configuration outperforms the current state-of-the-art in user-space I/O
+(SPDK) (see {ref}`sec-experiments-tool-comparison`). This is a direct
+consequence of xNVMe's design: by abstracting the NVMe command path behind a
+unified API, xNVMe allows applications to switch between I/O paths
+(kernel-managed, user-space managed, or device-initiated, with host or P2P
+buffers) without modifying application code. Different paths enable different
+optimizations, and the choice can be made at deployment time rather than at
+development time.
+
+### CPU-Initiated I/O with P2P Memory and Kernel Infrastructure
+
+The host CPU constructs and submits NVMe commands through the kernel storage
+stack using io_uring. Data buffers reside in GPU memory, exported as dma-buf
+objects and imported into the kernel for use as I/O targets. The kernel NVMe
+driver populates PRPs or SGLs with physical addresses in GPU BAR space, causing
+the NVMe controller to issue PCIe Memory Read or Write TLPs directed at the GPU
+rather than at host memory.
+
+Queue pairs are allocated in host memory and managed entirely by the kernel NVMe
+driver. The kernel retains full control over command lifecycle, device
+management, and file-system integration. The P2P data path is established
+through composable, upstream kernel interfaces (dma-buf for GPU memory sharing
+and io_uring for asynchronous NVMe command submission) without requiring
+proprietary driver modifications.
+
+### CPU-Initiated I/O with P2P Memory and User-Space Infrastructure
+
+The host CPU constructs and submits NVMe commands through a user-space NVMe
+driver. xNVMe provides unified NVMe command construction and submission, while
+uPCIe manages PCIe resource access from user space. Data buffers reside in GPU
+memory, and dma-buf is used to establish P2P mappings that expose GPU BAR
+addresses to the user-space driver. The driver constructs NVMe commands with
+PRPs or SGLs pointing to these GPU physical addresses, and the NVMe controller
+transfers data directly to or from GPU memory via P2P DMA.
+
+Queue pairs are allocated in host memory and managed by the user-space driver.
+By operating outside the kernel, this path eliminates kernel transitions,
+interrupt overhead, and block-layer processing. The trade-off is that the kernel
+no longer mediates access to the NVMe device: queue isolation, P2P memory
+safety, and coexistence with OS-managed storage must be handled by the
+user-space runtime or by a host-resident control plane such as HOMI.
+
+### Device-Initiated I/O with P2P Memory and User-Space Infrastructure
+
+The accelerator itself constructs and submits NVMe commands from GPU-resident
+driver code. As in the CPU-initiated user-space configuration, xNVMe and uPCIe
+handle device initialization, queue provisioning, and P2P setup on the host.
+The key difference is in where the queue pairs reside and who drives the data
+path.
+
+Queue pair memory (submission queues, completion queues, and associated
+structures) is allocated in GPU memory via dma-buf, making it directly
+accessible to the device-resident NVMe I/O driver. The host provisions these
+queues and registers them with the NVMe controller, but the GPU subsequently
+operates on them independently: constructing submission queue entries,
+populating PRPs or SGLs referencing GPU-local data buffers, and writing doorbell
+registers to trigger command processing. Completions are polled directly by the
+GPU from completion queue entries residing in its own memory.
+
+Data buffers likewise reside in GPU memory with P2P mappings established through
+dma-buf. The entire submission-transfer-completion cycle proceeds over the PCIe
+fabric between the GPU and the NVMe controller. The host CPU is involved only in
+control-plane operations: queue provisioning, file-to-block metadata resolution,
+and error recovery.
 
 ## Host Orchestrated Multipath I/O (HOMI)
 
-Host Orchestrated Multipath I/O (HOMI) is a reference implementation used
-to explore accelerator-integrated Storage I/O within the framework of system
-software architectures described in the previous section. HOMI does not define
-a single prescriptive design, but instead serves as an experimental platform for
-studying how OS-managed, user-space managed, and device-initiated I/O paths can
-be orchestrated to coexist within a single system.
+Host Orchestrated Multipath I/O (HOMI) is a reference implementation that
+addresses the coexistence problem described above. Rather than forcing a choice
+between I/O path classes, HOMI enables OS-managed, user-space managed, and
+device-initiated paths to operate concurrently on the same NVMe controller.
 
-The term *host orchestrated* reflects a deliberate architectural choice. In
-HOMI, the host operating system retains responsibility for global coordination,
-metadata management, and policy enforcement, while enabling accelerators to
-participate directly in data-path execution. This mirrors the control- and
-data-path separation described for AiSIO systems and allows new I/O paths to be
-introduced without undermining operating system semantics.
+The term *host orchestrated* reflects a deliberate architectural choice. The
+host retains responsibility for global coordination, metadata management, and
+policy enforcement, while enabling accelerators to participate directly in
+data-path execution. HOMI resolves the driver exclusivity constraint through two
+strategies: software-mediated multiplexing via *ublk* {cite}`ublk`, and
+hardware-assisted delegation via SR-IOV. Both are described in the subsections
+below.
 
-HOMI supports multiple orchestration strategies that reflect different points
-in the AiSIO design space. It can realize host-orchestrated multipath I/O
-either through hardware-supported virtualization using SR-IOV, or through
-software-mediated multiplexing via a user-space block interface using *ublk*
-{cite}`ublk`. These strategies impose different constraints on isolation, queue
-ownership, and resource sharing, and enable the exploration of architectural
-trade-offs between hardware-assisted and software-mediated multipath designs.
-
-A second foundational component of HOMI is a host-resident daemon that
-centralizes control-plane responsibilities shared across all I/O paths. This
-daemon is responsible for device discovery and initialization, NVMe control
-operations, and the extraction and caching of file-extent information from the
-host file system. By maintaining a coherent view of storage devices and file
-layout, it provides a common coordination point between OS-managed, user-space
-managed, and device-initiated I/O paths.
-
-The daemon exposes interfaces through which user-space processes and devices
-can obtain access to NVMe resources, including handles required to establish I/O
-queue pairs for direct command submission.
-
-This design allows queue ownership and scheduling decisions to be orchestrated
-at the host level, enabling accelerators and user-space components to initiate
-I/O without assuming responsibility for device management or administrative
-control.
-
-As a result, accelerators and user-space components can initiate I/O while
-remaining integrated with kernel-managed storage semantics.
-
-HOMI is intentionally scoped as a reference implementation. It focuses on
-exposing and coordinating multiple I/O paths rather than on providing a complete
-storage solution or introducing new file system semantics. Design choices
-favor explicitness and observability over generality, allowing the impact of
-architectural decisions to be studied in isolation.
-
-### Control-Plane Services and Responsibilities
-
-At the core of HOMI is a host-resident daemon that centralizes control-plane
-responsibilities shared across all I/O paths. This daemon provides
-the coordination required to allow OS-managed, user-space managed, and
-device-initiated I/O paths to coexist without transferring full device control
-out of the operating system.
-
-The control plane is responsible for storage device discovery and
-initialization, NVMe controller management, and the mediation of access to
-controller resources. All administrative operations, including controller
-configuration and error recovery, remain host-managed, ensuring that storage
-devices can be safely operated regardless of accelerator state.
-
-In addition to device management, the control plane maintains a cached view of
-file-to-block mappings for files accessed through non-OS-managed I/O paths, that
-is, via user-space or device-resident NVMe I/O drivers.
+A foundational component of HOMI is a host-resident daemon that centralizes
+control-plane responsibilities shared across all I/O paths. This daemon is
+responsible for device discovery and initialization, NVMe control operations,
+and the extraction and caching of file-extent information from the host file
+system. It exposes interfaces through which user-space processes and
+accelerators can obtain access to NVMe resources, including handles required to
+establish I/O queue pairs for direct command submission.
 
 Accelerators cannot interact directly with kernel metadata structures or perform
 pathname resolution. HOMI therefore extracts file extent information on the host
@@ -188,9 +228,11 @@ and makes it available through controlled interfaces, allowing accelerators to
 translate file offsets into physical block ranges without kernel involvement on
 the data path.
 
-By centralizing these responsibilities, HOMI enables accelerators and user-space
-runtimes to initiate I/O directly while preserving kernel-managed storage
-semantics, filesystem consistency, and system-wide coordination.
+HOMI is intentionally scoped as a reference implementation. It focuses on
+exposing and coordinating multiple I/O paths rather than on providing a complete
+storage solution or introducing new file system semantics. Design choices
+favor explicitness and observability over generality, allowing the impact of
+architectural decisions to be studied in isolation.
 
 ### HOMI via Software-Mediated Multipath (ublk)
 

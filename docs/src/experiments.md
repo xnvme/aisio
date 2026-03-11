@@ -221,3 +221,58 @@ In the final step, the results of the experiment is visualized on a graph in an
 interactive HTML page, which can be found in the cijoe artifacts found in
 ``cijoe-output/artifacts/benchmark-results.html``. With this HTML page, the
 results of different parametirizations can be compared.
+
+(sec-experiments-tool-comparison)=
+## Benchmark Tool Comparison
+
+The preceding experiment uses a single benchmark tool (bdevperf) against SPDK's
+user-space NVMe driver. To evaluate how benchmark tool design and user-space
+driver implementation affect measured performance, this experiment compares three
+high-performance I/O benchmark tools under identical hardware and environmental
+conditions. The comparison isolates the effect of the software stack on
+achievable IOPS, independent of device capability.
+
+The three tools under comparison are:
+
+- **bdevperf**: SPDK's block device benchmark. I/O is issued through SPDK's bdev
+  (block device) abstraction layer, which interposes between the application and
+  the underlying NVMe driver. The bdev layer provides a uniform interface across
+  storage backends but introduces additional indirection in the I/O path.
+
+- **SPDK NVMe Perf** (``perf``): SPDK's NVMe-level benchmark. Unlike bdevperf,
+  this tool bypasses the bdev abstraction and issues NVMe commands directly
+  through SPDK's NVMe driver. This eliminates bdev-layer overhead and measures
+  the performance of SPDK's NVMe driver in isolation.
+
+- **xnvmeperf**: xNVMe's benchmark tool. I/O is issued through xNVMe's unified
+  NVMe command interface, which abstracts over multiple backend implementations
+  (kernel io_uring, user-space via uPCIe, or device-initiated paths). In this
+  experiment, xnvmeperf is configured to use xNVMe's user-space NVMe driver
+  backend, providing a direct comparison with SPDK's NVMe driver.
+
+All three tools use polling-based completion and operate against the same NVMe
+devices bound to user-space drivers. The comparison demonstrates differences in
+achievable IOPS attributable to the benchmark tool overhead and the underlying
+user-space NVMe driver implementation.
+
+### Experimental Setup
+
+The experiment uses the same hardware environment as the conventional
+CPU-initiated setup. All NVMe devices are bound to user-space drivers, and the
+CPU governor is set to "performance" with turbo boost enabled. Each benchmark
+configuration is run five times and results are reported as arithmetic means.
+
+The independent variables are:
+
+| Variable          | Parameter Set                                        |
+| ----------------- | ---------------------------------------------------- |
+| Benchmark tool    | { bdevperf, SPDK NVMe Perf, xnvmeperf }             |
+| Queue depth       | { TBD }                                              |
+| I/O size          | { TBD }                                              |
+| Number of cores   | { TBD }                                              |
+| Number of devices | { TBD }                                              |
+
+### Results
+
+Results will be presented once the benchmarks have been made fully
+reproducible.
