@@ -20,6 +20,9 @@ doc: |
   Adjust udmabuf_import.toml with the path to your aisio github repository on the host.
 
 steps:
+- name: fetch_sources
+  uses: core.repository_prep
+
 - name: install_dependencies
   run: |
     apt-get -fy install bison build-essential debhelper-compat flex libelf-dev libncurses-dev libssl-dev
@@ -33,10 +36,8 @@ steps:
     cd /usr/src/{{ config.linux.source.pkg }}; tar -jxf {{ config.linux.source.pkg }}.tar.bz2  --strip-components=1
 
 - name: copy_patch
-  uses: core.put
-  with:
-    src: "{{ config.udmabuf.patch.path }}/{{ config.udmabuf.patch.name }}"
-    dst: /usr/src/{{ config.linux.source.pkg }}
+  run: |
+    cp {{ config.udmabuf.repository.path }}/patches/{{ config.udmabuf.patch.name }} /usr/src/{{ config.linux.source.pkg }}
 
 - name: apply_patch
   run: |
