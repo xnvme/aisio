@@ -38,8 +38,8 @@ class BenchHelper():
             configs_path: Path,
             results_path: Path,
             cfm: CpuFrequencyHelper,
-            backend: str = "spdk",
             tool: str = "bdevperf",
+            backend: str = "spdk",
     ):
         self.initialised = False
 
@@ -67,6 +67,8 @@ class BenchHelper():
                 return
 
             self.bin = Path(spdk_path) / "build" / "examples" / "bdevperf"
+        elif tool == "xnvmeperf":
+            self.bin = "xnvmeperf run"
         else:
             log.error(f"Failed: Unknown tool({tool})")
 
@@ -139,6 +141,17 @@ class BenchHelper():
                 f"-o {size}",
                 f"-t {time}",
                 "-w randread"
+            ]
+            command += " ".join(run_parameters)
+        elif self.tool == "xnvmeperf":
+            run_parameters = [
+                f"--cpumask {mask}",
+                f"--qdepth {depth}",
+                f"--iosize {size}",
+                f"--runtime {time}",
+                "--iopattern randread",
+                f"--be {self.backend}",
+                " ".join(d["pci_addr"] for d in self.devices[0:ndevs]),
             ]
             command += " ".join(run_parameters)
         else:
@@ -291,6 +304,8 @@ class BenchHelper():
 
         if self.tool == "bdevperf":
             table_regex = r"\s*(?P<name>\w+)\s+:\s+(?P<runtime>[0-9.]+)?\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<fails>[0-9.]+)\s+(?P<tos>[0-9.]+)\s+(?P<avg_lat>[0-9.]+)\s+(?P<min_lat>[0-9.]+)\s+(?P<max_lat>[0-9.]+)"
+        elif self.tool == "xnvmeperf":
+            table_regex = r"\s*(?P<name>\w+):?\s+(?P<cpus>[0-9,]+)?\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<fails>[0-9.]+)"
         else:
             log.error(f"Unkown tool: {self.tool}")
             return -1, None
