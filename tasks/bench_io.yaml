@@ -59,6 +59,8 @@ steps:
     hyperthreads: [0,1]
     stress: [0,1]
     results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
+    tool: xnvmeperf
+    backend: upcie
 
 - name: combine
   uses: bench_combine

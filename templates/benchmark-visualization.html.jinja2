@@ -163,6 +163,10 @@
   <span id="iosizeRadios"></span>
   <strong>CPU Frequency or Governor:</strong>
   <span id="cpufreqRadios"></span>
+  <strong>Backend:</strong>
+  <span id="backendRadios"></span>
+  <strong>Benchmarking tool:</strong>
+  <span id="toolRadios"></span>
 </div>
 <div class="controls">
   <strong>Value on y-axis:</strong>
@@ -224,6 +228,8 @@ const getXvalues = () => {
     {elemId: "devicesRadios", key: "ndevs", prettyName: "Number of Devices"},
     {elemId: "iosizeRadios", key: "iosize", prettyName: "I/O Size"},
     {elemId: "cpufreqRadios", key: "fixed_freq", prettyName: "CPU Frequency or Governor" },
+    {elemId: "toolRadios", key: "tool", prettyName: "Tool" },
+    {elemId: "backendRadios", key: "backend", prettyName: "Backend" },
   ].map(s => ({...s, set: [...new Set(allData.map(d => d[s.key]))].sort((a,b) => a - b) }));
 }
 
@@ -269,6 +275,8 @@ document.querySelectorAll(`input[type="radio"]`).forEach(radio => {
 function updateRadios() {
   xValues.forEach(({elemId, set, key}, i) => {
     let button = document.querySelector(`.controls .button-row.x button[value="${i}"]`);
+    if (!button) return;
+
     const container = document.getElementById(elemId);
 
     if (i == CUR_X_AXIS) {
