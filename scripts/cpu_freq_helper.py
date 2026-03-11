@@ -68,6 +68,9 @@ class CpuFrequencyHelper():
             log.error("Failed: cpupower")
             return 1
 
+        self.fixed_freq = freq
+        self.governor = gvnr
+
         return 0
 
     def _clear_fixed_cpu_freq(self, governor: str = "ondemand") -> int:
@@ -82,6 +85,9 @@ class CpuFrequencyHelper():
         if err:
             log.error("Failed: cpupower")
             return 1
+
+        self.fixed_freq = 0
+        self.governor = governor
 
         return 0
 
