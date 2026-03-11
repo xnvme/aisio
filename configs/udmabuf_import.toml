@@ -1,6 +1,10 @@
 [linux.source]
 pkg = "linux-source-6.8.0"
 
+[udmabuf.repository]
+remote = "https://github.com/xnvme/udmabuf-import"
+branch = "main"
+path = "{{ local.env.HOME }}/git/udmabuf-import"
+
 [udmabuf.patch]
-path = "{{ local.env.HOME }}/git/aisio/udmabuf-import/patches"
 name = "udmabuf-import-dma-buf-and-share-phys-addr-to-user.patch"
