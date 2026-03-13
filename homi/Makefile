@@ -50,3 +50,10 @@ endef
 .PHONY: log
 log:
 	journalctl -u homi -n10
+
+define status-help
+# Run systemctl status homi
+endef
+.PHONY: status
+status:
+	systemctl status homi || :

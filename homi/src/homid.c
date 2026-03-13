@@ -7,11 +7,13 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <libxal.h>
+
 #include <homid.h>
 #include <homid_ipc.h>
 #include <homid_log.h>
+#include <homid_xal.h>
 #include <homid_opts.h>
-
 
 volatile sig_atomic_t stop = 0;
 
@@ -67,9 +69,11 @@ homid_initialize(struct homid_opts *opts, struct homid **homid)
 		goto failed;
 	}
 
-	// For now, we just log the devices given in the configuration file.
-	for (int i = 0; i < opts->ndevs; i++) {
-		homid_log(LOG_NOTICE, "Device: %s", opts->dev_uris[i]);
+	cand->ndevs = opts->ndevs;
+	err = homid_device_setup(opts, &cand->dev);
+	if (err) {
+		homid_log(LOG_ERR, "Failed: homid_device_setup()");
+		goto failed;
 	}
 
 	*homid = cand;
@@ -88,6 +92,7 @@ homid_close(struct homid *homid) {
 		return 0;
 	}
 
+	homid_device_close(homid->ndevs, homid->dev);
 	homid_ipc_close(homid->conn);
 
 	return 0;

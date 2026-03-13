@@ -3,7 +3,10 @@
 #include <string.h>
 #include <tomlc17.h>
 
+#include <libxal.h>
+
 #include <homid_log.h>
+#include <homid_xal.h>
 #include <homid_opts.h>
 
 static int
@@ -19,6 +22,7 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 {
 	toml_result_t result;
 	toml_datum_t log_level, devices, ipc_socket;
+	toml_datum_t xal_backend, xal_watchmode, xal_file_lookupmode;
 	int err = 0;
 
 	result = toml_parse_file_ex(config_file);
@@ -73,7 +77,7 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 	opts->dev_uris = malloc(devices.u.arr.size * sizeof(*opts->dev_uris));
 	if (!opts->dev_uris) {
 		err = -errno;
-		homid_log(LOG_ERR, "Faied: malloc(); errno(%d)", errno);
+		homid_log(LOG_ERR, "Failed: malloc(); errno(%d)", errno);
 		goto exit;
 	}
 
@@ -104,6 +108,59 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 		goto exit;
 	}
 	strcpy(opts->ipc_socket, ipc_socket.u.s);
+
+	xal_backend = toml_seek(result.toptab, "xal.backend");
+	if (xal_backend.type != TOML_INT64) {
+		homid_log(LOG_ERR, "Missing or invalid 'xal.backend' property in config");
+		err = -EINVAL;
+		goto exit;
+	}
+
+	if (xal_backend.u.int64 == XAL_BACKEND_XFS) {
+		opts->xal_opts.be = XAL_BACKEND_XFS;
+	} else if (xal_backend.u.int64 == XAL_BACKEND_FIEMAP) {
+		opts->xal_opts.be = XAL_BACKEND_FIEMAP;
+	} else {
+		homid_log(LOG_ERR, "Missing or invalid 'xal.backend' property in config");
+		err = -EINVAL;
+		goto exit;
+	}
+
+	xal_watchmode = toml_seek(result.toptab, "xal.watchmode");
+	if (xal_watchmode.type != TOML_INT64) {
+		homid_log(LOG_WARNING, "Missing or invalid 'xal.watchmode' property in config");
+	}
+
+	switch (xal_watchmode.u.int64)
+	{
+	case 0:
+		opts->xal_opts.watch_mode = XAL_WATCHMODE_NONE;
+		break;
+	case 1:
+		opts->xal_opts.watch_mode = XAL_WATCHMODE_DIRTY_DETECTION;
+		break;
+	case 2:
+		opts->xal_opts.watch_mode = XAL_WATCHMODE_EXTENT_UPDATE;
+		break;
+	default:
+		homid_log(LOG_WARNING, "'xal.watchmode' defaulting to 'none'");
+		opts->xal_opts.watch_mode = XAL_WATCHMODE_NONE;
+		break;
+	}
+
+	xal_file_lookupmode = toml_seek(result.toptab, "xal.file_lookupmode");
+	if (xal_file_lookupmode.type != TOML_INT64) {
+		homid_log(LOG_WARNING, "Missing or invalid 'xal.file_lookupmode' property in config");
+	}
+
+	if (xal_file_lookupmode.u.int64 == XAL_FILE_LOOKUPMODE_TRAVERSE) {
+		opts->xal_opts.file_lookupmode = XAL_FILE_LOOKUPMODE_TRAVERSE;
+	} else if (xal_file_lookupmode.u.int64 == XAL_FILE_LOOKUPMODE_HASHMAP) {
+		opts->xal_opts.file_lookupmode = XAL_FILE_LOOKUPMODE_HASHMAP;
+	} else {
+		homid_log(LOG_WARNING, "'xal.file_lookupmode' defaulting to 'traverse'");
+		opts->xal_opts.file_lookupmode = XAL_FILE_LOOKUPMODE_TRAVERSE;
+	}
 
 exit:
 	toml_free(result);

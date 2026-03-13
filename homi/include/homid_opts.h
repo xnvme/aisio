@@ -2,9 +2,10 @@
 
 struct homid_opts {
 	int log_level;
-	int ndevs;
+	unsigned int ndevs;
 	char (*dev_uris)[HOMID_DEVURI_MAXLEN];
 	char *ipc_socket;
+	struct xal_opts xal_opts;
 };
 
 /**
@@ -13,6 +14,10 @@ struct homid_opts {
  * We expect the configuration file to have keys:
  * - log_level (int)
  * - devices (array of strings)
+ * - ipc_socket (string)
+ * - xal.backend (int)
+ * - xal.watchmode (int)
+ * - xal.file_lookupmode (int)
  *
  * @param path Path to the configuration file
  * @param opts homid_opts struct that the configuration will be loaded into
