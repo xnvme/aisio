@@ -44,3 +44,13 @@ journalctl -u homi
 # or
 journalctl -u homi -n30
 ```
+
+## Status
+
+Check if the daemon is running or stopped. Simplified with make.
+
+```bash
+make status
+# or
+systemctl status homi
+```

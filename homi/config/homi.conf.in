@@ -9,3 +9,11 @@ devices = [ ]
 
 # IPC socket
 ipc_socket = "/run/homi/homi.sock"
+
+[xal]
+# xfs = 1, fiemap = 2
+backend = 2
+# none = 0, dirty detection = 1, extent update = 2
+watchmode = 2
+# traverse = 0, hashmap = 1
+file_lookupmode = 0

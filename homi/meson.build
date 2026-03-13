@@ -13,12 +13,21 @@ systemd = dependency('systemd')
 toml = subproject('tomlc17')
 toml_dep = toml.get_variable('toml_dep')
 
-homi_dependencies = [toml_dep]
+xal_dep = dependency('xal', method: 'pkg-config', required: true)
+
+xnvme_dep = dependency('xnvme', method: 'pkg-config', required: true)
+
+homi_dependencies = [
+	toml_dep,
+	xal_dep,
+	xnvme_dep
+]
 
 sources = files(
   'src/homid.c',
   'src/homid_ipc.c',
   'src/homid_log.c',
+  'src/homid_xal.c',
   'src/homid_opts.c',
   'src/homi_proto.c',
 )
