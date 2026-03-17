@@ -1,13 +1,13 @@
 doc: |
   Ubuntu 24.04 Setup of the NVIDIA Software Stack
-  ===============================================
+  ================================================
 
   This workflow provisions a system with the NVIDIA software stack required for
   NVMe <-> GPU development, testing, and experimentation. It targets the following
   components and versions:
 
-  * Ubuntu Server 24.04.3
-  * Linux 6.8 GA kernel (HWE must be disabled) / Linux 6.8 UDMABUF-IMPORT Kernel
+  * Ubuntu Server 24.04.4
+  * Linux 6.8 GA kernel (HWE must be disabled)
   * NVIDIA Open Kernel Modules (NOKM) v570 (via apt)
   * CUDA Toolkit v12.8 (via apt)
   * CUDA Samples v12.8 (from source)
@@ -15,99 +15,33 @@ doc: |
       - DOCA_OFED does not include NVMe or GDS support
   * nvidia-fs (via apt)
 
-  The workflow also configures `PATH` and `LD_LIBRARY_PATH` to include the CUDA
-  toolkit.
-
-  Version information comes from two places:
-  * Apt repositories provide the minor versions of NOKM and CUDA.
-  * Major versions are fixed in the workflow itself and do not change automatically.
-
-  This workflow does *not* install Ubuntu. Instead, it assumes a clean Ubuntu Server
-  24.04.3 installation prepared with the selections shown below.
-
-  Base Ubuntu Installation
-  ------------------------
-  During installation, ensure the following:
-
-  * Kernel selection:
-      (X) GA Kernel
-      ( ) HWE Kernel  ← must be disabled
-
-  * Installation Base:
-      (X) Ubuntu Server
-      ( ) Ubuntu Server (minimized)
-
-  * Storage (guided):
-      (X) Use an entire disk
-      [ ] Set up this disk as an LVM group
-
-  * Profile:
-      - Your name: Odus | sudO
-      - Server name: aisio-nvstack-01
-      - Username: odus
-      - Password: <choose>
-
-  * SSH configuration:
-      [X] Install OpenSSH server
-
-  Required Manual Steps Before Running the Workflow
-  -------------------------------------------------
-  To allow CIJOE to execute commands as `root`, enable SSH root login:
-
-      sudo passwd root
-      sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-      sudo systemctl restart ssh
-
-  Perform these steps only on a development machine, as enabling root SSH access
-  reduces system security.
+  This workflow assumes that the base Ubuntu preparation has already been
+  completed using ``setup_ubuntu.yaml``.
 
   Running the Workflow
   --------------------
-  After installing Ubuntu and enabling root SSH access, run:
+  After running ``setup_ubuntu.yaml``, run:
 
       cijoe --monitor \
         -c configs/transport.toml \
         -c configs/nvstack.toml \
         tasks/setup_nvstack.yaml
 
-  Make sure `transport.toml` contains the correct hostname and login credentials
-  for the root user.
+  Make sure ``transport.toml`` contains the correct hostname and login
+  credentials for the root user.
 
   Caveat: CUDA Environment
   ------------------------
   CUDA is not installed in standard system locations. The workflow installs a
-  helper script in `/etc/profile.d/cuda.sh` that sets the CUDA environment for
+  helper script in ``/etc/profile.d/cuda.sh`` that sets the CUDA environment for
   interactive shells.
 
   However, non-interactive shells (including many CIJOE operations) do *not*
-  automatically source `/etc/profile.d/`. The workflow therefore explicitly
-  updates `/root/.bashrc` so that CUDA tools (e.g., `nvcc`) work when executing
-  over SSH.
+  automatically source ``/etc/profile.d/``. The workflow therefore explicitly
+  updates ``/root/.bashrc`` so that CUDA tools (e.g., ``nvcc``) work when
+  executing over SSH.
 
 steps:
-- name: directories
-  run: |
-    mkdir -p {git,workdir}
-
-- name: disable_upgrades
-  run: |
-    systemctl stop unattended-upgrades || true
-    systemctl disable unattended-upgrades || true
-    systemctl mask unattended-upgrades || true
-    apt-get remove unattended-upgrades || true
-
-- name: packages
-  run: |
-    apt-get -qy update && apt-get -qy upgrade
-    apt-get -qy install build-essential linux-headers-$(uname -r) linux-tools-common linux-tools-$(uname -r) wget git htop vim cmake stress-ng parallel sysstat time
-    apt-get -qy autoremove
-
-- name: blacklist_nouveau
-  run: |
-    echo "blacklist nouveau" | tee /etc/modprobe.d/disable-nouveau.conf
-    echo "options nouveau modeset=0" | tee -a /etc/modprobe.d/disable-nouveau.conf
-    update-initramfs -u
-
 - name: ofed
   run: |
     wget -O workdir/ofed.tgz {{ config.nvidia.ofed.url }}

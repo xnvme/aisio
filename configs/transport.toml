@@ -2,7 +2,7 @@
 fail_fast=true
 
 [cijoe.transport.ssh]
-hostname = "aisio-nvstack-01"
+hostname = "aisio"
 password = "odus.321"
 username = "root"
 timeout = 1
