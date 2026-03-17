@@ -1,0 +1,103 @@
+doc: |
+  Ubuntu 24.04 Preparation for AiSIO Software Stack
+  =================================================
+
+  Regardless of whether you will be using NVIDIA, AMD, or some other
+  GPU/Accelerators, then there is the general task of ensuring that the OS is
+  setup properly along with common tooling. This is provided here as a general
+  reference.
+  
+  Then the vendor-specifics are provided as different setup tasks. The general
+  portion targets the following components and versions:
+
+  * Ubuntu Server 24.04.4
+  * Linux 6.8 GA kernel (HWE must be disabled) / Linux 6.8 UDMABUF-IMPORT Kernel
+
+  This workflow does *not* install Ubuntu. Instead, it assumes a clean Ubuntu Server
+  24.04.4 installation prepared with the selections shown below.
+
+  Base Ubuntu Installation
+  ------------------------
+  During installation, ensure the following:
+
+  * Kernel selection:
+      (X) GA Kernel
+      ( ) HWE Kernel  ← must be disabled
+
+  * Installation Base:
+      (X) Ubuntu Server
+      ( ) Ubuntu Server (minimized)
+
+  * Storage (guided):
+      (X) Use an entire disk
+      [ ] Set up this disk as an LVM group
+
+  * Profile:
+      - Your name: Odus | sudO
+      - Server name: aisio
+      - Username: odus
+      - Password: <choose>
+
+  * SSH configuration:
+      [X] Install OpenSSH server
+
+  Required Manual Steps Before Running the Workflow
+  -------------------------------------------------
+  To allow CIJOE to execute commands as `root`, enable SSH root login:
+
+      sudo passwd root
+      sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+      sudo systemctl restart ssh
+
+  Perform these steps only on a development machine, as enabling root SSH access
+  reduces system security.
+
+  Running the Workflow
+  --------------------
+  After installing Ubuntu and enabling root SSH access, run:
+
+      cijoe --monitor \
+        -c configs/transport.toml \
+        tasks/setup_ubuntu.yaml
+
+  Make sure `transport.toml` contains the correct hostname and login credentials
+  for the root user.
+
+steps:
+- name: directories
+  run: |
+    mkdir -p {git,workdir}
+
+- name: disable_upgrades
+  run: |
+    systemctl stop unattended-upgrades || true
+    systemctl disable unattended-upgrades || true
+    systemctl mask unattended-upgrades || true
+    apt-get remove unattended-upgrades || true
+
+- name: packages
+  run: |
+    apt-get -qy update && apt-get -qy upgrade
+    apt-get -qy install build-essential linux-headers-$(uname -r) linux-tools-common linux-tools-$(uname -r) wget git htop vim cmake stress-ng parallel sysstat time environment-modules python3-setuptools python3-wheel meson
+    apt-get -qy autoremove
+
+- name: blacklist_nouveau
+  run: |
+    echo "blacklist nouveau" | tee /etc/modprobe.d/disable-nouveau.conf
+    echo "options nouveau modeset=0" | tee -a /etc/modprobe.d/disable-nouveau.conf
+    update-initramfs -u
+
+- name: reboot
+  run: shutdown -r now
+
+- name: wait_down
+  uses: core.wait_for_transport
+  with:
+    state: down
+    timeout: 60
+
+- name: wait_up
+  uses: core.wait_for_transport
+  with:
+    state: up
+    timeout: 300
