@@ -75,3 +75,50 @@ HOMI framework.
 
 Information about building, installing and managing HOMI is found in the README
 file in the ``homi`` directory of the AiSIO reference implementation.
+
+### uPCIe
+
+uPCIe is a collection of header-only C libraries for building user space PCIe
+device drivers. It provides composable, zero-dependency abstractions that cover
+PCIe device discovery and BAR mapping, DMA-capable memory allocation, and a
+minimalistic NVMe driver built directly on top of these primitives.
+
+HOMI uses uPCIe as the user space NVMe driver. Being header-only, uPCIe
+integrates directly into xNVMe — where it is available as a backend
+for user space NVMe access, as described in the [xNVMe uPCIe backend
+documentation](https://xnvme.io/en/next/background/backends/upcie/index.html) —
+which in turn is the NVMe layer used by HOMI.
+
+uPCIe includes an optional GPU integration layer. This adds CUDA-backed memory
+management, enabling CPU-initiated NVMe I/O with device memory as the data buffer
+via peer-to-peer PCIe transfers.
+
+The mechanism relies on the NVMe command's Physical Region Page (PRP) list
+containing the physical addresses of the device memory buffer. Obtaining these is
+nontrivial, and is the subject of the following section.
+
+### Device Memory Physical Address Resolution via udmabuf-import
+
+The challenge is that device memory resides in device-local DRAM exposed to the
+host through a PCIe Base Address Register (BAR1) aperture, and there is no
+standard Linux kernel interface for retrieving its physical mappings from user
+space. This has been addressed with a patch to the udmabuf Linux kernel driver,
+published as
+[udmabuf-import](https://github.com/xnvme/udmabuf-import). The patch extends
+udmabuf with a dma-buf importer role, adding three new ioctl operations:
+``UDMABUF_ATTACH``, ``UDMABUF_GET_MAP``, and ``UDMABUF_DETACH``. These allow
+any exported dma-buf file descriptor to be imported into udmabuf. The driver
+then performs the DMA mappings internally and returns the resulting physical
+address array to the calling process. The mechanism is not specific to CUDA or
+NVIDIA hardware; it works with any dma-buf exporter.
+
+For CUDA device memory, the flow is as follows. A CUDA-backed heap is initialized
+by allocating device memory with ``cuMemAlloc``, then exporting it as a
+dma-buf file descriptor via ``cuMemGetHandleForAddressRange`` with the
+``CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD`` handle type. This file descriptor
+is passed to the ``dmabuf_attach`` wrapper in the uPCIe library, which opens
+``/dev/udmabuf`` and issues ``UDMABUF_ATTACH`` to obtain the page count,
+followed by ``UDMABUF_GET_MAP`` to retrieve an array of ``(dma_addr, len)``
+tuples. These are indexed into a lookup table (LUT) keyed at 64 KiB granularity,
+the native page size for NVIDIA GPU device memory, enabling runtime translation
+from any device memory virtual address to the corresponding physical address.
