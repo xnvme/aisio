@@ -7,7 +7,7 @@ latex_documents = [
         "index",
         "aisio.tex",
         "AiSIO Whitepaper",
-        "Simon A. F. Lund",
+        "Simon A. F. Lund, Karl Bonde Torp, Nadja Brix Koch, Javier González",
         "report",  # stable long-form layout
         False,
     ),
@@ -83,9 +83,12 @@ latex_elements = {
   }
 
   \vspace{2.5cm}
-  {\large
-    {{ author }} \\
-    Samsung Semiconductor
+  {\normalsize
+    Simon A. F. Lund \\
+    Karl Bonde Torp \\
+    Nadja Brix Koch \\
+    Javier González \\[0.4em]
+    \textit{Samsung Semiconductor}
   }
 
   \vfill
