@@ -1,0 +1,99 @@
+doc: |
+  Ubuntu 24.04 Setup of the AMD GPU Software Stack (amdgpu + ROCm)
+  ================================================================
+
+  This workflow provisions a system with the AMD GPU software stack required for
+  NVMe <-> GPU development, testing, and experimentation. It targets the following
+  components and versions:
+
+  * Ubuntu Server 24.04.4
+  * Linux 6.8 GA kernel (HWE must be disabled)
+  * AMDGPU DKMS driver (via amdgpu-install 7.2)
+  * ROCm 7.2 (via amdgpu-install)
+
+  This workflow assumes that the base Ubuntu preparation has already been
+  completed using ``setup_ubuntu.yaml``.
+
+  Running the Workflow
+  --------------------
+  After running ``setup_ubuntu.yaml``, run:
+
+      cijoe --monitor \
+        -c configs/transport.toml \
+        -c configs/amdstack.toml \
+        tasks/setup_amdstack.yaml
+
+  Make sure ``transport.toml`` contains the correct hostname and login
+  credentials for the root user.
+
+  ROCm Environment
+  ----------------
+  ROCm is installed to ``/opt/rocm``. The workflow installs a helper script in
+  ``/etc/profile.d/rocm.sh`` that sets PATH and LD_LIBRARY_PATH for interactive
+  shells, and explicitly updates ``/root/.bashrc`` for non-interactive SSH
+  sessions used by CIJOE.
+
+steps:
+- name: amdgpu_install_script
+  run: |
+    wget -O workdir/amdgpu-install.deb {{ config.amd.amdgpu_install.url }}
+    apt-get install -y ./workdir/amdgpu-install.deb
+    apt-get update
+
+- name: amdgpu_driver
+  run: |
+    amdgpu-install -y --usecase=rocm
+
+- name: reboot
+  run: shutdown -r now
+
+- name: wait_down
+  uses: core.wait_for_transport
+  with:
+    state: down
+    timeout: 60
+
+- name: wait_up
+  uses: core.wait_for_transport
+  with:
+    state: up
+    timeout: 300
+
+- name: headless_tweaks
+  run: |
+    echo "options amdgpu runpm=0" | tee /etc/modprobe.d/amdgpu-headless.conf
+    update-initramfs -u
+
+- name: gpu_access
+  run: |
+    usermod -a -G video,render odus
+
+- name: verify_amdgpu
+  run: |
+    dkms status | grep amdgpu
+    lsmod | grep amdgpu
+    dmesg | grep -i amdgpu | tail -20
+
+- name: rocm_profile
+  run: |
+    echo '# ROCm environment variables (set by setup script)' | tee /etc/profile.d/rocm.sh
+    echo 'export PATH=/opt/rocm/bin:$PATH' | tee -a /etc/profile.d/rocm.sh
+    echo 'export LD_LIBRARY_PATH=/opt/rocm/lib:$LD_LIBRARY_PATH' | tee -a /etc/profile.d/rocm.sh
+    chmod +x /etc/profile.d/rocm.sh
+    grep -qF 'SSH_CONNECTION' /root/.bashrc || sed -i '1i if [ -n "$SSH_CONNECTION" ] && [ -f /etc/profile.d/rocm.sh ]; then\n    . /etc/profile.d/rocm.sh\nfi\n' /root/.bashrc
+
+- name: verify_rocm
+  run: |
+    rocminfo
+    rocm-smi
+    hipcc --version
+
+- name: gpu_burn_install
+  run: |
+    apt-get install -y rocm-validation-suite
+    rvs -g
+
+- name: gpu_burn
+  run: |
+    ls /opt/rocm/share/rocm-validation-suite/conf/
+    rvs -c /opt/rocm/share/rocm-validation-suite/conf/gst_single.conf
