@@ -12,10 +12,10 @@ IOPS observed in any single-device experiment. In our environment, we were able 
 reach 3 857 938 IOPS with only one device, and as such, this was used as the
 device capacity for our analysis.
 
-[Average for all ndev=1]: # (3 099 640)
-[Median for all ndev=1]: # (3 766 518)
-[Average for ndev=1,gov=performance]: # (3 709 847)
-[Median for ndev=1,gov=performance]: # (3 844 043)
+% Average for all ndev=1: 3 099 640
+% Median for all ndev=1: 3 766 518
+% Average for ndev=1,gov=performance: 3 709 847
+% Median for ndev=1,gov=performance: 3 844 043
 
 ### Optimal Parameterization
 
@@ -40,12 +40,12 @@ the IOPS to drop due to the resources of the physical cores being divided betwee
 the bdevperf and stress-ng processes. The results for the parameterization above
 were:
 
-| Id | Variables                                | Reached IOPS |
-| -- | ---------------------------------------- | ------------ |
-| A  | Thread siblings: used<br>Stress: off     | 61 720 159   |
-| B  | Thread siblings: used<br>Stress: on      | 61 622 306   |
-| C  | Thread siblings: not used<br>Stress: off | 61 712 325   |
-| D  | Thread siblings: not used<br>Stress: on  | 41 065 835   |
+| Id | Thread siblings | Stress | Reached IOPS |
+| -- | --------------- | ------ | ------------ |
+| A  | used            | off    | 61 720 159   |
+| B  | used            | on     | 61 622 306   |
+| C  | not used        | off    | 61 712 325   |
+| D  | not used        | on     | 41 065 835   |
 
 Each parameterization has been given an id to allow for easy reference in the
 following sections. Altering the values of the independent variables from the
@@ -83,10 +83,10 @@ governor keep the clock speed at 3.3 GHz for all CPUs, which is the maximum cloc
 speed we were able to reach with turbo boost enabled. The powersave governor
 reduces the clock speed in order to reduce the power consumption, which explains
 
-[A: Using, stress off]: # (23 972 222 - 61.16% decrease)
-[B: Using, stress on]: # (23 879 418 - 61.25% decrease)
-[C: Not using, stress off]: # (18 422 224 - 70.15% decrease)
-[D: Not using, stress on]: # (41 575 999 - 1.24% increase)
+% A: Using, stress off: 23 972 222 - 61.16% decrease
+% B: Using, stress on: 23 879 418 - 61.25% decrease
+% C: Not using, stress off: 18 422 224 - 70.15% decrease
+% D: Not using, stress on: 41 575 999 - 1.24% increase
 
 #### Turbo Boost
 
@@ -99,10 +99,10 @@ get small decrease, on average 4.4 % less IOPS.
 | B                   | 59 570 168 | 3.3 % decrease |
 | C                   | 57 606 912 | 6.7 % decrease |
 
-[A: Using, stress off]: # (59 731 756 - 3.22% decrease)
-[B: Using, stress on]: # (59 570 168 - 3.33% decrease)
-[C: Not using, stress off]: # (57 606 912 - 6.65% decrease)
-[D: Not using, stress on]: # (33 003 158 - 19.63% decrease)
+% A: Using, stress off: 59 731 756 - 3.22% decrease
+% B: Using, stress on: 59 570 168 - 3.33% decrease
+% C: Not using, stress off: 57 606 912 - 6.65% decrease
+% D: Not using, stress on: 33 003 158 - 19.63% decrease
 
 However, we were able to reach similar results without turbo boost enabled by
 doubling the amount of CPU cores, as we will go into detail with in a later
@@ -135,10 +135,10 @@ performs worse than A, B, and C with SMT disabled, each physical core can execut
 only a single thread, eliminating contention but also preventing bdevperf from
 benefiting from simultaneous multithreading.
 
-[C: Not using, stress off]: # (57 965 380 - 6.07% decrease)
-[D: Not using, stress on]: # (57 729 981 - 40.58% increase)
-[C: 3GHz, Not using, stress off]: # (61 664 783 - 0.077% decrease)
-[D: 3GHz, Not using, stress on]: # (61 565 869 - 49.92% increase)
+% C: Not using, stress off: 57 965 380 - 6.07% decrease
+% D: Not using, stress on: 57 729 981 - 40.58% increase
+% C: 3GHz, Not using, stress off: 61 664 783 - 0.077% decrease
+% D: 3GHz, Not using, stress on: 61 565 869 - 49.92% increase
 
 #### Queue depth
 
