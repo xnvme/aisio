@@ -106,7 +106,7 @@ not, the first and last 10% of the reported cpu frequencies are discarded.
 ### Environment
 
 The benchmarks were run on the **H100 80G** machine described in the Environments
-section. All block devices were empty and bound to the uio-pci-generic userspace
+section. All block devices were empty and bound to the uio-pci-generic user space
 driver. The CPU used the intel_cpufreq driver.
 
 #### Empty vs. Populated Block Devices
@@ -207,7 +207,7 @@ When the "run" step has been parameterized, the workflow can be run with command
       -c configs/devices_16.toml
 
 This workflow makes sure to allocate hugepages and bind the block devices to
-userspace drivers before running the benchmarks. This is not necessary to do
+user space drivers before running the benchmarks. This is not necessary to do
 repeatedly if running the benchmarks multiple times in a row. These steps can be
 skipped by specifying which steps to run in the command
 
@@ -226,7 +226,7 @@ results of different parametirizations can be compared.
 ## Benchmark Tool Comparison
 
 The preceding experiment uses a single benchmark tool (bdevperf) against SPDK's
-user-space NVMe driver. To evaluate how benchmark tool design and user-space
+user space NVMe driver. To evaluate how benchmark tool design and user space
 driver implementation affect measured performance, this experiment compares three
 high-performance I/O benchmark tools under identical hardware and environmental
 conditions. The comparison isolates the effect of the software stack on
@@ -246,19 +246,19 @@ The three tools under comparison are:
 
 - **xnvmeperf**: xNVMe's benchmark tool. I/O is issued through xNVMe's unified
   NVMe command interface, which abstracts over multiple backend implementations
-  (kernel io_uring, user-space via uPCIe, or device-initiated paths). In this
-  experiment, xnvmeperf is configured to use xNVMe's user-space NVMe driver
+  (kernel io_uring, user space via uPCIe, or device-initiated paths). In this
+  experiment, xnvmeperf is configured to use xNVMe's user space NVMe driver
   backend, providing a direct comparison with SPDK's NVMe driver.
 
 All three tools use polling-based completion and operate against the same NVMe
-devices bound to user-space drivers. The comparison demonstrates differences in
+devices bound to user space drivers. The comparison demonstrates differences in
 achievable IOPS attributable to the benchmark tool overhead and the underlying
-user-space NVMe driver implementation.
+user space NVMe driver implementation.
 
 ### Experimental Setup
 
 The experiment uses the same hardware environment as the conventional
-CPU-initiated setup. All NVMe devices are bound to user-space drivers, and the
+CPU-initiated setup. All NVMe devices are bound to user space drivers, and the
 CPU governor is set to "performance" with turbo boost enabled. Each benchmark
 configuration is run five times and results are reported as arithmetic means.
 

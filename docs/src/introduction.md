@@ -15,11 +15,11 @@ proprietary or OS-incompatible means.
 
 The kernel storage stack interposes multiple software layers between an
 application and the NVMe controller: system call entry, VFS dispatch,
-file-system logic, block-layer scheduling, and driver processing. Each layer
+file system logic, block-layer scheduling, and driver processing. Each layer
 adds latency and CPU overhead. Successive generations of I/O interfaces have
 worked to reduce this cost. Early interfaces such as pread/pwrite and POSIX aio
 gave way to Linux-specific libaio, which reduced system call overhead through
-kernel-managed asynchronous I/O. io_uring advanced this further with shared
+kernel managed asynchronous I/O. io_uring advanced this further with shared
 submission and completion rings between user space and the kernel, enabling
 batched, polled I/O with minimal system call transitions. Most recently,
 io_uring_cmd extends this model to pass NVMe commands through the kernel driver
@@ -67,7 +67,7 @@ model for fine-grained GPU-driven storage access.
 
 On the proprietary side, NVIDIA's SCADA (SCalable Accelerated Data Access),
 part of the StorageNext initiative, pursues device-initiated storage access
-through a client-server architecture with a user-space NVMe driver and a
+through a client-server architecture with a user space NVMe driver and a
 proprietary GPU-oriented I/O protocol. SCADA interposes a user-configurable
 software cache in GPU HBM between the application and storage; its performance
 gains derive primarily from cache hits rather than from more efficient I/O
@@ -82,7 +82,7 @@ proprietary infrastructure.
 Accelerator-integrated Storage I/O (AiSIO) designates a class of system
 software architectures that address all three bottlenecks through open,
 composable components while preserving interoperability with OS-managed storage.
-AiSIO systems reduce software overhead through user-space NVMe drivers,
+AiSIO systems reduce software overhead through user space NVMe drivers,
 eliminate unnecessary copies through P2P DMA with dma-buf, and enable
 device-initiated I/O through device-resident NVMe drivers. The CPU and
 operating system retain responsibility for global coordination, device
