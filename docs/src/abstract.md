@@ -21,11 +21,11 @@ execution. The operating system retains authority over device management,
 metadata handling, and policy enforcement, while accelerators participate
 directly in data-path execution using mechanisms such as peer-to-peer DMA
 and accelerator-accessible I/O queues. This separation allows accelerators to
-initiate and drive I/O without undermining file-system semantics, safety, or
+initiate and drive I/O without undermining file system semantics, safety, or
 interoperability.
 
 Host Orchestrated Multipath I/O (HOMI) serves as a reference implementation
-of these principles. HOMI explores how OS-managed, user-space managed, and
+of these principles. HOMI explores how OS-managed, user space managed, and
 device-initiated I/O paths can be orchestrated to coexist with shared access
 to the same NVMe controller, either through software-mediated multiplexing
 or hardware-assisted delegation. A host-resident control plane coordinates

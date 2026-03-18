@@ -35,7 +35,7 @@ handling, or recovery procedures.
 
 **CPU-initiated I/O**
 : I/O in which NVMe commands are constructed and submitted by software executing
-on the host CPU. This includes both kernel-resident drivers and user-space
+on the host CPU. This includes both kernel-resident drivers and user space
 drivers, and is independent of whether data movement uses host memory or
 peer-to-peer DMA. In the literature, this execution model is sometimes also
 referred to as *host-initiated* I/O.
@@ -53,9 +53,9 @@ operating system’s storage stack, including block layers, file systems, and
 VFS-mediated interfaces. The operating system retains responsibility for device
 initialization, queue management, metadata handling, and policy enforcement.
 
-**User-space managed**
+**User space managed**
 : Storage access paths in which NVMe devices are initialized and managed by
-host-resident user-space software rather than kernel drivers. User-space managed
+host-resident user space software rather than kernel drivers. User space managed
 paths bypass the kernel storage stack and assume explicit responsibility for
 queue management, scheduling, and safety mechanisms normally provided by the
 operating system.
@@ -234,7 +234,7 @@ pinned; otherwise, the OS could move the data, causing the DMA operation to
 target the wrong location and resulting in data corruption or an I/O fault.
 Pinning memory temporarily reduces the pool of physical memory available for the
 OS to manage, making it a resource-intensive operation typically restricted to
-kernel code or privileged user-space drivers.
+kernel code or privileged user space drivers.
 
 ### Direct Memory Access (DMA)
 
@@ -563,11 +563,11 @@ MMIO doorbell writes to notify the device of new work.
 integrate with the operating system block layer and rely on kernel scheduling.
 They construct NVMe commands in host memory, allocate and manage submission and
 completion queues on behalf of the kernel, and interact with controllers through
-kernel-managed MMIO and DMA mechanisms. User-space I/O submission interfaces
+kernel managed MMIO and DMA mechanisms. User space I/O submission interfaces
 such as libaio and io_uring operate on top of kernel-resident NVMe drivers and
 provide alternative mechanisms for submitting I/O requests to the kernel.
 
-**User-space drivers**
+**User space drivers**
 execute outside the kernel and typically rely on polling rather than interrupts
 to reduce scheduling overhead. An example is SPDK {cite}`yang2017spdk`, which
 implements an NVMe driver entirely in user space and bypasses the kernel NVMe
@@ -679,7 +679,7 @@ placement-aware interface with growing industry adoption.
 
 Although these lower-level details are abstracted away by the simplicity
 of the block-device model, they remain important because their side effects
-propagate up the storage stack, influencing file-system behavior and ultimately
+propagate up the storage stack, influencing file system behavior and ultimately
 application performance. As systems increasingly enable direct device-to-device
 or accelerator-to-device communication, these abstractions can be bypassed
 entirely, exposing the concrete NVMe protocol rather than the higher-level block
@@ -713,21 +713,21 @@ storage.
 ## Software Components
 
 This section briefly describes software components that are relevant to modern
-Linux-based storage systems and user-space I/O stacks. The descriptions focus on
+Linux-based storage systems and user space I/O stacks. The descriptions focus on
 the functionality provided by each component, without prescribing how they are
 combined or used.
 
 **ublk**
 : A Linux kernel mechanism for implementing block devices in user space
 {cite}`ublk`. ublk provides a kernel-facing block device interface while
-forwarding I/O requests to a user-space process for handling. It integrates with
+forwarding I/O requests to a user space process for handling. It integrates with
 the Linux block layer and virtual file system through standard block device
 semantics.
 
 **SPDK**
 : The Storage Performance Development Kit is a collection of libraries and
 drivers for building high-performance storage software in user space
-{cite}`yang2017spdk,spdk`. SPDK includes a user-space NVMe driver that bypasses
+{cite}`yang2017spdk,spdk`. SPDK includes a user space NVMe driver that bypasses
 the kernel I/O stack and employs polling-based I/O for low-latency access to NVMe
 controllers. The framework exposes explicit control over NVMe queues, memory
 management, and command submission.
@@ -743,10 +743,10 @@ NVMe interactions to be expressed through a consistent programming model.
 : A library for retrieving file extent information from file systems
 {cite}`xallib`. XAL obtains logical-to-physical block mappings either through
 kernel-provided interfaces, such as the FIEMAP ioctl {cite}`linux-fiemap`, or
-by decoding on-disk filesystem metadata structures directly. For example, XAL
-can parse the on-disk format of the XFS filesystem, including superblocks,
+by decoding on-disk file system metadata structures directly. For example, XAL
+can parse the on-disk format of the XFS file system, including superblocks,
 allocation groups, inodes, and extent trees, to extract extent information
-independently of the filesystem mount state.
+independently of the file system mount state.
 
 ## Transition to Architecture
 

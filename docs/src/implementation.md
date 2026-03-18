@@ -46,8 +46,8 @@ namespaces concurrently, but does not yet exercise dynamic queue management or
 centralized host orchestration.
 
 The PoC includes early implementations of several HOMI-related components, such
-as user-space NVMe driver extensions, accelerator-accessible I/O queue
-provisioning, and file-system extent extraction used to support file-backed
+as user space NVMe driver extensions, accelerator-accessible I/O queue
+provisioning, and file system extent extraction used to support file-backed
 accelerator access. These components are functional but are composed in a
 reduced form suitable for experimentation rather than as a complete system.
 
@@ -56,7 +56,7 @@ reduced form suitable for experimentation rather than as a complete system.
 The HOMI reference implementation represents the intended realization of the
 architecture described in Section {ref}`sec-architecture`. It extends beyond
 the current PoC by introducing a host-resident orchestration layer responsible
-for global coordination across OS-managed, user-space managed, and
+for global coordination across OS-managed, user space managed, and
 device-initiated I/O paths.
 
 Key elements of the HOMI reference implementation that are under development
