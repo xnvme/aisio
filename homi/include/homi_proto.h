@@ -72,34 +72,4 @@ int
 homi_proto_shm_write(struct homi_shm *shm, struct homi_msg_header *hdr,
                      void *buf, size_t buf_len);
 
-/**
- * Read a message from a socket.
- *
- * Reads a homi_msg_header followed by its payload from sock_fd. The payload
- * is heap-allocated and returned via *buf; the caller is responsible for
- * freeing it. *buf is set to NULL if payload_len is zero.
- *
- * @param sock_fd  File descriptor of the connected socket.
- * @param hdr      Output: populated with the received message header.
- * @param buf      Output: allocated buffer containing the payload, or NULL.
- * @return         0 on success, negative errno on failure.
- */
-int
-homi_proto_socket_read(int sock_fd, struct homi_msg_header *hdr, char **buf);
-
-/**
- * Write a message to a socket.
- *
- * Sends hdr followed by buf as a single framed message. Sets hdr->payload_len
- * to buf_len before writing.
- *
- * @param sock_fd   File descriptor of the connected socket.
- * @param hdr       Message header; payload_len will be overwritten with buf_len.
- * @param buf       Payload to send.
- * @param buf_len   Length of the payload in bytes.
- * @return          0 on success, negative errno on failure.
- */
-int
-homi_proto_socket_write(int sock_fd, struct homi_msg_header *hdr, void *buf, size_t buf_len);
-
 #endif /* HOMI_PROTO_H */
