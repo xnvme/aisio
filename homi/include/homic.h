@@ -4,10 +4,12 @@
 /**
  * Connect to the homid daemon.
  *
- * Opens a Unix domain socket connection to the daemon. Must be called before
+ * Connects to the daemon via a socket to obtain the shared memory id,
+ * then attaches to the segment for subsequent requests. Must be called before
  * any other homic functions. The connection is held globally; call
  * homic_disconnect() to release it.
  *
+ * @param socket_path  Path to the daemon's socket.
  * @return  0 on success, negative errno on failure.
  */
 int
@@ -16,8 +18,8 @@ homic_connect(char *socket_path);
 /**
  * Disconnect from the homid daemon.
  *
- * Closes the socket and releases the global connection. Safe to call if not
- * connected.
+ * Detaches from the shared memory segment and releases the global connection.
+ * Safe to call if not connected.
  */
 void
 homic_disconnect();
@@ -33,6 +35,6 @@ homic_disconnect();
  * @return       0 on success, negative errno on failure.
  */
 int
-homic_helloworld(int value, char **out);
+homic_helloworld(int32_t value, char **out);
 
 #endif /* HOMIC_H */
