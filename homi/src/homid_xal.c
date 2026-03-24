@@ -10,6 +10,39 @@
 #include <homid_xal.h>
 #include <homid_opts.h>
 
+static int
+print_inode_extents(struct xal *xal, struct xal_inode *inode)
+{
+    uint32_t blocksize = xal_get_sb_blocksize(xal);
+
+    for (uint32_t i = 0; i < inode->content.extents.count; ++i) {
+        struct xal_extent *extent = &inode->content.extents.extent[i];
+        size_t fofz_begin, fofz_end, bofz_begin, bofz_end;
+
+        fofz_begin = (extent->start_offset * blocksize) / 512;
+        fofz_end = fofz_begin + (extent->nblocks * blocksize) / 512 - 1;
+        bofz_begin = xal_fsbno_offset(xal, extent->start_block) / 512;
+        bofz_end = bofz_begin + (extent->nblocks * blocksize) / 512 - 1;
+
+        homid_log(LOG_NOTICE, "- [%" PRIu64 ", %" PRIu64 ", %" PRIu64 ", %"
+                PRIu64 "]", fofz_begin, fofz_end, bofz_begin, bofz_end);
+    }
+
+    return 0;
+}
+
+static int
+print_filenames(struct xal *xal, struct xal_inode *inode,
+        void *cb_args __attribute__((unused)), int level __attribute__((unused)))
+{
+    homid_log(LOG_NOTICE, "Found inode for %.*s, size: %d", inode->namelen, inode->name, inode->size);
+
+    if (inode->ftype == 1)  // XAL_ODF_DIR3_FT_REG_FILE
+        print_inode_extents(xal, inode);
+
+    return 0; // continue
+}
+
 int
 homid_xal_setup(struct xal_opts *opts, struct homid_device *device)
 {
@@ -41,6 +74,9 @@ homid_xal_setup(struct xal_opts *opts, struct homid_device *device)
 	}
 
 	device->xal = xal;
+
+	struct xal_inode *root = xal_get_root(xal);
+	err = xal_walk(xal, root, print_filenames, NULL);
 
 	return 0;
 
@@ -82,8 +118,12 @@ homid_device_close(unsigned int ndevs, struct homid_device *devices)
 			continue;
 		}
 
-		xal_close(dev->xal);
+		if (dev->xal) {
+			struct xal_inode *root = xal_get_root(dev->xal);
+			xal_walk(dev->xal, root, print_filenames, NULL);
+		}
 
+		xal_close(dev->xal);
 		xnvme_dev_close(dev->dev);
 	}
 
