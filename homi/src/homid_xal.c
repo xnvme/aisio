@@ -73,6 +73,14 @@ homid_xal_setup(struct xal_opts *opts, struct homid_device *device)
 		goto close;
 	}
 
+	if (opts->be == XAL_BACKEND_FIEMAP && opts->watch_mode != XAL_WATCHMODE_NONE) {
+		err = xal_watch_filesystem(xal);
+		if (err) {
+			homid_log(LOG_ERR, "xal_watch_filesystem(): %d", err);
+			goto close;
+		}
+	}
+
 	device->xal = xal;
 
 	struct xal_inode *root = xal_get_root(xal);
@@ -123,6 +131,7 @@ homid_device_close(unsigned int ndevs, struct homid_device *devices)
 			xal_walk(dev->xal, root, print_filenames, NULL);
 		}
 
+		xal_stop_watching_filesystem(dev->xal);
 		xal_close(dev->xal);
 		xnvme_dev_close(dev->dev);
 	}
