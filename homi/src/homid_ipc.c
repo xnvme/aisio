@@ -12,6 +12,7 @@
 #include <homid.h>
 #include <homid_ipc.h>
 #include <homid_log.h>
+#include <homid_xal.h>
 #include <homi_proto.h>
 
 struct worker_args {
@@ -143,7 +144,35 @@ worker(void *arg)
 			}
 
 			break;
-		}
+		case HOMI_MSG_TYPE_XAL_CONNECT:
+			struct homi_req_xal_connect *req = (struct homi_req_xal_connect *)payload;
+			struct homi_res_xal_connect res = {0};
+			struct homid_device *device = NULL;
+
+			if (!req) {
+				homid_log(LOG_ERR, "Error: Payload required for XAL_CONNECT request");
+				res.err = -EINVAL;
+				goto send_response;
+			}
+
+			device = homid_device_get(homid, req->dev_uri);
+
+			if (!device) {
+				homid_log(LOG_ERR, "XAL_CONNECT: device not found: %s", req->dev_uri);
+				res.err = -ENODEV;
+				goto send_response;
+			}
+
+			res.sb = *xal_get_sb(device->xal);
+			memcpy(res.shm_name, device->shm_name, sizeof(res.shm_name));
+
+send_response:
+			err = homi_proto_shm_write(wargs->shm, &hdr, &res, sizeof(res));
+			if (err) {
+				homid_log(LOG_ERR, "Failed: homi_proto_shm_write(); err(%d)", err);
+			}
+
+			break;
 		default:
 			homid_log(LOG_WARNING, "Unknown message type: %u", hdr.type);
 			break;

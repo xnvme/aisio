@@ -4,16 +4,28 @@
 #include <semaphore.h>
 #include <stdint.h>
 
+#include <libxal.h>
+
 #define HOMI_MAX_CONNECTS   8
 #define HOMI_SHM_MAX_PAYLOAD 4096
 
 enum homi_msg_type {
-	/* TODO: add message types as daemon functionality is extended */
 	HOMI_MSG_TYPE_HELLOWORLD = 0, ///< Test type, as an example of what is needed
+	HOMI_MSG_TYPE_XAL_CONNECT = 1, ///< Request xal pool info for a device
 };
 
 struct homi_req_helloworld {
 	int32_t value;
+};
+
+struct homi_req_xal_connect {
+	char dev_uri[256];
+};
+
+struct homi_res_xal_connect {
+	int err;
+	struct xal_sb sb;
+	char shm_name[64];
 };
 
 struct homi_msg_header {
