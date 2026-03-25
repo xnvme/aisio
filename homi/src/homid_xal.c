@@ -98,7 +98,7 @@ homid_device_setup(struct homid_opts *opts, struct homid_device **devices)
 	unsigned int ndevs = opts->ndevs;
 	int err;
 
-	devs = calloc(ndevs, sizeof(struct homid_device *));
+	devs = calloc(ndevs, sizeof(struct homid_device));
 	if (!devs) {
 		err = -errno;
 		homid_log(LOG_ERR, "Failed to allocate devices: %d", err);
