@@ -6,6 +6,7 @@
 #include <libxal.h>
 #include <libxnvme.h>
 
+#include <homid.h>
 #include <homid_log.h>
 #include <homid_xal.h>
 #include <homid_opts.h>
@@ -127,4 +128,19 @@ homid_device_setup(struct homid_opts *opts, struct homid_device **devices)
 failed:
 	homid_device_close(ndevs, devs);
 	return err;
+}
+
+struct homid_device *
+homid_device_get(struct homid *homid, char *uri)
+{
+	struct homid_device *found = NULL;
+
+	for (uint32_t i = 0; i < homid->ndevs; i++) {
+		if (!strcmp(homid->dev[i].uri, uri)) {
+			found = &homid->dev[i];
+			break;
+		}
+	}
+
+	return found;
 }
