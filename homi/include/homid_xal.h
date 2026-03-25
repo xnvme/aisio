@@ -1,3 +1,6 @@
+#ifndef HOMID_XAL_H
+#define HOMID_XAL_H
+
 struct homid_opts;
 
 struct homid_device {
@@ -55,3 +58,5 @@ homid_device_close(unsigned int ndevs, struct homid_device *devices);
  */
 int
 homid_device_setup(struct homid_opts *opts, struct homid_device **devices);
+
+#endif /* HOMID_XAL_H */

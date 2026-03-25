@@ -1,3 +1,6 @@
+#ifndef HOMID_IPC_H
+#define HOMID_IPC_H
+
 struct homid_ipc_connection {
   int fd;
 };
@@ -36,3 +39,5 @@ homid_ipc_close(struct homid_ipc_connection *conn);
  */
 int
 homid_ipc_accept(struct homid_ipc_connection *conn);
+
+#endif /* HOMID_IPC_H */
