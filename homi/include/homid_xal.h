@@ -3,6 +3,8 @@
 
 struct homid_opts;
 
+struct homid;
+
 struct homid_device {
 	struct xnvme_dev *dev;
 	struct xal *xal;
@@ -58,5 +60,16 @@ homid_device_close(unsigned int ndevs, struct homid_device *devices);
  */
 int
 homid_device_setup(struct homid_opts *opts, struct homid_device **devices);
+
+/**
+ * Get a pointer to the homid_device from a given device URI
+ *
+ * @param homid   Daemon state
+ * @param uri     Device URI
+ * @return        A pointer to the first homid_device with a matching URI, NULL if
+ *                none is found.
+ */
+struct homid_device *
+homid_device_get(struct homid *homid, char *uri);
 
 #endif /* HOMID_XAL_H */
