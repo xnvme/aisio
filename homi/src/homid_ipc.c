@@ -7,6 +7,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <homid.h>
 #include <homid_ipc.h>
 #include <homid_log.h>
 #include <homi_proto.h>
@@ -98,6 +99,8 @@ worker(void *arg)
 	char *payload;
 	int err;
 
+	free(wargs);
+
 	err = homi_proto_socket_read(sock_fd, &hdr, &payload);
 	if (err) {
 		homid_log(LOG_ERR, "Failed: homi_proto_socket_read(hdr); err(%d)", err);
@@ -139,12 +142,20 @@ exit:
 }
 
 int
-homid_ipc_accept(struct homid_ipc_connection *conn)
+homid_ipc_accept(struct homid *homid)
 {
+	struct homid_ipc_connection *conn;
 	struct sockaddr addr;
 	pthread_t thr_id;
 	uint32_t len;
 	int client_fd, err;
+
+	if (!homid) {
+		homid_log(LOG_ERR, "Error: No homid struct given");
+		return -EINVAL;
+	}
+
+	conn = homid->conn;
 
 	len = sizeof(addr);
 
