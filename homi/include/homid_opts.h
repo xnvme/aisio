@@ -1,3 +1,6 @@
+#ifndef HOMID_OPTS_H
+#define HOMID_OPTS_H
+
 #define HOMID_DEVURI_MAXLEN 256
 
 struct homid_opts {
@@ -24,3 +27,5 @@ struct homid_opts {
  */
 int
 homid_opts_from_toml(char *path, struct homid_opts *opts);
+
+#endif /* HOMID_OPTS_H */
