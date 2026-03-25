@@ -1,6 +1,8 @@
 #ifndef HOMID_OPTS_H
 #define HOMID_OPTS_H
 
+#include <libxal.h>
+
 #define HOMID_DEVURI_MAXLEN 256
 
 struct homid_opts {

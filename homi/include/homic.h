@@ -35,4 +35,18 @@ homic_disconnect();
 int
 homic_helloworld(int value, char **out);
 
+/**
+ * Connect to xal for a specific device.
+ *
+ * Sends an XAL_CONNECT request to the daemon, maps the inode and extent pools
+ * from POSIX shared memory, and constructs a read-only xal via xal_from_pools().
+ * Requires an active connection established with homic_connect().
+ *
+ * @param dev_uri  URI of the device to connect to.
+ * @param out      Output: read-only xal struct backed by shared memory.
+ * @return         0 on success, negative errno on failure.
+ */
+int
+homic_connect_xal(char *dev_uri, struct xal **out);
+
 #endif /* HOMIC_H */

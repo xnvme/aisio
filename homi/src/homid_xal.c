@@ -109,6 +109,10 @@ homid_device_setup(struct homid_opts *opts, struct homid_device **devices)
 	for (unsigned int i = 0; i < ndevs; i++) {
 		char *uri = opts->dev_uris[i];
 
+		strncpy(devs[i].uri, uri, sizeof(devs[i].uri) - 1);
+		snprintf(devs[i].shm_name, sizeof(devs[i].shm_name), "/homid_dev%u", i);
+		xal_opts->shm_name = devs[i].shm_name;
+
 		err = homid_xnvme_setup(uri, &devs[i].dev);
 		if (err) {
 			homid_log(LOG_ERR, "Failed to setup xNVMe for %s: %d", uri, err);
