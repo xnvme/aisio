@@ -34,10 +34,10 @@ homid_ipc_close(struct homid_ipc_connection *conn);
  * request. Returns immediately after the thread is created, ready to
  * be called again for the next connection.
  *
- * @param conn  Active listener connection opened with homid_ipc_open().
- * @return      0 on success, negative errno on failure.
+ * @param homid  Daemon state
+ * @return       0 on success, negative errno on failure.
  */
 int
-homid_ipc_accept(struct homid_ipc_connection *conn);
+homid_ipc_accept(struct homid *homid);
 
 #endif /* HOMID_IPC_H */
