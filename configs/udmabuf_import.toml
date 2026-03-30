@@ -4,7 +4,7 @@ pkg = "linux-source-6.8.0"
 [udmabuf.repository]
 remote = "https://github.com/xnvme/udmabuf-import"
 branch = "main"
-path = "{{ local.env.HOME }}/git/udmabuf-import"
+path = "/root/git/udmabuf-import"
 
 [udmabuf.patch]
 name = "udmabuf-import-dma-buf-and-share-phys-addr-to-user.patch"
