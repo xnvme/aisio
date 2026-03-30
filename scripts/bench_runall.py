@@ -38,7 +38,7 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--time", type=int, default=10, help="Time for for bdevperf to run for each test")
     parser.add_argument("--results_dir", type=Path, default=None, help="Path to existing directory in which the results should be saved. Note: Already existing results will not be benchmarked again")
     parser.add_argument("--repetitions", type=int, default=5, help="The amount of times each benchmark will be repeated. The result will be average of the repetitions")
-    parser.add_argument("--tool", choices=["bdevperf", "xnvmeperf"], default="xnvmeperf")
+    parser.add_argument("--tool", choices=["bdevperf", "xnvmeperf", "spdk_nvme_perf"], default="xnvmeperf")
     parser.add_argument("--backend", type=str, default="upcie")
 
 

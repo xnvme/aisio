@@ -31,6 +31,7 @@ import json
 import logging as log
 
 from bdevperf import bdevperf_cmd, create_config as bdevperf_config
+from spdk_nvme_perf import spdk_nvme_perf_cmd
 from xnvmeperf import xnvmeperf_cmd
 
 
@@ -63,13 +64,16 @@ class BenchHelper():
         self.remote_config = Path("/tmp/bdevperf-config.json")
         self.devices: list = cijoe.getconf("devices")
 
-        if tool == "bdevperf":
+        if tool in ["bdevperf", "spdk_nvme_perf"]:
             spdk_path = self.cijoe.getconf("spdk.repository.path", None)
             if not spdk_path:
                 log.error("Failed: Missing SPDK repository path in config")
                 return
 
-            self.bin = Path(spdk_path) / "build" / "examples" / "bdevperf"
+            if tool == "bdevperf":
+                self.bin = Path(spdk_path) / "build" / "examples" / "bdevperf"
+            else:
+                self.bin = Path(spdk_path)  / "build" / "bin" / "spdk_nvme_perf"
         elif tool == "xnvmeperf":
             self.bin = "xnvmeperf"
         else:
@@ -137,6 +141,9 @@ class BenchHelper():
 
             bench_args["config_path"] = self.remote_config
             command += bdevperf_cmd(self.bin, bench_args)
+
+        elif self.tool == "spdk_nvme_perf":
+            command += spdk_nvme_perf_cmd(self.bin, bench_args)
 
         elif self.tool == "xnvmeperf":
             bench_args["backend"] = self.backend
@@ -270,6 +277,8 @@ class BenchHelper():
 
         if self.tool == "bdevperf":
             table_regex = r"\s*(?P<name>\w+)\s+:\s+(?P<runtime>[0-9.]+)?\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<fails>[0-9.]+)\s+(?P<tos>[0-9.]+)\s+(?P<avg_lat>[0-9.]+)\s+(?P<min_lat>[0-9.]+)\s+(?P<max_lat>[0-9.]+)"
+        elif self.tool == "spdk_nvme_perf":
+            table_regex = r"\s*(?P<name>.+?)\s*?:\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<avg_lat>[0-9.]+)\s+(?P<min_lat>[0-9.]+)\s+(?P<max_lat>[0-9.]+)"
         elif self.tool == "xnvmeperf":
             table_regex = r"\s*(?P<name>\w+):?\s+(?P<cpus>[0-9,]+)?\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<fails>[0-9.]+)"
         else:
