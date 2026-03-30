@@ -30,6 +30,9 @@ from typing import Tuple
 import json
 import logging as log
 
+from bdevperf import bdevperf_cmd, create_config as bdevperf_config
+from xnvmeperf import xnvmeperf_cmd
+
 
 class BenchHelper():
     def __init__(
@@ -68,7 +71,7 @@ class BenchHelper():
 
             self.bin = Path(spdk_path) / "build" / "examples" / "bdevperf"
         elif tool == "xnvmeperf":
-            self.bin = "xnvmeperf run"
+            self.bin = "xnvmeperf"
         else:
             log.error(f"Failed: Unknown tool({tool})")
 
@@ -116,47 +119,34 @@ class BenchHelper():
                 result = json.load(file)
                 return 0, result
 
+        bench_args = {
+            "cpumask": self.cpu_masks[ncpus],
+            "iopattern": "randread",
+            "qdepth": depth,
+            "iosize": size,
+            "runtime": time,
+            "devices": [d["pci_addr"] for d in self.devices[0:ndevs]],
+        }
+
+        command = f"/usr/bin/time "
+
         if self.tool == "bdevperf":
             config_local_path = self.configs_path / f"d{ndevs}.json"
-            self._create_bdevperf_config(self.devices[0:ndevs], config_local_path)
+            bdevperf_config(bench_args["devices"], config_local_path)
             self.cijoe.put(config_local_path, self.remote_config)
 
-        mask = self.cpu_masks[ncpus]
-        selected_cpus = [v[0] for v in self.cpu_pairs if int(mask, 16) & (1 << v[0])]
+            bench_args["config_path"] = self.remote_config
+            command += bdevperf_cmd(self.bin, bench_args)
 
-        self.cfm.set_cpu_freq(cpu_freq, selected_cpus)
-
-        err = self.cfm.start_logging()
-        if err:
-            log.error("Failed: CpuFrequencyHelper.start_logging()")
-            return err, None
-
-        command = f"/usr/bin/time {self.bin} "
-
-        if self.tool == "bdevperf":
-            run_parameters = [
-                f"-c {self.remote_config}",
-                f"-m {mask}",
-                f"-q {depth}",
-                f"-o {size}",
-                f"-t {time}",
-                "-w randread"
-            ]
-            command += " ".join(run_parameters)
         elif self.tool == "xnvmeperf":
-            run_parameters = [
-                f"--cpumask {mask}",
-                f"--qdepth {depth}",
-                f"--iosize {size}",
-                f"--runtime {time}",
-                "--iopattern randread",
-                f"--be {self.backend}",
-                " ".join(d["pci_addr"] for d in self.devices[0:ndevs]),
-            ]
-            command += " ".join(run_parameters)
+            bench_args["backend"] = self.backend
+            command += xnvmeperf_cmd(self.bin, bench_args)
+
         else:
-            log.error(f"Unkown tool: {self.tool}")
+            log.error(f"Unknown tool: {self.tool}")
             return -1
+
+        selected_cpus = [v[0] for v in self.cpu_pairs if int(bench_args["cpumask"], 16) & (1 << v[0])]
 
         if self.stress and (stressed_cpus := [str(x) for x in range(len(self.cpu_pairs)) if x not in selected_cpus]):
             command = "\n".join([
@@ -165,6 +155,12 @@ class BenchHelper():
                 command,
                 "wait $STRESS_PID",
             ])
+
+        self.cfm.set_cpu_freq(cpu_freq, selected_cpus)
+        err = self.cfm.start_logging()
+        if err:
+            log.error("Failed: CpuFrequencyHelper.start_logging()")
+            return err, None
 
         err, state = self.cijoe.run(command)
         if err:
@@ -257,36 +253,6 @@ class BenchHelper():
 
         self.cpu_masks = cpu_masks
         self.cpu_pairs = cpu_pairs
-
-        return 0
-
-    def _create_bdevperf_config(self, devices: list, path: Path) -> int:
-        """
-        Create a configuration json file for running bdevperf, following the format of
-        /path/to/spdk/test/bdev/bdevperf/conf.json
-        """
-
-        if path.exists():
-            return 0
-
-        subsystem = {
-            "subsystem": "bdev",
-            "config": []
-        }
-
-        for i, device in enumerate(devices):
-            item = {
-                "method": "bdev_nvme_attach_controller",
-                "params": {
-                    "name": f"nvme{i:02d}",
-                    "trtype": "PCIe",
-                    "traddr": device["pci_addr"]
-                }
-            }
-            subsystem["config"].append(item)
-
-        with open(path, "x") as file:
-            json.dump({ "subsystems": [subsystem] }, file, indent=2)
 
         return 0
 
