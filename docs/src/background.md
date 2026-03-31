@@ -462,11 +462,188 @@ accelerator integrated storage paths.
 (sec-massively-parallel-processing-units)=
 ## Massively Parallel Processing Units
 
-* SIMD, SPMD, and SIMT
+Modern accelerators achieve high throughput by executing thousands of lightweight
+threads concurrently across many parallel compute units. Understanding how these
+threads are organized, scheduled, and provided with data is essential for
+reasoning about device-initiated I/O paths and the memory placement
+constraints they impose.
 
-* Arithmetic vs logic
+(sec-cuda)=
+### CUDA
 
-* Memory bandwidth vs Compute Capability
+CUDA (Compute Unified Device Architecture) is NVIDIA's parallel computing
+platform and programming model {cite}`hwu2022pmpp`. It exposes GPU hardware through a C-like
+programming interface that allows software to describe parallel computations as
+functions called **kernels**, which are launched on the GPU and execute across
+many threads simultaneously.
+
+#### Thread Hierarchy and Streaming Multiprocessors
+
+CUDA organizes threads into a three-level hierarchy under the **Single
+Instruction, Multiple Threads (SIMT)** execution model. Unlike SIMD, where a
+single instruction operates on a fixed-width vector of data in a single thread,
+SIMT issues a single instruction to a group of threads, each maintaining
+independent register state and a program counter.
+
+**Threads** are the smallest unit of execution in the SIMT model. Each thread
+has private registers and a unique position within its containing block and
+grid, expressed as `threadIdx`, `blockIdx`, and `blockDim` built-in variables.
+Threads are the granularity at which work is assigned and at which register
+state is maintained.
+
+**Thread blocks** (also called Cooperative Thread Arrays, or CTAs) are groups of
+threads that execute on the same compute unit and may cooperate through shared
+memory and explicit barrier synchronization. A thread block can contain up to
+1024 threads. The number of thread blocks that reside concurrently on a compute
+unit is limited by register and shared memory consumption.
+
+**Warps** are the fundamental unit of SIMT scheduling. A warp consists of 32
+threads that the hardware issues and executes as a single unit. Threads within
+a warp execute in lockstep under normal conditions, but may diverge when
+control flow differs, in which case inactive branches are masked until threads
+reconverge. While one warp stalls on a memory operation, the scheduler issues
+instructions from another ready warp, keeping execution units occupied.
+
+**Grids** are collections of thread blocks that together constitute a single
+kernel launch. Thread blocks within a grid execute independently and may be
+scheduled on any SM in any order. This independence is what enables kernels to
+scale across GPUs with varying numbers of SMs without requiring coordination
+between blocks.
+
+The **Streaming Multiprocessor (SM)** is the primary compute unit of a CUDA GPU.
+Each SM contains a warp scheduler, a register file partitioned among its active
+warps, and a configurable shared memory and L1 cache partition.
+
+#### Synchronization
+
+CUDA provides synchronization at multiple granularities. `__syncthreads()`
+inserts a barrier at the thread block level: all threads in the block must reach
+the barrier before any may proceed, ensuring that shared memory writes by one
+thread are visible to others. At the warp level, `__syncwarp()` synchronizes
+threads within a single warp and enforces memory ordering without the overhead
+of a full block barrier. For operations on shared or global memory that must be
+visible across threads without a full barrier, **memory fences**
+(`__threadfence_block()`, `__threadfence()`, `__threadfence_system()`) enforce
+ordering at block, device, and system scope respectively. **Atomic operations**
+on global and shared memory provide indivisible read-modify-write primitives,
+which are the primary mechanism for threads to coordinate on shared queue state
+without explicit barriers.
+
+#### Streams and Concurrency
+
+A **CUDA stream** is a sequence of operations, including kernel launches and
+memory copies, that execute in order on the device. Operations issued to
+different streams may overlap in time, subject to hardware resource availability.
+Streams are the primary mechanism for overlapping data transfers with kernel
+execution and for issuing independent workloads to separate hardware engines such
+as the copy engines and compute engines within a single GPU.
+
+#### Memory Hierarchy
+
+CUDA exposes a structured memory hierarchy that maps directly onto physical
+resources on the GPU.
+
+**Registers** are the fastest memory available to a thread. Each SM maintains a
+large register file that is partitioned among the active warps. Register pressure
+directly affects **occupancy**, the ratio of resident warps to the SM maximum,
+because the register file is a finite resource shared among all threads resident
+on an SM.
+
+**Shared memory** is an explicitly managed, low-latency on-chip SRAM pool shared
+among all threads within a thread block. It is physically the same SRAM as the
+L1 cache, with the partition between the two configurable in software. Shared
+memory enables fast communication between threads in the same block without going
+off-chip and is a primary mechanism for reuse and staging of data across
+cooperating threads.
+
+**L2 cache** is a device-wide cache shared across all SMs. It is significantly
+larger than per-SM L1 caches and serves as a second-level staging point for
+global memory accesses. The L2 cache is not directly addressable by software.
+
+**Global memory** is the main device-attached DRAM, typically implemented as
+GDDR or HBM depending on the product class. It is the largest memory pool
+available to a kernel, accessible by all threads in all blocks, and persists
+across kernel launches for the lifetime of an allocation. Access latency is
+hundreds of cycles, making coalesced access patterns and shared memory staging
+essential for sustaining high throughput.
+
+For device-initiated I/O, the memory tier in which a buffer resides
+determines whether the NVMe controller can reach it through DMA. Only global
+memory is directly addressable by PCIe peers; registers and shared memory are
+on-chip and invisible to devices outside the GPU. I/O payloads must therefore
+reside in global memory, and any staging through shared memory or registers
+must be completed before or after the transfer.
+
+#### CUDA APIs: Runtime and Driver
+
+CUDA exposes two programming interfaces. The **CUDA Runtime API** (`cuda*.h`)
+provides a higher-level, implicitly initialized interface. It manages device
+context creation automatically and is the interface used by most application code
+and libraries. The **CUDA Driver API** (`cuda.h`) is a lower-level interface that
+gives explicit control over device context creation, module loading, and kernel
+launch parameters. The runtime API is implemented on top of the driver API.
+
+#### Host and Device
+
+CUDA distinguishes two address spaces and two execution contexts. The **host**
+refers to the CPU and its attached DRAM. The **device** refers to the GPU and its
+attached memory. Code that runs on the CPU is host code; code annotated with
+`__global__` or `__device__` and launched on the GPU is device code.
+
+On platforms that support it, CUDA establishes a **Unified Virtual Address (UVA)**
+space that spans both host and device memory. Under UVA, every allocation —
+whether in host DRAM, device DRAM, or mapped through host registration — resides
+at a unique address within a single virtual address space shared by the CPU and
+GPU. This allows the runtime to determine from a pointer alone whether it refers
+to host or device memory, and is the mechanism that makes host registration and
+peer-to-peer addressing coherent across the two address spaces.
+
+Two allocation types reflect this separation. A **device allocation** resides in
+device memory and is not directly accessible from the host; data movement between
+the two traverses the PCIe interconnect unless the CPU and GPU share a unified
+physical memory substrate, as in some integrated and server architectures. A
+**unified allocation** is visible to both host and device through a single
+pointer, with the runtime managing migration on demand, at the cost of
+unpredictable transfer overhead.
+
+**Host registration** pins an existing memory region and maps it into the GPU's
+virtual address space, making it directly accessible from device code via load
+and store instructions. When applied to host DRAM, this is the CUDA equivalent
+of memory pinning: the physical pages are locked against relocation by the OS,
+and a device-accessible pointer is obtained through `cudaHostGetDevicePointer`.
+When applied to an MMIO region — such as the BAR of an NVMe controller — using
+the `cudaHostRegisterIoMemory` flag, the mapping gives GPU threads direct write
+access to device registers. This is the mechanism by which a GPU kernel can ring
+an NVMe submission queue doorbell without CPU involvement, and forms the basis of
+device-initiated I/O.
+
+The table below shows the runtime and driver API calls for the allocation and
+registration types described above.
+
+| Operation | Runtime API | Driver API |
+|---|---|---|
+| Device allocation | `cudaMalloc` | `cuMemAlloc` |
+| Unified allocation | `cudaMallocManaged` | `cuMemAllocManaged` |
+| Host registration | `cudaHostRegister` | `cuMemHostRegister` |
+
+#### Compute Capability
+
+NVIDIA identifies GPU microarchitecture generations and feature sets through a
+version number called **compute capability**. The major version number denotes
+the architecture generation (for example, 8 for Ampere, 9 for Hopper), and the
+minor version distinguishes variants within a generation. Compute capability
+determines which instructions are available, the SM register file size, the
+maximum shared memory per block, warp execution behavior, and support for
+features such as cooperative groups, asynchronous memory copies, and direct
+peer-to-peer memory access.
+
+Peer-to-peer memory access and MMIO region registration via
+`cudaHostRegisterIoMemory`, the two features central to device-initiated NVMe
+I/O, both require compute capability 3.5, introduced with the Kepler
+architecture in 2013. This requirement is satisfied by all modern CUDA-capable
+GPUs and is not a practical constraint. The binding limitation is instead
+platform-level peer-to-peer routing support, governed by PCIe topology and switch
+capabilities, as covered in {ref}`sec-pcie`.
 
 (sec-nvme-controllers)=
 ## NVMe Controllers
