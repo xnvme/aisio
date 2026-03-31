@@ -68,7 +68,7 @@ commands.
   path independently once the queues are established.
 
 **Buffer placement** describes where data buffers and queue structures reside,
-and determines whether peer-to-peer (P2P) DMA is involved.
+and determines whether peer-to-peer (P2P) DMA (see {ref}`sec-pcie`) is involved.
 
 - *Host memory*: data buffers reside in host DRAM. The NVMe controller performs
   DMA to and from host memory. When an accelerator needs the data, a separate
