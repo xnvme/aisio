@@ -42,7 +42,7 @@ entirely.
 Independent of software overhead, accelerator workloads suffer from redundant
 data movement. When a GPU requires data from storage, the conventional path
 routes it through host DRAM: the NVMe controller writes to host memory, and a
-separate copy transfers the data to GPU memory. Peer-to-peer (P2P) DMA
+separate copy transfers the data to GPU memory. Peer-to-peer (P2P) DMA (see {ref}`sec-pcie`)
 eliminates this intermediate copy by allowing the NVMe controller to transfer
 data directly to GPU memory over the PCIe fabric.
 
