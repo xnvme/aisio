@@ -1,0 +1,73 @@
+doc: |
+  Run the different benchmark tools
+  =================================
+
+  Run the different benchmarking tools with the same parameters.
+
+  Binding to userspace
+  --------------------
+  This scripts assumes if the boot device is an NVMe device, then the `xnvme.driver.prefix`
+  variable has been defined to add the device's PCIe address to the PCI_BLACKLIST env var
+  for the xnvme-driver script. Example:
+
+    [xnvme.driver]
+    prefix = "PCI_BLACKLIST=0000:01:00.0"
+
+  It's important that if the boot device is also an NVMe device that it's added in the
+  `PCI_BLACKLIST` in step "bind_to_userspace", since the xnvme-driver script otherwise
+  will unbind it, making the machine unusable (until next reboot).
+
+  It is not necessary to run this step if the workflow is run repeatedly.
+
+steps:
+- name: allocate_hugepages
+  run: |
+    sysctl -w vm.nr_hugepages=1024
+    mkdir -p /dev/hugepages
+    mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+
+- name: bind_to_userspace
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: bdevperf
+  uses: bdevperf
+  with:
+    ndevs: &ndevs 16
+    iopattern: &iopattern randread
+    qdepth: &qdepth 128
+    iosize: &iosize 512
+    runtime: &runtime 10
+    cpumask: &cpumask "0x1" # "0x2000000000002" for thread sibling
+
+- name: spdk_nvme_perf
+  uses: spdk_nvme_perf
+  with:
+    ndevs: *ndevs
+    iopattern: *iopattern
+    qdepth: *qdepth
+    iosize: *iosize
+    runtime: *runtime
+    cpumask: *cpumask
+
+- name: xnvmeperf_spdk
+  uses: xnvmeperf
+  with:
+    ndevs: *ndevs
+    iopattern: *iopattern
+    qdepth: *qdepth
+    iosize: *iosize
+    runtime: *runtime
+    cpumask: *cpumask
+    backend: spdk
+
+- name: xnvmeperf_upcie
+  uses: xnvmeperf
+  with:
+    ndevs: *ndevs
+    iopattern: *iopattern
+    qdepth: *qdepth
+    iosize: *iosize
+    runtime: *runtime
+    cpumask: *cpumask
+    backend: upcie
