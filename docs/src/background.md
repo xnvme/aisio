@@ -652,16 +652,13 @@ All NVMe specification documents are freely available upon ratification and
 distributed via the nvme express website. For details please to look in the
 specification documents, however, since these have now grown into many thousands
 of pages spread upon multiple documents, then see these subsections as a brief
-overview on theory of operations and NVMe initiatlization and command processing
+overview on theory of operations and NVMe initialization and command processing
 flows.
 
-Directly to the first concept an NVMe Controller, this is the entity which
-is accessible via a transport. Transports include, PCI, TCP, and RDMA. We are
-currently focused on the locally attached storage devices over PCI. Thus, thus
-initially we will cover how to initialize an NVMe controller over PCIe and touch
-upon PCIe infra. for it.
-
-On with it.
+An NVMe controller is the entity accessible via a transport. Transports include
+PCIe, TCP, and RDMA. We currently focus on locally attached storage devices over PCIe, with the
+intention to expand to other transports in the future. The following subsections
+cover controller initialization and command processing in that context.
 
 NVMe devices implement a command driven model in which the host constructs
 commands, places them in submission queues, and notifies the controller through
