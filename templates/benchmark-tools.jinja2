@@ -5,6 +5,13 @@
 <title>Data Graph</title>
 <style>
 {% include "bench-style.jinja2.css" %}
+
+[label-for="tool"],
+[name="tool"],
+[label-for="show-max-value"],
+#show-max-value {
+  display: none;
+}
 </style>
 </head>
 <body>
@@ -12,7 +19,7 @@
 {% include "bench-dom.jinja2.html" %}
 
 <script>
-const colours = ["blue", "purple", "olive", "pink", "lime", "red", "cyan", "orange", "violet", "skyblue", "brown", "green"];
+const colours = ["blue", "lime", "red", "cyan", "orange", "purple", "olive", "pink", "violet", "skyblue", "brown", "green"];
 
 let results = [
   {%- for dataset in datasets %}
@@ -35,33 +42,48 @@ let results = [
 ]
   .sort((a,b) => a.label.localeCompare(b.label));
 
-const devCap = results.map(({data}) => data.filter(({ndevs}) => ndevs === 1)).flat().sort((a,b) => b.iops[0]-a.iops[0])[0]?.iops[0] ?? 3*1e6;
-results = results.map((res,idx) => ({
-  ...res,
-  color: colours[idx % colours.length],
-  data: res.data.map(d => ({...d, peakiops: d.ndevs*devCap, fixed_freq: (d.fixed_freq ? d.fixed_freq : d.cpu_governor) })),
-}));
-
 const getXvalues = () => {
   const allData = results.map(({data}) => data).flat();
   return [
     {elemId: "qdepthRadios", key: "qdepth", prettyName: "Queue Depth"},
-    {elemId: "cpusRadios", key: "ncpus", prettyName: "Number of Physical Cores"},
+    {elemId: "cpusRadios", key: "hyperthreads", prettyName: "Number of CPU Threads"},
     {elemId: "devicesRadios", key: "ndevs", prettyName: "Number of Devices"},
     {elemId: "iosizeRadios", key: "iosize", prettyName: "I/O Size"},
     {elemId: "cpufreqRadios", key: "fixed_freq", prettyName: "CPU Frequency or Governor" },
-    {elemId: "toolRadios", key: "tool", prettyName: "Tool" },
+    {elemId: "turboBoostRadios", key: "turbo", prettyName: "Turbo Boost" },
+    {elemId: "smtRadios", key: "smt", prettyName: "SMT" },
+    {elemId: "htRadios", key: "thr_sib", prettyName: "Using Thread Siblings" },
+    {elemId: "stressRadios", key: "stress", prettyName: "Stress" },
   ].map(s => ({...s, set: [...new Set(allData.map(d => d[s.key]))].sort((a,b) => a - b) }));
 }
 
 const xValues = getXvalues();
 const yValues = [{ key: "iops", prettyName: "IOPS", unit: "millions" }, { key: "mibs", prettyName: "Bandwidth", unit: "MiB/s" }];
 
-let CUR_X_AXIS = 2;
+let CUR_X_AXIS = 1;
 let CUR_Y_AXIS = 0;
-const radioDefaults = [128, 8, 16, 512, "performance"];
+const radioDefaults = [128, 1, 16, 512, "performance", 1, 1, 1, 0];
 
-const BAR_TYPE = 'line';
+/* Split datasets by tool instead of environment */
+const splitDatasetOnTool = () => {
+  let all = results[0];
+
+  results = [];
+  const tools = [...new Set(all.data.map(d => d.tool))].sort();
+  for (let i = 0; i < tools.length; i++) {
+    const tool = tools[i];
+    results.push({
+      label: tool,
+      color: colours[i % colours.length],
+      data: all.data.filter(d => d.tool === tool).map(d => ({...d, peakiops: d.iops })),
+    });
+  }
+
+  return results;
+}
+results = splitDatasetOnTool();
+
+const BAR_TYPE = 'bar';
 {% include "bench-update-chart.jinja2.js" %}
 
 </script>

@@ -1,8 +1,24 @@
 doc: |
-  Run the different benchmark tools
-  =================================
+  Run I/O benchmarks for different tools
+  ======================================
 
-  Run the different benchmarking tools with the same parameters.
+  Configuration file
+  ------------------
+  See `configs/devices_16.toml` for an example configuration file.
+
+  The configuration file must also define a list of NVMe block devices. To find these,
+  run
+
+    `lspci | grep Non-Volatile`
+
+  and change the `pci_addr` keys in the `[[devices]]` to match the PCI addresses of the
+  found devices.
+
+  If the boot device is an NVMe device, see "Binding to userspace" below.
+
+  Allocating hugepages
+  --------------------
+  It is not necessary to run this step if the workflow is run repeatedly.
 
   Binding to userspace
   --------------------
@@ -31,43 +47,89 @@ steps:
     {{ config.xnvme.driver.prefix }} xnvme-driver
 
 - name: bdevperf
-  uses: bdevperf
+  uses: bench_runall
   with:
-    ndevs: &ndevs 16
-    iopattern: &iopattern randread
-    qdepth: &qdepth 128
-    iosize: &iosize 512
-    runtime: &runtime 10
-    cpumask: &cpumask "0x1" # "0x2000000000002" for thread sibling
+    depths: &qd [128]
+    sizes: &io [512]
+    numcpus_specific: &cpus [1]
+    numdevs_specific: &devs [16]
+    cpu_freqs: &cpufreq ["performance"]
+    turbo: &turbo [1]
+    smt: &smt [1]
+    hyperthreads: &ht [1]
+    stress: &stress [0]
+    results_dir: &results-dir "{{ local.env.HOME }}/bench-tools-results"
+    tool: bdevperf
 
 - name: spdk_nvme_perf
-  uses: spdk_nvme_perf
+  uses: bench_runall
   with:
-    ndevs: *ndevs
-    iopattern: *iopattern
-    qdepth: *qdepth
-    iosize: *iosize
-    runtime: *runtime
-    cpumask: *cpumask
+    depths: *qd
+    sizes: *io
+    numcpus_specific: *cpus
+    numdevs_specific: *devs
+    cpu_freqs: *cpufreq
+    turbo: *turbo
+    smt: *smt
+    hyperthreads: *ht
+    stress: *stress
+    results_dir: *results-dir
+    tool: spdk_nvme_perf
 
 - name: xnvmeperf_spdk
-  uses: xnvmeperf
+  uses: bench_runall
   with:
-    ndevs: *ndevs
-    iopattern: *iopattern
-    qdepth: *qdepth
-    iosize: *iosize
-    runtime: *runtime
-    cpumask: *cpumask
+    depths: *qd
+    sizes: *io
+    numcpus_specific: *cpus
+    numdevs_specific: *devs
+    cpu_freqs: *cpufreq
+    turbo: *turbo
+    smt: *smt
+    hyperthreads: *ht
+    stress: *stress
+    results_dir: *results-dir
+    tool: xnvmeperf
     backend: spdk
 
 - name: xnvmeperf_upcie
-  uses: xnvmeperf
+  uses: bench_runall
   with:
-    ndevs: *ndevs
-    iopattern: *iopattern
-    qdepth: *qdepth
-    iosize: *iosize
-    runtime: *runtime
-    cpumask: *cpumask
+    depths: *qd
+    sizes: *io
+    numcpus_specific: *cpus
+    numdevs_specific: *devs
+    cpu_freqs: *cpufreq
+    turbo: *turbo
+    smt: *smt
+    hyperthreads: *ht
+    stress: *stress
+    results_dir: *results-dir
+    tool: xnvmeperf
     backend: upcie
+
+- name: xnvmeperf_upcie_cuda
+  uses: bench_runall
+  with:
+    depths: *qd
+    sizes: *io
+    numcpus_specific: *cpus
+    numdevs_specific: *devs
+    cpu_freqs: *cpufreq
+    turbo: *turbo
+    smt: *smt
+    hyperthreads: *ht
+    stress: *stress
+    results_dir: *results-dir
+    tool: xnvmeperf
+    backend: upcie-cuda
+
+- name: combine
+  uses: bench_combine
+  with:
+    results_dir: *results-dir
+
+- name: visualize
+  uses: bench_visualize
+  with:
+    template: benchmark-tools
