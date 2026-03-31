@@ -56,6 +56,12 @@ const getXvalues = () => {
 
 const xValues = getXvalues();
 const yValues = [{ key: "iops", prettyName: "IOPS", unit: "millions" }, { key: "mibs", prettyName: "Bandwidth", unit: "MiB/s" }];
+const environments = [
+  {elemId: "turboBoostRadios", key: "turbo", prettyName: "Turbo Boost" },
+  {elemId: "smtRadios", key: "smt", prettyName: "SMT" },
+  {elemId: "htRadios", key: "thr_sib", prettyName: "Using Thread siblings" },
+  {elemId: "stressRadios", key: "stress", prettyName: "Stress" },
+];
 
 let CUR_X_AXIS = 2;
 let CUR_Y_AXIS = 0;

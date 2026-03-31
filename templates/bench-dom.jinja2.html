@@ -4,7 +4,7 @@
 <div class="controls">
   <script>
     function disableInvalidRadios (element) {
-      if (element.getAttribute("name") !== "SMT") return;
+      if (element.getAttribute("name") !== "smt") return;
       const htRadio2 = document.querySelector(`#htRadios input[value="2"]`);
       if (element.getAttribute("value") === "0") {
         if (htRadio2.checked) {
@@ -20,26 +20,26 @@
   <strong label-for="turbo">Turbo boost:</strong>
   <span id="turboBoostRadios">
     <label><input type="radio" name="turbo" value="0">Off</label>
-    <label><input type="radio" name="turbo" value="1" checked>Both</label>
-    <label><input type="radio" name="turbo" value="2">On</label>
+    <label><input type="radio" name="turbo" value="undefined" checked>Both</label>
+    <label><input type="radio" name="turbo" value="1">On</label>
   </span>
   <strong label-for="smt">SMT:</strong>
   <span id="smtRadios">
-    <label><input type="radio" name="SMT" value="0" onclick="disableInvalidRadios(this)">Off</label>
-    <label><input type="radio" name="SMT" value="1" onclick="disableInvalidRadios(this)" checked>Both</label>
-    <label><input type="radio" name="SMT" value="2" onclick="disableInvalidRadios(this)">On</label>
+    <label><input type="radio" name="smt" value="0" onclick="disableInvalidRadios(this)">Off</label>
+    <label><input type="radio" name="smt" value="undefined" onclick="disableInvalidRadios(this)" checked>Both</label>
+    <label><input type="radio" name="smt" value="1" onclick="disableInvalidRadios(this)">On</label>
   </span>
   <strong label-for="thr_sib">Using thread siblings:</strong>
   <span id="htRadios">
-    <label><input type="radio" name="ht" value="0">No</label>
-    <label><input type="radio" name="ht" value="1" checked>Both</label>
-    <label><input type="radio" name="ht" value="2">Yes</label>
+    <label><input type="radio" name="thr_sib" value="0">No</label>
+    <label><input type="radio" name="thr_sib" value="undefined" checked>Both</label>
+    <label><input type="radio" name="thr_sib" value="1">Yes</label>
   </span>
   <strong label-for="stress">Stress:</strong>
   <span id="stressRadios">
     <label><input type="radio" name="stress" value="0">Off</label>
-    <label><input type="radio" name="stress" value="1" checked>Both</label>
-    <label><input type="radio" name="stress" value="2">On</label>
+    <label><input type="radio" name="stress" value="undefined" checked>Both</label>
+    <label><input type="radio" name="stress" value="1">On</label>
   </span>
   <strong label-for="show-max-value">Show final value of each line:</strong>
   <input id="show-max-value" type="checkbox">
