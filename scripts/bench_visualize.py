@@ -18,6 +18,7 @@ from pathlib import Path
 
 def add_args(parser: ArgumentParser):
     parser.add_argument("--path", type=Path, default=None, help="Path to results.json")
+    parser.add_argument("--template", type=str, default="benchmark-visualization.html")
 
 
 def main(args, cijoe):
@@ -36,9 +37,9 @@ def main(args, cijoe):
 
     datasets = convert_to_data(results)
 
-    template_resource = get_resources().get("templates", {}).get("benchmark-visualization.html", {})
+    template_resource = get_resources().get("templates", {}).get(args.template, {})
     if not template_resource:
-        log.error("Failed: could not find template resource")
+        log.error(f"Failed: could not find template resource({args.template})")
         return 1
 
     template_path = Path(template_resource.path).parent
@@ -46,7 +47,7 @@ def main(args, cijoe):
     template_loader = jinja2.FileSystemLoader(template_path)
     template_env = jinja2.Environment(loader=template_loader)
 
-    template = template_env.get_template("benchmark-visualization.html.jinja2")
+    template = template_env.get_template(f"{args.template}.jinja2")
     with html_path.open("w") as body:
         body.write(template.render({ "datasets": datasets }))
 

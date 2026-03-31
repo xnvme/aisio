@@ -1,4 +1,10 @@
-function createRadios(containerId, values, name, checkedValue) {
+function createRadios(containerId, values, name, prettyName, checkedValue) {
+  let label_for = document.querySelector(`[label-for="${name}"]`);
+  if (!label_for && name == "hyperthreads") {
+    label_for = document.querySelector(`[label-for="ncpus"]`);
+  }
+  label_for.innerHTML = prettyName;
+
   const container = document.getElementById(containerId);
 
   container.innerHTML = "";
@@ -23,8 +29,8 @@ function createRadios(containerId, values, name, checkedValue) {
   }
   defaultChecked.checked = true;
 }
-xValues.forEach(({elemId, set, key}, idx) => {
-  createRadios(elemId, set, key, radioDefaults[idx]);
+xValues.forEach(({elemId, set, key, prettyName}, idx) => {
+  createRadios(elemId, set, key, prettyName, radioDefaults[idx]);
 });
 document.querySelectorAll(`input[type="radio"]`).forEach(radio => {
     radio.addEventListener('change', () => updateChart());
@@ -120,7 +126,7 @@ function updateChart() {
     pointRadius: Math.floor(idx*0.2)+3,
   }));
 
-  if (y_axis.key === "iops") {
+  if (y_axis.key === "iops" && BAR_TYPE === 'line') {
     const maxPeak = iopsData.flat().length ? Math.max(...iopsData.flat().map(d => d.data.peakiops)) : 1000;
     datasets.push({
       label: 'Peak IOPS with given devices',
@@ -134,7 +140,7 @@ function updateChart() {
 
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
-    type: 'line',
+    type: BAR_TYPE,
     data: {
       datasets: [
         ...datasets,
@@ -143,6 +149,8 @@ function updateChart() {
     plugins: [{
       id: "shadingArea",
       beforeDatasetsDraw(chart) {
+        if (BAR_TYPE !== 'line') return;
+
         const { ctx, scales: { y } } = chart;
 
         const tickHeight = y.height / y.max;
@@ -173,16 +181,52 @@ function updateChart() {
           ctx.globalAlpha = 1;
         }
       }
-    },
-    {
+    },{
+      id: "errorBars",
+      afterDatasetsDraw(chart) {
+        if (BAR_TYPE !== 'bar') return;
+
+        const { ctx, scales: { y } } = chart;
+        let count = chart.data.datasets.length;
+
+        for (var i = 0; i < count; i++) {
+          const dataset = chart.data.datasets[i];
+          const dataset_meta = chart.getDatasetMeta(i);
+          if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
+
+          ctx.save();
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 1.5;
+
+          for (var j = 0; j < dataset.data.length; j++) {
+            const d = dataset.data[j];
+            const bar = dataset_meta.data[j];
+            const capHalf = Math.min(bar.width / 4, 6);
+            const yTop = y.getPixelForValue(d.y + d.v);
+            const yBottom = y.getPixelForValue(Math.max(0, d.y - d.v));
+
+            ctx.beginPath();
+            ctx.moveTo(bar.x, yTop);
+            ctx.lineTo(bar.x, yBottom);
+            ctx.moveTo(bar.x - capHalf, yTop);
+            ctx.lineTo(bar.x + capHalf, yTop);
+            ctx.moveTo(bar.x - capHalf, yBottom);
+            ctx.lineTo(bar.x + capHalf, yBottom);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+      }
+    },{
       id: "showMax",
       afterDatasetsDraw(chart) {
         const { ctx } = chart;
         const drawn_labels = [];
 
-        if (document.getElementById("show-max-value").checked) {
+        if (BAR_TYPE === "bar" || document.getElementById("show-max-value").checked) {
           let count = chart.data.datasets.length;
-          if (y_axis.key === "iops") count--;
+          if (BAR_TYPE === "line" && y_axis.key === "iops") count--;
 
           for (var i = 0; i < count; i++) {
             const dataset = chart.data.datasets[i];
@@ -190,37 +234,50 @@ function updateChart() {
             if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
 
             ctx.save();
-
             ctx.fillStyle = dataset.backgroundColor;
             ctx.strokeStyle = dataset.backgroundColor;
 
-            const lastPoint = dataset.data[dataset.data.length-1];
-            const lastPointMeta = dataset_meta.data[dataset.data.length-1];
-            const text = separatedNumber(lastPoint.y);
+            if (BAR_TYPE === "bar") {
+              ctx.textAlign = "left";
+              for (var j = 0; j < dataset.data.length; j++) {
+                const bar = dataset_meta.data[j];
+                const text = separatedNumber(dataset.data[j].y);
+                ctx.save();
+                ctx.translate(bar.x, bar.y - 10);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillStyle = "black";
+                ctx.fillText(text, 0, 0);
+                ctx.restore();
+              }
+            } else {
+              const lastPoint = dataset.data[dataset.data.length-1];
+              const lastPointMeta = dataset_meta.data[dataset.data.length-1];
+              const text = separatedNumber(lastPoint.y);
 
-            const coord = { x: lastPointMeta.x + 10, y: lastPointMeta.y-6, w: ctx.measureText(text).width, h: 10 };
+              const coord = { x: lastPointMeta.x + 10, y: lastPointMeta.y-6, w: ctx.measureText(text).width, h: 10 };
 
-            let goUp = coord.y;
-            let goDown = coord.y;
+              let goUp = coord.y;
+              let goDown = coord.y;
 
-            while (drawn_labels.some(r =>
-              goDown < r.y + r.h &&
-              goDown + coord.h > r.y
-            )) {
-              goDown += 4;
+              while (drawn_labels.some(r =>
+                goDown < r.y + r.h &&
+                goDown + coord.h > r.y
+              )) {
+                goDown += 4;
+              }
+              while (drawn_labels.some(r =>
+                goUp < r.y + r.h &&
+                goUp + coord.h > r.y
+              )) {
+                goUp -= 4;
+              }
+
+              if (coord.y-goUp < goDown-coord.y) coord.y = goUp;
+              else coord.y = goDown;
+
+              ctx.fillText(text, coord.x, coord.y+6);
+              drawn_labels.push({ ...coord, y: coord.y });
             }
-            while (drawn_labels.some(r =>
-              goUp < r.y + r.h &&
-              goUp + coord.h > r.y
-            )) {
-              goUp -= 4;
-            }
-
-            if (coord.y-goUp < goDown-coord.y) coord.y = goUp;
-            else coord.y = goDown;
-
-            ctx.fillText(text, coord.x, coord.y+6);
-            drawn_labels.push({ ...coord, y: coord.y });
           }
         }
       }
@@ -246,6 +303,7 @@ function updateChart() {
         y: {
           title: { display: true, text: `${y_axis.prettyName} (${y_axis.unit})` },
           min: 0,
+          grace: BAR_TYPE === "bar" ? "20%" : 0,
           ticks: { callback: (v) => y_axis.key === "iops" ? v / 1e6 : v },
         }
       },
