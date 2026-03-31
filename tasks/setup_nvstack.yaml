@@ -93,7 +93,7 @@ steps:
   run: |
     wget -O workdir/cuda_keyring.deb {{ config.nvidia.keyring.url }}
     dpkg -i workdir/cuda_keyring.deb
-    wget -O /etc/apt/preferences.d/cuda-repository-pin-600 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin
+    wget -O /etc/apt/preferences.d/cuda-repository-pin-600 {{ config.nvidia.pin.url }}
     apt-get update
 
 - name: cuda

@@ -14,3 +14,6 @@ url = "https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installer
 
 [nvidia.keyring]
 url = "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb"
+
+[nvidia.pin]
+url = "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin"
