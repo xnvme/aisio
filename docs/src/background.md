@@ -275,6 +275,7 @@ these memory addresses, which directly manipulate the state of the I/O device.
 Later we will take a closer look at thos PCIe attached devices expose register
 and memory spaces.
 
+(sec-pcie)=
 ## PCIe
 
 PCIe is a message-based interconnect anchored at the Root Complex (RC),
@@ -308,6 +309,11 @@ MMIO and DMA are both expressed on PCIe as Memory TLPs that differ only in
 initiator, direction, and size. All memory operations target host-physical
 addresses mapped to host RAM or device BARs and may originate from the CPU or
 from other PCIe endpoints.
+
+When a DMA transfer targets a peer endpoint's BAR address rather than host DRAM,
+the transfer bypasses host memory entirely. Such transfers are referred to as
+**peer-to-peer PCIe**. How they are routed through the fabric depends on which
+component performs the address decode, as described in the following subsections.
 
 This provides a simple mental model of PCIe. MMIO and DMA are both expressed as
 Memory TLPs that target host physical addresses which may lie in host memory or
@@ -357,8 +363,8 @@ corresponds to host memory or a device BAR.
 If the target lies within a peer device's BAR region, the RC forwards the
 request downstream through the appropriate Root Port. NVMe devices, GPUs, and
 NICs generate only address-routed Memory TLPs, so all their DMA traffic follows
-this pattern. Even zero-copy device-to-device transfers pass through the RC
-decode path unless the system uses a switch with address-translation hardware.
+this pattern. Even zero-copy peer-to-peer transfers pass through the RC decode path unless
+the system uses a switch with address-translation hardware.
 
 ### Routing: Switch Mediated
 
@@ -368,7 +374,7 @@ windows that allow the switch to match incoming host-physical addresses against
 configured ranges and forward Memory Requests directly downstream to another
 endpoint without involving the RC.
 
-This enables peer DMA within the switch fabric with reduced latency. However,
+This enables peer-to-peer DMA within the switch fabric with reduced latency. However,
 this is not part of the PCIe baseline specification. Only high-end switches
 used in multi-GGPU backplanes, multi-host fabrics, or accelerator systems expose
 ATUs, and translation windows must be programmed by firmware or the operating
@@ -386,13 +392,12 @@ A smaller class of endpoints can generate TLPs that use identifier routing
 instead of address routing. Such packets carry a Bus Device Function (BDF)
 identifier. Switches route these packets downstream by matching the BDF to
 the correct port. FPGAs, DPUs, NTBs, and a few accelerator ASICs can emit
-ID-routed Writes or Messages and therefore perform peer communication without
+ID-routed Writes or Messages and therefore perform peer-to-peer communication without
 RC involvement and without relying on switch ATUs. Commodity endpoints including
 NVMe SSDs, GPUs, and NICs do not generate ID-routed traffic and rely exclusively
 on address-routed Memory Requests.
 
 (sec-pcie-functions)=
-
 ### Multi-function devices
 
 PCIe devices are identified by a Bus–Device–Function (BDF) tuple. Under a single
@@ -446,11 +451,11 @@ domains at the level defined by the controller.
 Data movement in PCIe whether DMA or MMIO are sequences of Memory TLPs
 whose routing depends on which component performs the decode. Devices that
 generate address-routed TLPs rely on the RC unless a switch provides its own
-decode windows. Devices capable of ID-routed TLPs can perform peer routing
+decode windows. Devices capable of ID-routed TLPs can perform peer-to-peer routing
 independently. IOMMU translation, ATS caching, and ATC entries determine how
 devices obtain the addresses they use, but they do not alter the routing model.
-Together, RC mediated DMA, switch mediated peer DMA, and device routed peer DMA
-describe all data transfer paths allowable in PCI Express systems and form the
+Together, RC mediated DMA, switch mediated peer-to-peer DMA, and device-routed
+peer-to-peer DMA describe all data transfer paths allowable in PCI Express systems and form the
 architectural foundation for understanding performance and design tradeoffs in
 accelerator integrated storage paths.
 
