@@ -56,7 +56,7 @@ def main(args, cijoe: Cijoe):
                 repeated_results.append(json_load(file))
 
         # err, result = get_average(repeated_results)
-        err, result = merge_dicts(repeated_results, ["cpu_freqs", "iops", "mibs", "cpu"])
+        err, result = merge_dicts(repeated_results, ["cpu_freqs", "iops", "mibs", "cpu_usage"])
         if err:
             log.error("Failed: merge_dicts()")
             return err
@@ -67,7 +67,7 @@ def main(args, cijoe: Cijoe):
 
         result["iops"] = avg_stddev(result["iops"])
         result["mibs"] = avg_stddev(result["mibs"])
-        result["cpu"] = avg_stddev(result["cpu"])
+        result["cpu_usage"] = avg_stddev(result["cpu_usage"])
 
         all_results[label].append(result)
 
