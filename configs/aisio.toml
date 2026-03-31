@@ -3,11 +3,6 @@ remote = "https://github.com/xnvme/xnvme"
 branch = "next"
 path = "/root/git/xnvme"
 
-[bam.repository]
-remote = "https://github.com/ankit-sam/bam"
-branch = "admin_share"
-path = "/root/git/bam"
-
 [xal.repository]
 remote = "https://github.com/safl/xallib"
 tag = "v0.2.0"
@@ -17,11 +12,6 @@ path = "/root/git/xal"
 remote = "https://github.com/karlowich/sil"
 tag = "v0.1.1"
 path = "/root/git/sil"
-
-[upcie.repository]
-remote = "https://github.com/safl/upcie.git"
-tag = "v0.3.2"
-path = "/root/git/upcie"
 
 [spdk.repository]
 remote = "https://github.com/ankit-sam/spdk.git"

@@ -28,15 +28,6 @@ steps:
     gcc --version
     g++ --version
 
-- name: bam
-  run: |
-    rm -r "{{ config.bam.repository.path }}/builddir" || true
-    mkdir -p "{{ config.bam.repository.path }}/builddir"
-    cd "{{ config.bam.repository.path }}/builddir"; cmake ..
-    cd "{{ config.bam.repository.path }}/builddir"; make install
-    cd "{{ config.bam.repository.path }}/builddir"; make benchmarks
-    cd "{{ config.bam.repository.path }}/builddir/module"; make
-
 - name: xnvme
   run: |
     chmod +x  "{{ config.xnvme.repository.path }}/toolbox/pkgs/ubuntu-oracular.sh"
@@ -60,13 +51,6 @@ steps:
     mkdir -p "{{ config.sil.repository.path }}/builddir"
     cd "{{ config.sil.repository.path }}"; meson setup builddir
     cd "{{ config.sil.repository.path }}"; meson install -C builddir
-
-- name: upcie
-  run: |
-    rm -r "{{ config.upcie.repository.path }}/builddir" || true
-    mkdir -p "{{ config.upcie.repository.path }}/builddir"
-    cd "{{ config.upcie.repository.path }}"; meson setup builddir
-    cd "{{ config.upcie.repository.path }}"; meson install -C builddir
 
 - name: fio
   run: |
