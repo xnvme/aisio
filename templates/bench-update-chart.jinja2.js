@@ -7,21 +7,23 @@ function createRadios(containerId, values, name, prettyName, checkedValue) {
 
   const container = document.getElementById(containerId);
 
-  container.innerHTML = "";
-  values.forEach(v => {
-    const label = document.createElement('label');
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = name;
-    radio.value = v;
-    label.appendChild(radio);
-    if (name === "fixed_freq" && !isNaN(v)) {
-      label.appendChild(document.createTextNode(`${v} GHz`));
-    } else {
-      label.appendChild(document.createTextNode(v));
-    }
-    container.appendChild(label);
-  });
+
+  if (!container.children.length) {
+    values.forEach(v => {
+      const label = document.createElement('label');
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = name;
+      radio.value = v;
+      label.appendChild(radio);
+      if (name === "fixed_freq" && !isNaN(v)) {
+        label.appendChild(document.createTextNode(`${v} GHz`));
+      } else {
+        label.appendChild(document.createTextNode(v));
+      }
+      container.appendChild(label);
+    });
+  }
 
   let defaultChecked = container.querySelector(`input[value="${checkedValue}"]`);
   if (!defaultChecked) {
@@ -43,7 +45,7 @@ function updateRadios() {
 
     const container = document.getElementById(elemId);
 
-    if (i == CUR_X_AXIS) {
+    if (i === CUR_X_AXIS) {
       button.classList.add("selected");
       container.previousElementSibling.classList.add("disabled");
     } else {
@@ -77,22 +79,15 @@ function updateChart() {
   let iopsData = [];
   let filtered_results = results;
 
-  for (let key of ["turbo", "SMT", "ht", "stress"]) {
+  environments.forEach(({key}) => {
     const selectedRadio = document.querySelector(`input[name="${key}"]:checked`).value;
-    if (key == "ht") {
-      if (selectedRadio == 0) {
-        filtered_results = filtered_results.filter(res => res.label.includes(`Not using`)).map(res => ({...res, label: res.label.replace(`Not using thread siblings; `, "")}));
-      } else if (selectedRadio == 2) {
-        filtered_results = filtered_results.filter(res => res.label.includes(`Using`)).map(res => ({...res, label: res.label.replace(`Using thread siblings; `, "")}));
-      }
-    } else {
-      if (selectedRadio == 0) {
-        filtered_results = filtered_results.filter(res => res.label.includes(`${key} off`)).map(res => ({...res, label: res.label.replace(`${key} off;`, "")})).map(res => ({...res, label: res.label.replace(`${key} off`, "")}));
-      } else if (selectedRadio == 2) {
-        filtered_results = filtered_results.filter(res => res.label.includes(`${key} on`)).map(res => ({...res, label: res.label.replace(`${key} on;`, "")})).map(res => ({...res, label: res.label.replace(`${key} on`, "")}));
-      }
+    if (selectedRadio === 0) {
+      filtered_results = filtered_results.map(elem => ({...elem, data: data.filter(d => d[key] === false)}));
+    } else if (selectedRadio === 1) {
+      filtered_results = filtered_results.map(elem => ({...elem, data: data.filter(d => d[key] === true)}));
     }
-  }
+  });
+  filtered_results = filtered_results.filter(({data}) => data.length);
 
   for (let result of filtered_results) {
     let filtered = result.data;
@@ -100,6 +95,7 @@ function updateChart() {
     xValues.forEach(({elemId, set, key}, i) => {
       if (i === CUR_X_AXIS) return;
       selectedRadio = document.querySelector(`input[name="${key}"]:checked`).value;
+      if (selectedRadio === "undefined") return;
       filtered = filtered.filter(d => d[key] == selectedRadio);
     });
 
