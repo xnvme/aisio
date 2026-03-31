@@ -1,0 +1,112 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+}
+
+dialog {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  width: 1000px;
+  max-width: 90vw;
+  height: 800px;
+  max-height: 90vh;
+  padding-bottom: 30px;
+}
+
+dialog button {
+  float: right;
+}
+
+.controls-container {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  margin: 50px;
+  background: #edf1f4;
+  padding: 40px 50px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,1,0.1);
+  gap: 50px;
+  justify-content: center;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 30px;
+  justify-content: center;
+  align-items: center;
+}
+
+.controls > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.controls > div .note {
+  font-size: 12px;
+}
+
+.controls strong {
+  margin-bottom: 18px;
+}
+
+.controls label {
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.controls label:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  border-top: 2px solid #999;
+  width: calc(50% - 1px);
+  left: -5px;
+  top: 9px;
+}
+
+.controls label:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  border-top: 2px solid #999;
+  width: calc(50% - 3px);
+  left: calc(50% + 8px);
+  top: 9px;
+}
+
+.button-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.button-row button {
+  background: rgba(0,0,1,0.1);
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  &:hover {
+    background: rgba(0,0,1,0.2);
+  }
+  &.selected {
+    outline: 2px solid rgba(0,0,1,0.2);
+  }
+}
+
+.controls .disabled,
+.controls .disabled + *,
+label:has(input[disabled]) {
+  pointer-events: none;
+  opacity: 0.2;
+}
+
+#chart {
+  max-height: 70vh;
+}
