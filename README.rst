@@ -33,7 +33,7 @@ as this formats the NVMe device::
 		-c configs/datasets.toml \
 		tasks/setup_dataset.yaml
 
-Then setup the **AiSIO** components (xNVMe, SPDK, bam, xal, sil, upcie)::
+Then setup the **AiSIO** components (xNVMe, SPDK, xal, sil)::
 
 	cijoe --monitor \
 		-c configs/transport.toml \
