@@ -182,8 +182,7 @@ steps:
   run: |
     git clone https://github.com/NVIDIA/gds-nvidia-fs.git git/gds
     cd git/gds; git checkout v2.26.6
-    cd git/gds/src; NVIDIA_SRC_DIR=/root/git/nokm/kernel-open/nvidia CONFIG_MOFED_VERSION="24.10" make
-    cd git/gds/src; NVIDIA_SRC_DIR=/usr/src/nvidia-570.195.03 CONFIG_MOFED_VERSION="24.10" make
+    cd git/gds/src; NVIDIA_SRC_DIR={{ config.nvidia.modules.repository.path }}/kernel-open/nvidia CONFIG_MOFED_VERSION="24.10" make
     cd git/gds/src; make install
     cd git/gds/src; insmod nvidia-fs.ko
     echo "nvidia-fs" | tee -a /etc/modules-load.d/nvidia.conf
