@@ -7,13 +7,9 @@ doc: |
     individual files exceed the 256MB xNVMe uPCIe HOSTMEM heap limit),
   - performing synthetic randread benchmarks for: upcie, upcie-cuda
 
-  This requires the device to be bound to `uio_pci_generic`, which can be done in the following way:
-  - Unmount if needed: `umount /mnt/datasets`
-  - `devbind --device '0000:01:00.0' --bind uio_pci_generic`
-
-  `device` should be adjusted to target the correct SSD.
-
-  This assumes you already ran the tasks 'setup_aisio.yaml' and 'setup_dataset.yaml'
+  See README.md for device binding and hugepage setup required before running
+  this benchmark. This assumes you already ran 'setup_aisio.yaml' and
+  'setup_dataset.yaml'.
 
 
 steps:

@@ -19,49 +19,15 @@ doc: |
   Note, most of this version-information is given by the download-links in the config-file, not
   hardcoded here in the workflow.
 
-  The workflow does not provision Ubuntu, rather it is prereq. expected to be done along the lines
-  of the instructions / Ubuntu Server installer selections below
+  See README.md for Ubuntu installation instructions and the manual steps
+  required before running this workflow.
 
-  * Ubuntu Server with the HWE Enabled Kernel
-
-  * Installation Base
-
-    (x) Ubuntu Server
-    ( ) Ubuntu Server (minimized)
-
-  * Proxy, network etc. up to you
-
-  * Guided storage configuraiton
-
-    (X) Use an entire disk
-    [ ] Set up this disk as an LVM group
-
-  * Profile Configuration
-
-    - Your name: Odus | sudO
-    - Your servers name: aisio
-    - Pick a username: odus
-    - Password: ...
-
-  * SSH configuration
-
-    [X] Install OpenSSH server
-
-  Before running this workflow, then install Ubuntu and run the commands:
-
-    sudo passwd root
-    sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-    sudo systemctl restart ssh
-
-  By doing so, then workflow commands can execute as root, thus, do not this only reasonably on a
-  dev. box. With the above in place then run this workflow e.g.
+  Run it like so::
 
     cijoe --monitor \
-      -c configs/transport.toml
-      -c configs/nvstack.toml
-      tasks/setup_nvstack.yaml
-
-  Adjusting transport.toml with the hostname and SSH-login info of the root user.
+      -c configs/transport.toml \
+      -c configs/nvstack.toml \
+      tasks/setup_nvstack_from_source.yaml
 
   Caveat
   ------
