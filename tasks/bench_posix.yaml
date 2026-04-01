@@ -8,7 +8,7 @@ doc: |
   This requires the device to be bound to `nvme`, which can be done in the following way:
   - `devbind --device '0000:01:00.0' --bind nvme`
   Additionally, the drive should be mounted.
-  
+
   `device` should be adjusted to target the correct SSD.
   `batch_size` and `batches` are appropriate for a H100 GPU, and should be adjusted according to hardware.
 
@@ -19,25 +19,25 @@ steps:
 - name: filesize8gib
   uses: sil
   with:
-    backends: ["posix"]
+    backend: "posix"
     dataset: "filesize8gib"
     device: "{{ config.filesystems.dset.bdev }}"
     batch_size: 1
     batches: 1
-    
+
 - name: tiktokish
   uses: sil
   with:
-    backends: ["posix"]
+    backend: "posix"
     dataset: "tiktokish"
     device: "{{ config.filesystems.dset.bdev }}"
     batch_size: 26
     batches: 1
-    
+
 - name: imagenetish
   uses: sil
   with:
-    backends: ["posix"]
+    backend: "posix"
     dataset: "imagenetish"
     device: "{{ config.filesystems.dset.bdev }}"
     batch_size: 4096
