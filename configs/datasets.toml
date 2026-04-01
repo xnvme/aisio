@@ -2,7 +2,7 @@
 mountpoint = "/mnt/datasets"
 name = "xfs"
 bdev = "/dev/nvme0n1"
-libnvm_dev = "/dev/libnvm0"
+pci_addr = "0000:01:00.0"
 
 [datasets.tiktokish]
 seed = "tiktokish"
