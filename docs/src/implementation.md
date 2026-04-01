@@ -24,15 +24,20 @@ Overview of the initial AiSIO PoC
 
 The **AiSIO** PoC demonstrates functionality on Linux systems using:
 
-- A ublk-based cooperative block driver that integrates with SPDK.
-- A modified SPDK NVMe driver with queue partitioning for accelerator access.
-- GPU-resident NVMe I/O drivers implemented for accelerator execution.
+- xNVMe for NVMe command construction and submission across both CPU-initiated
+  and GPU-initiated I/O paths, including invocation directly from CUDA kernels,
+  using libnvm {cite}`Markussen2021` in its BaM-modified form {cite}`bam2023`
+  as the underlying PCIe access library.
+- The NVIDIA GPU driver and its peer-to-peer memory interface for direct DMA
+  between the NVMe controller and GPU device memory.
 - The XAL metadata decoder for XFS.
-- CUDA-based integration for invoking AiSIO operations directly from kernels.
+- The Storage Iterator Library (SIL), a benchmark application that iterates
+  over file-based datasets using xal for extent resolution and exercises both
+  CPU and GPU I/O paths.
 
 The PoC is open-source, reproducible, and interoperates with unmodified XFS.
 
-The PoC relies primarily on hardware-assisted delegation using NVMe Single Root
+The PoC relies on hardware-assisted delegation using NVMe Single Root
 I/O Virtualization (SR-IOV). NVMe Virtual Functions (VFs) are provisioned and
 assigned statically to initiators. A single host-resident process performs device
 initialization, queue provisioning, metadata handling, and I/O submission. In
