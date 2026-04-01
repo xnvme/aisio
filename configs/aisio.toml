@@ -10,7 +10,7 @@ path = "/root/git/xal"
 
 [sil.repository]
 remote = "https://github.com/karlowich/sil"
-tag = "v0.1.1"
+tag = "v0.2.0"
 path = "/root/git/sil"
 
 [spdk.repository]
