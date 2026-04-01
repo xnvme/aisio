@@ -18,7 +18,7 @@ from pathlib import Path
 
 def add_args(parser: ArgumentParser):
     parser.add_argument("--path", type=Path, default=None, help="Path to results.json")
-    parser.add_argument("--template", type=str, default="benchmark-visualization.html")
+    parser.add_argument("--template", type=str, default="benchmark-io")
 
 
 def main(args, cijoe):
