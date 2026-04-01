@@ -6,7 +6,7 @@ doc: |
   GPU/Accelerators, then there is the general task of ensuring that the OS is
   setup properly along with common tooling. This is provided here as a general
   reference.
-  
+
   Then the vendor-specifics are provided as different setup tasks. The general
   portion targets the following components and versions:
 
@@ -78,7 +78,7 @@ steps:
 - name: packages
   run: |
     apt-get -qy update && apt-get -qy upgrade
-    apt-get -qy install build-essential linux-headers-$(uname -r) linux-tools-common linux-tools-$(uname -r) wget git htop vim cmake stress-ng parallel sysstat time environment-modules python3-setuptools python3-wheel meson
+    apt-get -qy install build-essential linux-headers-$(uname -r) linux-tools-common linux-tools-$(uname -r) wget git htop vim cmake stress-ng parallel sysstat time environment-modules python3-setuptools python3-wheel meson pipx
     apt-get -qy autoremove
 
 - name: blacklist_nouveau
