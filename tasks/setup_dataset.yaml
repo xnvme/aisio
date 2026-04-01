@@ -9,7 +9,7 @@ doc: |
       tasks/setup_dataset.yaml \
       --monitor
 
-  Double-check the mountpoints and device-paths in datasetes.yaml
+  See README.md for device configuration in datasets.toml.
 
 steps:
 - name: filesystem
