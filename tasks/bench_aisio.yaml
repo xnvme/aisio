@@ -45,20 +45,20 @@ steps:
     batch_size: 4096
     batches: 300
 
-- name: seqread
-  uses: sil
+- name: upcie
+  uses: xnvmeperf
   with:
-    backends: ["aisio"]
-    dataset: ""
-    device: "{{ config.filesystems.dset.libnvm_dev }}"
-    batch_size: 16777216
-    random: false
+    backend: "upcie"
+    devices: ["{{ config.filesystems.dset.pci_addr }}"]
+    runtime: 10
+    iosize: 512
+    iopattern: randread
 
-- name: randread
-  uses: sil
+- name: upcie-cuda
+  uses: xnvmeperf
   with:
-    backends: ["aisio"]
-    dataset: ""
-    device: "{{ config.filesystems.dset.libnvm_dev }}"
-    batch_size: 16777216
-    random: true
+    backend: "upcie-cuda"
+    devices: ["{{ config.filesystems.dset.pci_addr }}"]
+    runtime: 10
+    iosize: 512
+    iopattern: randread
