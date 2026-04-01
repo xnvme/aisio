@@ -17,6 +17,12 @@ steps:
 - name: fetch_sources
   uses: core.repository_prep
 
+- name: python_tools
+  run: |
+    pipx install devbind
+    pipx install hugepages
+    pipx ensurepath
+
 - name: gcc
   run: |
     apt-get -fy install gcc-12 g++-12
