@@ -14,7 +14,7 @@ def add_args(parser: ArgumentParser):
         def __call__(self, parser, namespace, values, option_string=None):
             setattr(namespace, self.dest, values == "true")
 
-    parser.add_argument("--backends", type=str, default=["posix"], nargs="+")
+    parser.add_argument("--backend", type=str, default="posix")
     parser.add_argument("--dataset", type=str, default="imagenetish")
     parser.add_argument("--device", type=str, default="/dev/nvme1n1")
     parser.add_argument("--bin", type=str, default="sil")
@@ -34,31 +34,22 @@ def get_opts(args, cijoe, backend):
         if mountpoint:
             out += f"--mnt {mountpoint} "
         out += "--buffered "
-        return out
-    if backend == "gds":
+    elif backend == "gds":
         if mountpoint:
             out += f"--mnt {mountpoint} "
-        return out
-    if backend == "aisio":
+    elif backend == "aisio":
         out += f"--gpu-nqueues {args.gpu_nqueues} "
-        if args.random:
-            out += "--random "
-        return out
+    return out
 
 
 def main(args, cijoe):
     prefix = "echo 3 > /proc/sys/vm/drop_caches;"
-    dataset = ""
 
-    if args.dataset:
-        dataset = f"--data-dir {args.dataset}"
-
-    for backend in args.backends:
-        opts = get_opts(args, cijoe, backend)
-        cmd = f"{prefix} {args.bin} {args.device} {dataset} --batches {args.batches} --batch-size {args.batch_size} --backend {backend} {opts}"
-        for _ in range(args.repetitions):
-            err, _ = cijoe.run(cmd)
-        if err:
-            return 1
+    opts = get_opts(args, cijoe, args.backend)
+    cmd = f"{prefix} {args.bin} {args.device} --data-dir {args.dataset} --batches {args.batches} --batch-size {args.batch_size} --backend {args.backend} {opts}"
+    for _ in range(args.repetitions):
+        err, _ = cijoe.run(cmd)
+    if err:
+        return 1
 
     return 0

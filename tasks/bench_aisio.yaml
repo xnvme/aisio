@@ -4,13 +4,12 @@ doc: |
 
   The benchmark includes:
   - reading 3 different datasets: filesize8gib, tiktokish, imagenetish,
-  - performing synthetic benchmarks for: read, rand-read
+  - performing synthetic randread benchmarks for: upcie, upcie-cuda
 
-  This requires the device to be bound to `libnvm_helper`, which can be done in the following way:
+  This requires the device to be bound to `uio_pci_generic`, which can be done in the following way:
   - Unmount if needed: `umount /mnt/datasets`
-  - `cd /root/git/bam/builddir/module; make load`
-  - `devbind --device '0000:01:00.0' --bind libnvm_helper`
-  
+  - `devbind --device '0000:01:00.0' --bind uio_pci_generic`
+
   `device` should be adjusted to target the correct SSD.
   `batch_size` and `batches` are appropriate for a H100 GPU, and should be adjusted according to hardware.
 
@@ -21,18 +20,18 @@ steps:
 - name: filesize8gib
   uses: sil
   with:
-    backends: ["aisio"]
+    backend: "aisio-cpu"
     dataset: "filesize8gib"
-    device: "{{ config.filesystems.dset.libnvm_dev }}"
+    device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 1
     batches: 1
 
 - name: tiktokish
   uses: sil
   with:
-    backends: ["aisio"]
+    backend: "aisio-cpu"
     dataset: "tiktokish"
-    device: "{{ config.filesystems.dset.libnvm_dev }}"
+    device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 26
     batches: 1
 
@@ -40,9 +39,9 @@ steps:
 - name: imagenetish
   uses: sil
   with:
-    backends: ["aisio"]
+    backend: "aisio-cpu"
     dataset: "imagenetish"
-    device: "{{ config.filesystems.dset.libnvm_dev }}"
+    device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 4096
     batches: 300
 
