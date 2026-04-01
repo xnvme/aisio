@@ -51,3 +51,7 @@ steps:
   run: |
     df -h
     du -h {{ config.datasets.imagenetish.path }} --max-depth=1
+
+- name: defrag
+  run: |
+    xfs_fsr -v {{ config.filesystems.dset.mountpoint }}
