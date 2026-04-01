@@ -1,3 +1,7 @@
+[os]
+distro = "ubuntu"
+version = "noble"
+
 [xnvme.repository]
 remote = "https://github.com/xnvme/xnvme"
 branch = "next"
