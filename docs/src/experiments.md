@@ -106,9 +106,9 @@ not, the first and last 10% of the reported cpu frequencies are discarded.
 
 ### Environment
 
-The benchmarks were run on the **H100 80G** machine described in the Environments
-section. All block devices were empty and bound to the uio-pci-generic user space
-driver. The CPU used the intel_cpufreq driver.
+The benchmarks were run on the {ref}`sec-env-hpc-server`. All block devices were
+empty and bound to the uio-pci-generic user space driver. The CPU used the
+intel_cpufreq driver.
 
 #### Empty vs. Populated Block Devices
 
@@ -247,11 +247,11 @@ placement on the data path, independent of the NVMe driver or benchmark tool.
 
 ### Experimental Setup
 
-The experiment uses the same hardware environment as the conventional
-CPU-initiated setup described in {ref}`sec-experiments`. All NVMe devices are
-bound to user space drivers. The CPU governor is set to ``performance`` with
-turbo boost and SMT enabled. Each benchmark configuration is run five times
-and results are reported as arithmetic means.
+The experiment was run on the {ref}`sec-env-hpc-server`, the same environment
+as the conventional CPU-initiated setup. All NVMe devices are bound to user space
+drivers. The CPU governor is set to ``performance`` with turbo boost and SMT
+enabled. Each benchmark configuration is run five times and results are reported
+as arithmetic means.
 
 The independent variables are:
 

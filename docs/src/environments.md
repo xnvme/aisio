@@ -3,8 +3,8 @@
 
 This section describes the system configurations used for experimenting
 with AiSIO system software architectures, including the initial AiSIO
-proof-of-concept and the development of the HOMI reference implementation. These
-environments support evaluation, document constraints encountered during HOMI
+proof-of-concept and the development of a reference implementation. These
+environments support evaluation, document constraints encountered during
 development, and serve as reproducible reference builds for readers wishing to
 explore similar architectures.
 
@@ -15,31 +15,69 @@ conditions.
 
 The configurations reflect practical system builds intended to support
 architectural exploration, implementation, and comparative evaluation, rather
-than prescribing production deployment guidelines
+than prescribing production deployment guidelines.
 
-## V100 16GB
+(sec-env-hpc-server)=
+## High-Performance Compute Server
 
-1x Gigabyte ...
-1x AMD EPYC
-2x V100 Discrete
-4x Samsung 980 PRO
+An enterprise-grade dual-socket server with high-capacity NVMe storage, used for the
+primary CPU-initiated I/O and benchmark tool comparison experiments. The platform,
+GPU, and NVMe storage all operate at PCIe Gen5, providing full-bandwidth connectivity
+throughout the system. With 32 × 64 GiB of DDR5, the system provides 2 TiB of host
+memory.
 
-## H100 80G
+| Hardware    | Details                            |
+| ----------- | ---------------------------------- |
+| Motherboard | Dell PowerEdge R760                |
+| CPU         | 2x Intel® Xeon® Gold 6442Y         |
+| Memory      | 32x 64GiB Samsung DDR5 4800MHz     |
+| GPU         | 2x NVIDIA H100 80GB                |
+| Storage     | 16x Samsung SSD PM1753 32TB        |
 
-| Hardware | Details                              |
-| -------- | ------------------------------------ |
-| CPU      | 2x Intel® Xeon® Gold 6442Y Processor |
-| GPU      | 2x NVIDIA H100 Discrete              |
-| Storage  | 16x Samsung SSD PM1753 32TB SSD      |
+(sec-env-gpu-workstation)=
+## Professional GPU Workstation
 
-## RTX A5000 24GB
+A workstation built around a professional-grade GPU with a high core-count CPU, used for
+development and evaluation of the reference implementation. The platform, GPU, and
+NVMe storage all operate at PCIe Gen4.
 
-1x AMD EPYC
-1x RTX A5000 24GB
-4x Samsung 990 PRO 2TB
+| Hardware    | Details                          |
+| ----------- | -------------------------------- |
+| Motherboard | Supermicro H12SSL-I                  |
+| CPU         | 1x AMD EPYC 7532 32-Core (Rome)      |
+| Memory      | 8x 32GiB Samsung DDR4 2667MHz        |
+| GPU         | 1x NVIDIA RTX A5000 24GB             |
+| Storage     | 4x Samsung 990 PRO 2TB               |
 
-## RTX A2000 6GB
+(sec-env-desktop)=
+## Desktop Workstation
 
-1x
-1x RTX A2000 6GB
-1x Samsung 980 PRO 1TB
+A consumer desktop used for development and light experimentation. Both the NVIDIA RTX
+A2000 6GB and the NVIDIA RTX PRO 2000 Blackwell 16GB have been used and validated in
+this environment. The AMD B550 platform limits PCIe bandwidth to Gen4 on CPU-direct
+slots, constraining the RTX PRO 2000 Blackwell below its Gen5 capability. A single NVMe
+device limits aggregate storage bandwidth and precludes multi-device parallelism.
+
+| Hardware    | Details                                                    |
+| ----------- | ---------------------------------------------------------- |
+| Motherboard | MSI MAG B550M MORTAR WIFI                                  |
+| CPU         | 1x AMD Ryzen 7 5800X 8-Core                                |
+| Memory      | 2x 16GiB DDR4 2133MHz                                      |
+| GPU         | 1x NVIDIA RTX PRO 2000 Blackwell 16GB / RTX A2000 6GB      |
+| Storage     | 1x Samsung 980 PRO 1TB                                     |
+
+(sec-env-legacy)=
+## Legacy GPU Server
+
+A server based on legacy Volta-generation GPUs, used for the initial AiSIO
+proof-of-concept experiments. The V100 is a PCIe Gen3 device, limiting peak GPU bandwidth
+to approximately 16 GB/s per slot and constraining peer-to-peer DMA throughput compared
+to Gen4 systems.
+
+| Hardware    | Details                              |
+| ----------- | ------------------------------------ |
+| Motherboard | Gigabyte G292-Z20                  |
+| CPU         | 1x AMD EPYC 7402P 24-Core          |
+| Memory      | 8x 32GiB SK Hynix DDR4 2400MHz     |
+| GPU         | 2x NVIDIA V100 16GB                |
+| Storage     | 4x Samsung 980 PRO 1TB             |
