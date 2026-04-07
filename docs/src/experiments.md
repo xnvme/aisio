@@ -225,14 +225,11 @@ results of different parametirizations can be compared.
 (sec-experiments-tool-comparison)=
 ## Benchmark Tool Comparison
 
-The preceding experiment uses a single benchmark tool (bdevperf) against SPDK's
-user space NVMe driver. To evaluate how benchmark tool design and user space
-driver implementation affect measured performance, this experiment compares three
-high-performance I/O benchmark tools under identical hardware and environmental
-conditions. The comparison isolates the effect of the software stack on
-achievable IOPS, independent of device capability.
-
-The three tools under comparison are:
+The preceding experiment uses bdevperf, SPDK's block-device benchmark, to measure
+CPU-initiated I/O performance. The question arises whether the choice of
+benchmarking tool and the choice of user space NVMe driver affect the results.
+To address both questions, we make an experiment where three tools are under
+comparison:
 
 - **bdevperf**: SPDK's block device benchmark. I/O is issued through SPDK's bdev
   (block device) abstraction layer, which interposes between the application and
@@ -244,35 +241,104 @@ The three tools under comparison are:
   through SPDK's NVMe driver. This eliminates bdev-layer overhead and measures
   the performance of SPDK's NVMe driver in isolation.
 
-- **xnvmeperf**: xNVMe's benchmark tool. I/O is issued through xNVMe's unified
-  NVMe command interface, which abstracts over multiple backend implementations
-  (kernel io_uring, user space via uPCIe, or device-initiated paths). In this
-  experiment, xnvmeperf is configured to use xNVMe's user space NVMe driver
-  backend, providing a direct comparison with SPDK's NVMe driver.
+- **xnvmeperf**: xNVMe's benchmark tool. I/O is issued through xNVMe's
+  backend-agnostic API, which dispatches to a pluggable backend at runtime.
+  Three backends are exercised in this experiment: the **spdk** backend, the
+  **upcie** backend and the **upcie-cuda**.
 
-All three tools use polling-based completion and operate against the same NVMe
-devices bound to user space drivers. The comparison demonstrates differences in
-achievable IOPS attributable to the benchmark tool overhead and the underlying
-user space NVMe driver implementation.
+### I/O Paths
+
+Understanding what each comparison reveals requires a precise account of the
+software layers traversed by each tool.
+
+**bdevperf** submits I/O via ``spdk_bdev_readv_blocks_with_md()``, which
+dispatches through the SPDK bdev layer before reaching SPDK's NVMe driver.
+
+**perf** submits I/O via ``spdk_nvme_ns_cmd_read()`` and related functions,
+calling SPDK's NVMe driver directly without bdev involvement.
+
+**xnvmeperf with the spdk backend** submits I/O via
+``spdk_nvme_ctrlr_cmd_io_raw_with_md()``, the same SPDK NVMe driver entry point
+used for raw command passthrough, reached through xNVMe's abstraction layer.
+Completions are reaped via ``spdk_nvme_qpair_process_completions()``. Like
+``perf``, this path does not involve the SPDK bdev layer.
+
+**xnvmeperf with the upcie backend** submits I/O through a separate, independent
+NVMe driver. The **upcie** backend constructs NVMe submission queue entries
+directly, enqueues them by writing to MMIO doorbells, and polls the completion
+queue by reading phase bits, without involving SPDK at any point.
+
+**xnvmeperf with the upcie-cuda backend** follows the same NVMe command
+submission path as the **upcie** backend, but data buffers reside in GPU device
+memory rather than host memory. Buffer allocation uses CUDA device memory via
+``cuMemAlloc``, exported as a dma-buf file descriptor and imported through the
+udmabuf-import mechanism to obtain the physical addresses of the GPU memory
+pages. These addresses are used to populate the PRP list in the NVMe command,
+causing the NVMe controller to transfer data directly to or from GPU memory over
+the PCIe fabric via peer-to-peer DMA, without passing through host DRAM.
+
+The following table summarizes the layers traversed by each tool:
+
+| Tool                           | Benchmark tool | NVMe abstraction | SPDK bdev layer | NVMe driver | Buffer placement |
+| ------------------------------ | -------------- | ---------------- | --------------- | ----------- | ---------------- |
+| bdevperf                       | bdevperf       | —                | yes             | SPDK        | Host             |
+| perf                           | perf           | —                | no              | SPDK        | Host             |
+| xnvmeperf + spdk backend       | xnvmeperf      | xNVMe            | no              | SPDK        | Host             |
+| xnvmeperf + upcie backend      | xnvmeperf      | xNVMe            | no              | uPCIe       | Host             |
+| xnvmeperf + upcie-cuda backend | xnvmeperf      | xNVMe            | no              | uPCIe       | Device (P2P)     |
+
+### Comparisons and Their Interpretability
+
+#### bdevperf vs. perf
+
+Both tools are SPDK-native and share the same benchmark design. The only
+structural difference between them is the presence of the SPDK bdev layer in
+bdevperf's path. Performance differences between these two tools can therefore
+be attributed to the bdev layer in isolation.
+
+#### perf vs. xnvmeperf (SPDK backend)
+
+Both tools reach SPDK's NVMe driver without involving the bdev layer, but they
+differ in two respects: the benchmark tool itself, and the xNVMe abstraction
+layer that sits between xnvmeperf and SPDK. Performance differences between
+these two tools reflect the combined effect of both factors and cannot be
+attributed to either in isolation.
+
+#### xnvmeperf (SPDK backend) vs. xnvmeperf (uPCIe backend)
+
+Both configurations use the same benchmark tool and the same xNVMe abstraction
+layer. The only structural difference is the NVMe driver: SPDK in one case,
+uPCIe in the other. Performance differences between these configurations
+reflect differences in NVMe driver implementation.
+
+#### xnvmeperf (uPCIe backend) vs. xnvmeperf (uPCIe-cuda backend)
+
+Both configurations use the same benchmark tool, the same xNVMe abstraction
+layer, and the same uPCIe NVMe driver. The only structural difference is buffer
+placement: the upcie backend uses host memory, while the upcie-cuda backend
+allocates data buffers in GPU device memory and transfers data via peer-to-peer
+DMA over the PCIe fabric, bypassing host DRAM entirely. Performance differences
+between these two configurations therefore reflect the effect of P2P buffer
+placement on the data path, independent of the NVMe driver or benchmark tool.
 
 ### Experimental Setup
 
 The experiment uses the same hardware environment as the conventional
-CPU-initiated setup. All NVMe devices are bound to user space drivers, and the
-CPU governor is set to "performance" with turbo boost enabled. Each benchmark
-configuration is run five times and results are reported as arithmetic means.
+CPU-initiated setup described in {ref}`sec-experiments`. All NVMe devices are
+bound to user space drivers. The CPU governor is set to ``performance`` with
+turbo boost and SMT enabled. Each benchmark configuration is run five times
+and results are reported as arithmetic means.
 
 The independent variables are:
 
-| Variable          | Parameter Set                                        |
-| ----------------- | ---------------------------------------------------- |
-| Benchmark tool    | { bdevperf, SPDK NVMe Perf, xnvmeperf }             |
-| Queue depth       | { TBD }                                              |
-| I/O size          | { TBD }                                              |
-| Number of cores   | { TBD }                                              |
-| Number of devices | { TBD }                                              |
+| Variable              | Parameter Set                                                             |
+| --------------------- | ------------------------------------------------------------------------- |
+| Tool and backend      | { bdevperf, perf, xnvmeperf+spdk, xnvmeperf+upcie, xnvmeperf+upcie-cuda } |
+| Queue depth           | { 128 }                                                                   |
+| I/O size              | { 512 }                                                                   |
+| Number of CPU threads | { 1, 2 }                                                                  |
+| Number of devices     | { 16 }                                                                    |
 
 ### Results
 
-Results will be presented once the benchmarks have been made fully
-reproducible.
+Results are presented in {ref}`sec-results-tool-comparison`.
