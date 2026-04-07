@@ -17,15 +17,6 @@ The configurations reflect practical system builds intended to support
 architectural exploration, implementation, and comparative evaluation, rather
 than prescribing production deployment guidelines
 
-## System Setup and Benchmarks
-
-Brief introduction to CIJOE, configs / workflows / scripts.
-
-* OS Installation
-* NVIDIA Software Stack Setup
-* Dataset Populaton on NVMe
-* Running benchmarks
-
 ## V100 16GB
 
 1x Gigabyte ...
