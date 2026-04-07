@@ -66,13 +66,13 @@ steps:
 
 - name: gpu_driver
   run: |
-    apt-get install -y nvidia-driver-570-server-open
+    apt-get install -y nvidia-driver-{{ config.nvidia.nokm.version }}-server-open
 
 # Build NVIDIA kernel source tree to generate symbols/headers required by libnvm / BAM (not done
 # automatically by DKMS)
 - name: gpu_driver_kernel_source
   run: |
-    cd /usr/src/nvidia-*570*/ && make -j
+    cd /usr/src/nvidia-*{{ config.nvidia.nokm.version }}*/ && make -j
 
 - name: reboot_driver
   run: shutdown -r now
@@ -98,7 +98,7 @@ steps:
 
 - name: cuda
   run: |
-    apt-get install -y cuda-toolkit-12-8
+    apt-get install -y cuda-toolkit-{{ config.nvidia.cuda.apt_version }}
 
 # Setup CUDA for all interactive shells via '/etc/profile.d' and source this it explicitly for
 # 'root' via /root/.bashrc for non-interactive use of CUDA via e.g. ssh
@@ -119,12 +119,12 @@ steps:
 - name: cuda_samples
   run: |
     git clone https://github.com/NVIDIA/cuda-samples.git git/cuda-samples
-    cd git/cuda-samples; git checkout v12.8
+    cd git/cuda-samples; git checkout {{ config.nvidia.cuda.samples.tag }}
     mkdir git/cuda-samples/build
 
 - name: nvidia_gds
   run: |
-    apt-get install -y nvidia-gds-12-8
+    apt-get install -y nvidia-gds-{{ config.nvidia.cuda.apt_version }}
 
 - name: checkup
   run: |

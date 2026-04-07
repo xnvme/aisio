@@ -136,7 +136,7 @@ steps:
 - name: cuda_samples
   run: |
     git clone https://github.com/NVIDIA/cuda-samples.git git/cuda-samples
-    cd git/cuda-samples; git checkout v12.8
+    cd git/cuda-samples; git checkout {{ config.nvidia.cuda.samples.tag }}
     mkdir git/cuda-samples/build
 
 - name: cuda_check
@@ -147,8 +147,8 @@ steps:
 - name: gds
   run: |
     git clone https://github.com/NVIDIA/gds-nvidia-fs.git git/gds
-    cd git/gds; git checkout v2.26.6
-    cd git/gds/src; NVIDIA_SRC_DIR={{ config.nvidia.modules.repository.path }}/kernel-open/nvidia CONFIG_MOFED_VERSION="24.10" make
+    cd git/gds; git checkout {{ config.nvidia.gds.repository.tag }}
+    cd git/gds/src; NVIDIA_SRC_DIR={{ config.nvidia.modules.repository.path }}/kernel-open/nvidia CONFIG_MOFED_VERSION=$(echo "{{ config.nvidia.ofed.version }}" | cut -d- -f1) make
     cd git/gds/src; make install
     cd git/gds/src; insmod nvidia-fs.ko
     echo "nvidia-fs" | tee -a /etc/modules-load.d/nvidia.conf

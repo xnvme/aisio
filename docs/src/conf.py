@@ -1,7 +1,28 @@
 import os
 import sys
+import tomllib
+from pathlib import Path
 from datetime import datetime
 
+
+_repo_root = Path(__file__).resolve().parent.parent.parent
+
+with open(_repo_root / "configs/aisio.toml", "rb") as _f:
+    _aisio = tomllib.load(_f)
+
+with open(_repo_root / "configs/nvstack.toml", "rb") as _f:
+    _nvstack = tomllib.load(_f)
+
+myst_substitutions = {
+    "ver_xnvme":  _aisio["xnvme"]["repository"]["branch"],
+    "ver_spdk":   _aisio["spdk"]["repository"]["tag"],
+    "ver_xal":    _aisio["xal"]["repository"]["tag"],
+    "ver_sil":    _aisio["sil"]["repository"]["tag"],
+    "ver_fio":    _aisio["fio"]["repository"]["tag"].removeprefix("fio-"),
+    "ver_ofed":   _nvstack["nvidia"]["ofed"]["version"],
+    "ver_nokm":   _nvstack["nvidia"]["nokm"]["version"] + ".x",
+    "ver_cuda":   _nvstack["nvidia"]["cuda"]["apt_version"].replace("-", ".") + ".x",
+}
 
 project = "AiSIO"
 author = "Simon A. F. Lund, Karl Bonde Torp, Nadja Brix Koch, Javier González"
