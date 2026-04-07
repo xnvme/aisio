@@ -1,5 +1,9 @@
 [nvidia.ofed]
+version = "24.10-3.2.5.0"
 url = "https://content.mellanox.com/ofed/MLNX_OFED-24.10-3.2.5.0/MLNX_OFED_LINUX-24.10-3.2.5.0-ubuntu24.04-x86_64.tgz"
+
+[nvidia.nokm]
+version = "570"
 
 [nvidia.gsp]
 url = "https://uk.download.nvidia.com/XFree86/Linux-x86_64/570.153.02/NVIDIA-Linux-x86_64-570.153.02.run"
@@ -10,7 +14,14 @@ remote = "https://github.com/NVIDIA/open-gpu-kernel-modules.git"
 tag = "570.153.02"
 
 [nvidia.cuda]
+apt_version = "12-8"
 url = "https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_570.124.06_linux.run"
+
+[nvidia.cuda.samples]
+tag = "v12.8"
+
+[nvidia.gds.repository]
+tag = "v2.26.6"
 
 [nvidia.keyring]
 url = "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb"
