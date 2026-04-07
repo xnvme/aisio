@@ -3,6 +3,7 @@
 
 (meta text)
 
+(sec-experiments-cpu-initiated)=
 ## Conventional CPU-initiated Setup
 
 In the first experimental setup, the I/O is CPU-driven and the host-memory is
@@ -142,85 +143,8 @@ how other processes in the system impact the achievable IOPS.
 
 ### Execution of the Experiment
 
-The execution of the experiment is automated by a cijoe workflow, which
-necessitates multiple cijoe configuration files. Most are given in this
-repository, but the ``configs/devices_16.toml`` configuration file is an example
-and must be edited to match the system you are running on.
-
-#### Configuration File
-
-A configuration file must contain the information about the following:
-
-1. Block devices
-1. A prefix for the ``xnvme-driver`` script
-
-This configuration file must define a list of NVMe block devices. To find
-these, run
-
-    lspci | grep Non-Volatile
-
-and change the `pci_addr` keys in the `[[devices]]` to match the PCI addresses of
-the found devices. There are 16 block devices in the example configuration file,
-but you can add more or remove devices as needed.
-
-The cijoe workflow assumes that if the boot device is an NVMe device, then the
-``xnvme.driver.prefix`` key has been defined in the configuration file to add the
-device's PCIe address to the PCI_BLACKLIST env variable for the xnvme-driver
-script. Example:
-
-    [xnvme.driver]
-    prefix = "PCI_BLACKLIST=0000:01:00.0"
-
-It's important that if the boot device is also an NVMe device that it is added in
-the ``PCI_BLACKLIST``, since the xnvme-driver script otherwise might unbind it,
-making the machine unusable (until next reboot).
-
-#### Setup of the Experiment
-
-The machine must be provisioned as described in the AiSIO repository README file,
-and the devices on the machine can be populated with the task defined in
-``tasks/populate_devices.yaml`. When the configuration file is created,
-it can be run with command
-
-    cijoe --monitor \
-      tasks/populate_devices.yaml \
-      -c configs/aisio.toml \
-      -c configs/devices_16.toml
-
-#### Running the Experiment
-
-When the system has been setup, the cijoe workflow must be configured with the
-right benchmarking parameters. In the file ``tasks/bench_io.yaml``, the
-step "run" has multiple keys under "with" which represent the independent
-variables of the experiment. The key ``results_dir`` is optional, but allows
-continuation of previously run benchmarks. Note that the ``numcpus_range`` and
-``numdevs_range`` are tuples describing the range of CPUs and block devices used
-for testing, both inclusive, meaning it is not a complete list of values for these
-independent variables. A key ``repetitions`` can be added to change the number of
-times each benchmark is run; if not defined, the default is 5 repetitions.
-
-When the "run" step has been parameterized, the workflow can be run with command
-
-    cijoe --monitor \
-      tasks/bench_io.yaml \
-      -c configs/aisio.toml \
-      -c configs/devices_16.toml
-
-This workflow makes sure to allocate hugepages and bind the block devices to
-user space drivers before running the benchmarks. This is not necessary to do
-repeatedly if running the benchmarks multiple times in a row. These steps can be
-skipped by specifying which steps to run in the command
-
-    cijoe \
-      tasks/bench_io.yaml \
-      -c configs/aisio.toml \
-      -c configs/devices_16.toml
-      run combine visualize
-
-In the final step, the results of the experiment is visualized on a graph in an
-interactive HTML page, which can be found in the cijoe artifacts found in
-``cijoe-output/artifacts/benchmark-results.html``. With this HTML page, the
-results of different parametirizations can be compared.
+Instructions for running ``bench_io.yaml`` are provided in
+{ref}`sec-experimental-framework`.
 
 (sec-experiments-tool-comparison)=
 ## Benchmark Tool Comparison
