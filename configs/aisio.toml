@@ -18,8 +18,8 @@ tag = "v0.2.0"
 path = "/root/git/sil"
 
 [spdk.repository]
-remote = "https://github.com/ankit-sam/spdk.git"
-branch = "xnvme_bam"
+remote = "https://github.com/spdk/spdk"
+tag = "26.01"
 path = "/root/git/spdk"
 
 [fio.repository]
