@@ -19,7 +19,7 @@ path = "/root/git/sil"
 
 [spdk.repository]
 remote = "https://github.com/spdk/spdk"
-tag = "26.01"
+tag = "v26.01"
 path = "/root/git/spdk"
 
 [fio.repository]
