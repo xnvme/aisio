@@ -12,7 +12,7 @@ systems:
 
 * make
 
-* texlive, texlive-full, texlive-extra
+* texlive, texlive-full, texlive-extra, or latexmk on macOS
 
 With the above in place do, from within ``aisio/docs`` run:
 
