@@ -1,5 +1,5 @@
 """
-A SIL-wrapper invoking it with arguments
+A FIL-wrapper invoking it with arguments
 ========================================
 
 Retargetable: True
@@ -17,14 +17,11 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--backend", type=str, default="posix")
     parser.add_argument("--dataset", type=str, default="imagenetish")
     parser.add_argument("--device", type=str, default="/dev/nvme1n1")
-    parser.add_argument("--bin", type=str, default="sil")
+    parser.add_argument("--bin", type=str, default="filperf")
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--batches", type=int, default=1)
     parser.add_argument("--gpu_nqueues", type=int, default=6)
     parser.add_argument("--repetitions", type=int, default=5)
-    parser.add_argument(
-        "--random", choices=["true", "false"], default=False, action=StringToBoolAction
-    )
 
 
 def get_opts(args, cijoe, backend):
