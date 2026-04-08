@@ -920,7 +920,7 @@ NVMe interactions to be expressed through a consistent programming model.
 
 **XAL (eXtents Access Library)**
 : A library for retrieving file extent information from file systems
-{cite}`xallib`. XAL obtains logical-to-physical block mappings either through
+{cite}`xal`. XAL obtains logical-to-physical block mappings either through
 kernel-provided interfaces, such as the FIEMAP ioctl {cite}`linux-fiemap`, or
 by decoding on-disk file system metadata structures directly. For example, XAL
 can parse the on-disk format of the XFS file system, including superblocks,
