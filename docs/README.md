@@ -9,7 +9,7 @@ systems:
 
   - Ensure pipx-installed tools are available in PATH
   - Run ``pipx ensurepath`` and reload your SHELL
-  
+
 * make
 
 * texlive, texlive-full, texlive-extra
@@ -17,7 +17,7 @@ systems:
 With the above in place do, from within ``aisio/docs`` run:
 
 ```bash
-pipx install tooling
+pipx install ./tooling
 ```
 
 Afterwhich you can run:
