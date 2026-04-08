@@ -31,9 +31,9 @@ The **AiSIO** PoC demonstrates functionality on Linux systems using:
 - The NVIDIA GPU driver and its peer-to-peer memory interface for direct DMA
   between the NVMe controller and GPU device memory.
 - The XAL metadata decoder for XFS.
-- The Storage Iterator Library (SIL), a benchmark application that iterates
-  over file-based datasets using xal for extent resolution and exercises both
-  CPU and GPU I/O paths.
+- The SIL: Storage Iterator Library (now called FIL: File Iterator Library),
+  a benchmark application that iterates over file-based datasets using XAL
+  for extent resolution and exercises both CPU and GPU I/O paths.
 
 The PoC is open-source, reproducible, and interoperates with unmodified XFS.
 

@@ -17,7 +17,7 @@ myst_substitutions = {
     "ver_xnvme":  _aisio["xnvme"]["repository"]["branch"],
     "ver_spdk":   _aisio["spdk"]["repository"]["tag"],
     "ver_xal":    _aisio["xal"]["repository"]["tag"],
-    "ver_sil":    _aisio["sil"]["repository"]["tag"],
+    "ver_fil":    _aisio["fil"]["repository"]["tag"],
     "ver_fio":    _aisio["fio"]["repository"]["tag"].removeprefix("fio-"),
     "ver_ofed":   _nvstack["nvidia"]["ofed"]["version"],
     "ver_nokm":   _nvstack["nvidia"]["nokm"]["version"] + ".x",

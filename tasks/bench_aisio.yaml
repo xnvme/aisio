@@ -1,8 +1,8 @@
 doc: |
-  Run SIL benchmarks to evaluate AiSIO performance
-  ================================================
+  Run benchmarks to evaluate AiSIO performance
+  ============================================
 
-  The benchmark includes:
+  The benchmarks include:
   - reading 2 datasets: tiktokish, imagenetish (filesize8gib is skipped as
     individual files exceed the 256MB xNVMe uPCIe HOSTMEM heap limit),
   - performing synthetic randread benchmarks for: upcie, upcie-cuda
@@ -14,7 +14,7 @@ doc: |
 
 steps:
 - name: tiktokish
-  uses: sil
+  uses: filperf
   with:
     backend: "aisio-cpu"
     dataset: "tiktokish"
@@ -24,7 +24,7 @@ steps:
     repetitions: 1
 
 - name: imagenetish
-  uses: sil
+  uses: filperf
   with:
     backend: "aisio-cpu"
     dataset: "imagenetish"

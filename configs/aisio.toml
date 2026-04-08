@@ -12,10 +12,10 @@ remote = "https://github.com/xnvme/xal"
 tag = "v0.2.0"
 path = "/root/git/xal"
 
-[sil.repository]
-remote = "https://github.com/karlowich/sil"
-tag = "v0.2.0"
-path = "/root/git/sil"
+[fil.repository]
+remote = "https://github.com/xnvme/fil"
+tag = "v0.2.1"
+path = "/root/git/fil"
 
 [spdk.repository]
 remote = "https://github.com/spdk/spdk"

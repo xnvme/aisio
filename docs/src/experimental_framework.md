@@ -30,7 +30,7 @@ software components installed on each system, in installation order.
 | AiSIO    | SPDK                       | {{ ver_spdk }}       | Source        | Storage Performance Development Kit; provides the user space NVMe driver and bdevperf                                              |
 | AiSIO    | xNVMe                      | {{ ver_xnvme }}      | Source        | Unified NVMe command interface with uPCIe backend support                                                                           |
 | AiSIO    | xal                        | {{ ver_xal }}        | Source        | XFS Abstraction Library for file-to-block extent resolution                                                                         |
-| AiSIO    | sil                        | {{ ver_sil }}        | Source        | Storage I/O Library; benchmark harness used to evaluate different I/O backends                                                      |
+| AiSIO    | fil                        | {{ ver_fil }}        | Source        | File Iterator Library; benchmark harness used to evaluate different I/O backends                                                    |
 | Tools    | devbind                    | —                    | pipx          | NVMe PCIe driver binding utility                                                                                                    |
 | Tools    | hugepages                  | —                    | pipx          | Huge page allocation management utility                                                                                             |
 
@@ -178,7 +178,7 @@ mount /dev/<nvme_dev> /mnt/datasets
 #### AiSIO / uPCIe (``bench_aisio.yaml``)
 
 This benchmark consists of two parts. First, the tiktokish and imagenetish
-datasets are loaded through SIL using the ``aisio-cpu`` backend, measuring
+datasets are loaded through FIL using the ``aisio-cpu`` backend, measuring
 end-to-end dataset loading performance over the AiSIO storage path. The
 ``filesize8gib`` dataset is excluded because individual files exceed the
 256 MiB xNVMe uPCIe host-memory heap limit. Second, synthetic random-read
@@ -196,7 +196,7 @@ cijoe --monitor \
 
 #### NVIDIA GPUDirect Storage (``bench_gds.yaml``)
 
-This benchmark evaluates NVIDIA GPUDirect Storage using the SIL
+This benchmark evaluates NVIDIA GPUDirect Storage using the FIL
 interface. It loads all three datasets (imagenetish, tiktokish,
 filesize8gib) through the ``gds`` backend, and runs synthetic sequential
 and random-read benchmarks using gdsio.
@@ -211,7 +211,7 @@ cijoe --monitor \
 #### POSIX (``bench_posix.yaml``)
 
 This benchmark provides a POSIX I/O baseline by loading all three
-datasets through the ``posix`` backend of SIL. It serves as a
+datasets through the ``posix`` backend of FIL. It serves as a
 baseline comparison against the GDS and AiSIO paths.
 
 ```
