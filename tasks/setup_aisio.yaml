@@ -51,12 +51,12 @@ steps:
     cd "{{ config.xal.repository.path }}"; meson setup builddir
     cd "{{ config.xal.repository.path }}"; meson install -C builddir
 
-- name: sil
+- name: fil
   run: |
-    rm -r "{{ config.sil.repository.path }}/builddir" || true
-    mkdir -p "{{ config.sil.repository.path }}/builddir"
-    cd "{{ config.sil.repository.path }}"; meson setup builddir
-    cd "{{ config.sil.repository.path }}"; meson install -C builddir
+    rm -r "{{ config.fil.repository.path }}/builddir" || true
+    mkdir -p "{{ config.fil.repository.path }}/builddir"
+    cd "{{ config.fil.repository.path }}"; meson setup builddir
+    cd "{{ config.fil.repository.path }}"; meson install -C builddir
 
 - name: fio
   run: |
