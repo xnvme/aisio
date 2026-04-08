@@ -8,7 +8,7 @@ branch = "next"
 path = "/root/git/xnvme"
 
 [xal.repository]
-remote = "https://github.com/safl/xallib"
+remote = "https://github.com/xnvme/xal"
 tag = "v0.2.0"
 path = "/root/git/xal"
 
