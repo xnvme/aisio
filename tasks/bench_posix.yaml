@@ -17,7 +17,7 @@ doc: |
 
 steps:
 - name: filesize8gib
-  uses: sil
+  uses: filperf
   with:
     backend: "posix"
     dataset: "filesize8gib"
@@ -26,7 +26,7 @@ steps:
     batches: 1
 
 - name: tiktokish
-  uses: sil
+  uses: filperf
   with:
     backend: "posix"
     dataset: "tiktokish"
@@ -35,7 +35,7 @@ steps:
     batches: 1
 
 - name: imagenetish
-  uses: sil
+  uses: filperf
   with:
     backend: "posix"
     dataset: "imagenetish"
