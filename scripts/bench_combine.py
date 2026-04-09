@@ -56,7 +56,7 @@ def main(args, cijoe: Cijoe):
                 repeated_results.append(json_load(file))
 
         # err, result = get_average(repeated_results)
-        err, result = merge_dicts(repeated_results, ["cpu_freqs", "iops", "mibs", "cpu_usage"])
+        err, result = merge_dicts(repeated_results, ["cpu_freqs", "iops", "mibs", "cpu_usage", "dcgm"])
         if err:
             log.error("Failed: merge_dicts()")
             return err
@@ -68,6 +68,7 @@ def main(args, cijoe: Cijoe):
         result["iops"] = avg_stddev(result["iops"])
         result["mibs"] = avg_stddev(result["mibs"])
         result["cpu_usage"] = avg_stddev(result["cpu_usage"])
+        result["dcgm"] = avg_stddev(result["dcgm"]) if "dcgm" in result else 0
 
         all_results[label].append(result)
 
@@ -79,6 +80,10 @@ def main(args, cijoe: Cijoe):
 
 def avg_stddev(ns: List[Union[int, float]]):
     """Calculate the average and standard deviation of a list"""
+    if not ns[0]:
+        # safeguard against [None, None, None, None, None]
+        return 0
+
     avg = sum(ns) / len(ns)
     stddev = (sum((x - avg) ** 2 for x in ns) / len(ns)) ** 0.5
     return avg, stddev
