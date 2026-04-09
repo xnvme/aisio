@@ -151,7 +151,7 @@ class BenchHelper():
 
         else:
             log.error(f"Unknown tool: {self.tool}")
-            return -1
+            return -1, None
 
         selected_cpus = [v[0] for v in self.cpu_pairs if int(bench_args["cpumask"], 16) & (1 << v[0])]
 
