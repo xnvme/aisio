@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Data Graph</title>
+<style>
+{% include "bench-style.jinja2.css" %}
+
+.controls:has(.x),
+.controls:has(.y),
+[label-for="tool"],
+#toolRadios,
+[label-for="show-max-value"],
+#show-max-value {
+  display: none;
+}
+
+label:has([value="undefined"]) {
+  pointer-events: none;
+  opacity: 0.2;
+}
+</style>
+</head>
+<body>
+
+{% include "bench-dom.jinja2.html" %}
+
+<script>
+const colours = ["blue", "red", "olive", "pink", "lime", "purple", "cyan", "orange", "violet", "skyblue", "brown", "green"];
+
+let results = [
+  {%- for dataset in datasets %}
+  {
+    label: "{{dataset.label}}",
+    data: [{% for d in dataset.data %}
+      {{ d }},
+    {%- endfor %}]
+      .sort((a,b) => a.ncpus - b.ncpus)
+      .map(d => ({
+        ...d,
+        tool: d.tool === "xnvmeperf" ? `${d.tool}-${d.backend}` : d.tool,
+        fixed_freq: d.fixed_freq ? d.fixed_freq : d.cpu_governor,
+    {%- if "Using thread siblings" in dataset.label %}
+        hyperthreads: d.ncpus, ncpus: Math.ceil(d.ncpus / 2),
+    {% endif %}
+      }))
+  },
+  {%- endfor %}
+]
+  .sort((a,b) => a.label.localeCompare(b.label));
+
+const getXvalues = () => {
+  const allData = results.map(({data}) => data).flat();
+  return [
+    {elemId: "qdepthRadios", key: "qdepth", prettyName: "Queue Depth"},
+    {elemId: "cpusRadios", key: "ncpus", prettyName: "Number of Physical Cores"},
+    {elemId: "devicesRadios", key: "ndevs", prettyName: "Number of Devices"},
+    {elemId: "iosizeRadios", key: "iosize", prettyName: "I/O Size"},
+    {elemId: "cpufreqRadios", key: "fixed_freq", prettyName: "CPU Frequency or Governor" },
+    {elemId: "toolRadios", key: "tool", prettyName: "Tool" },
+    {elemId: "turboBoostRadios", key: "turbo", prettyName: "Turbo Boost" },
+    {elemId: "smtRadios", key: "smt", prettyName: "SMT" },
+    {elemId: "htRadios", key: "thr_sib", prettyName: "Using Thread siblings" },
+    {elemId: "stressRadios", key: "stress", prettyName: "Stress" },
+  ].map(s => ({...s, set: [...new Set(allData.map(d => d[s.key]))].sort((a,b) => a - b) }));
+}
+
+const xValues = getXvalues();
+const yValues = [{ key: "mibs", prettyName: "Bandwidth", unit: "GB/s" }];
+const environments = [
+];
+
+let CUR_X_AXIS = 3;
+let CUR_Y_AXIS = 0;
+const radioDefaults = [128, 1, 16, 512, "performance", "upcie-cuda", 1, 1, 0, 0];
+
+/* Split datasets by reporter instead of environment */
+const splitDatasetOnReporter = () => {
+  let all = results.flatMap(r => r.data);
+
+  results = [
+    {label: "upcie-cuda (reported by xnvmeperf)", color: colours[0] , data: []},
+    {label: "upcie-cuda (reported by dcgmi)", color: colours[1] , data: []},
+  ];
+  for (let i = 0; i < all.length; i++) {
+    const d = all[i];
+    d.mibs = d.mibs.map(n => n * 1024*1024 / 1e9);
+    results[0].data.push(d);
+    results[1].data.push({...d, "mibs": d.dcgm ? d.dcgm.map((n, idx) => n / 1e9 - d.mibs[idx]) : [0,0], "mibs_display": d.dcgm ? d.dcgm[0] / 1e9 : 0});
+  }
+
+  return results;
+}
+results = splitDatasetOnReporter();
+
+const BAR_TYPE = 'bar';
+const STACKED = true;
+const MAX_LINE_VALUE = 64;
+const MAX_LINE_LABEL = `PCIe Gen5 x16 line rate (${MAX_LINE_VALUE.toFixed(1)} GB/s)`;
+const COMP_LINE_VALUE = {{cuda_bandwidth}};
+const COMP_LINE_LABEL = `p2pBandwidthTest (${COMP_LINE_VALUE.toFixed(1)} GB/s)`;
+
+{% include "bench-update-chart.jinja2.js" %}
+
+</script>
+
+</body>
+</html>

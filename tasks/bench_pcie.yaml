@@ -1,0 +1,76 @@
+doc: |
+  Run I/O benchmarks
+  ==================
+
+  Configuration file
+  ------------------
+  See `configs/devices_16.toml` for an example configuration file.
+
+  The configuration file must also define a list of NVMe block devices. To find these,
+  run
+
+    `lspci | grep Non-Volatile`
+
+  and change the `pci_addr` keys in the `[[devices]]` to match the PCI addresses of the
+  found devices.
+
+  If the boot device is an NVMe device, see "Binding to userspace" below.
+
+  Allocating hugepages
+  --------------------
+  It is not necessary to run this step if the workflow is run repeatedly.
+
+  Binding to userspace
+  --------------------
+  This scripts assumes if the boot device is an NVMe device, then the `xnvme.driver.prefix`
+  variable has been defined to add the device's PCIe address to the PCI_BLACKLIST env var
+  for the xnvme-driver script. Example:
+
+    [xnvme.driver]
+    prefix = "PCI_BLACKLIST=0000:01:00.0"
+
+  It's important that if the boot device is also an NVMe device that it's added in the
+  `PCI_BLACKLIST` in step "bind_to_userspace", since the xnvme-driver script otherwise
+  will unbind it, making the machine unusable (until next reboot).
+
+  It is not necessary to run this step if the workflow is run repeatedly.
+
+steps:
+- name: allocate_hugepages
+  run: |
+    sysctl -w vm.nr_hugepages=1024
+    mkdir -p /dev/hugepages
+    mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+
+- name: bind_to_userspace
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run
+  uses: bench_runall
+  with:
+    depths: [128]
+    sizes: [512, 4096, 8192]
+    numcpus_specific: [1]
+    numdevs_specific: [16]
+    cpu_freqs: ["performance"]
+    turbo: [1]
+    smt: [1]
+    hyperthreads: [0]
+    stress: [0]
+    results_dir: &results-dir "{{ local.env.HOME }}/bench-pcie-results"
+    tool: xnvmeperf
+    backend: upcie-cuda
+
+- name: cuda_bandwidth
+  uses: cuda_p2p_sample
+
+- name: combine
+  uses: bench_combine
+  with:
+    results_dir: *results-dir
+
+- name: visualize
+  uses: bench_visualize
+  with:
+    template: benchmark-pcie
