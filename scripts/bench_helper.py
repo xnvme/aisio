@@ -31,6 +31,7 @@ import json
 import logging as log
 
 from bdevperf import bdevperf_cmd, create_config as bdevperf_config
+from dcgm_helper import DcgmHelper
 from spdk_nvme_perf import spdk_nvme_perf_cmd
 from xnvmeperf import xnvmeperf_cmd
 
@@ -54,6 +55,8 @@ class BenchHelper():
         self.stress = False
         self.backend = backend
         self.tool = tool
+
+        self.dcgm = DcgmHelper(cijoe) if backend == "upcie-cuda" else None
 
         self.use_thrsib = False
         err = self._create_cpumasks(self.use_thrsib)
@@ -163,33 +166,56 @@ class BenchHelper():
                 "wait $STRESS_PID",
             ])
 
+        def abort_monitors():
+            self.cfm.stop_logging_and_parse()
+            if self.dcgm:
+                self.dcgm.stop_and_parse()
+
         self.cfm.set_cpu_freq(cpu_freq, selected_cpus)
         err = self.cfm.start_logging()
         if err:
             log.error("Failed: CpuFrequencyHelper.start_logging()")
             return err, None
 
+        if self.dcgm:
+            err = self.dcgm.start()
+            if err:
+                self.cfm.stop_logging_and_parse()
+                log.error("Failed: DcgmHelper.start()")
+                return err, None
+
         err, state = self.cijoe.run(command)
         if err:
+            abort_monitors()
             log.error(f"Failed: {self.bin} for run with filename({filename})")
             return err, None
 
         output = state.output()
         err, cpu_usage = self._parse_time_output(output)
         if err:
+            abort_monitors()
             log.error("Failed: BenchHelper._parse_time_output()")
             return err, None
 
         err, bench_result = self._parse_bench_results(output)
         if err:
+            abort_monitors()
             log.error("Failed: BenchHelper._parse_bench_results()")
             return err, None
 
-
         err, cpu_freqs = self.cfm.stop_logging_and_parse()
         if err:
+            if self.dcgm:
+                self.dcgm.stop_and_parse()
             log.error("Failed: CpuFrequencyHelper.stop_logging_and_parse()")
             return err, None
+
+        dcgm_stats = None
+        if self.dcgm:
+            err, dcgm_stats = self.dcgm.stop_and_parse()
+            if err:
+                log.error("Failed: DcgmHelper.stop_and_parse()")
+                return err, None
 
         cpu_freqs = [[cpu_freqs[idx], self.cpu_pairs[idx]] for idx in selected_cpus]
 
@@ -210,6 +236,7 @@ class BenchHelper():
             "backend": self.backend,
             "iops": bench_result["total"]["iops"],
             "mibs": bench_result["total"]["mibs"],
+            "dcgm": dcgm_stats["1010"]["p95"] if self.dcgm else None,
         }
 
         with open(res_path, "x") as file:
