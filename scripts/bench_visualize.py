@@ -37,6 +37,13 @@ def main(args, cijoe):
 
     datasets = convert_to_data(results)
 
+    cuda_bandwidth = ""
+    bandwidth_path = artifacts / "cuda-sample-p2p-bandwidth"
+
+    if args.template == "benchmark-pcie" and bandwidth_path.exists():
+        with open(artifacts / "cuda-sample-p2p-bandwidth", "r") as file:
+            cuda_bandwidth = file.read()
+
     template_resource = get_resources().get("templates", {}).get(args.template, {})
     if not template_resource:
         log.error(f"Failed: could not find template resource({args.template})")
@@ -49,7 +56,7 @@ def main(args, cijoe):
 
     template = template_env.get_template(f"{args.template}.jinja2")
     with html_path.open("w") as body:
-        body.write(template.render({ "datasets": datasets }))
+        body.write(template.render({ "datasets": datasets, "cuda_bandwidth": cuda_bandwidth }))
 
     return 0
 

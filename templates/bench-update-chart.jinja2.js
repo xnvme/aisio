@@ -104,6 +104,7 @@ function updateChart() {
     const graphData = filtered.map(d => ({
       x: logarithmic ? Math.log2(d[x_axis]) : d[x_axis],
       y: d[y_axis.key][0],
+      y_display: d[y_axis.key + '_display'],
       v: d[y_axis.key][1],
       data: d
     }));
@@ -113,6 +114,16 @@ function updateChart() {
 
   const maxXvalue = Math.max(...filtered_results[0].data.map(d => d[x_axis])) * (logarithmic ? 2 : 1) + (logarithmic ? 0 : 1);
 
+  const xCategories = BAR_TYPE === 'bar'
+    ? [...new Set(iopsData.flat().map(d => d.data[x_axis]))].sort((a,b) => a-b).map(String)
+    : null;
+
+  if (xCategories) {
+    iopsData = iopsData.map(data => data.map(d => ({...d, x: xCategories.indexOf(String(d.data[x_axis]))})));
+  }
+
+  const stacked = typeof STACKED !== 'undefined' && STACKED;
+
   const datasets = iopsData.map((data, idx) => ({
     data,
     label: filtered_results[idx].label.trim() || `Reached ${y_axis.prettyName}`,
@@ -120,7 +131,41 @@ function updateChart() {
     backgroundColor: filtered_results[idx].color,
     pointStyle: "circle",
     pointRadius: Math.floor(idx*0.2)+3,
+    ...(stacked ? { stack: 'stack0' } : {}),
   }));
+
+  if (typeof MAX_LINE_VALUE !== 'undefined' && MAX_LINE_VALUE !== null) {
+    const lineLabel = typeof MAX_LINE_LABEL !== 'undefined' ? MAX_LINE_LABEL : 'Max';
+    datasets.push({
+      type: 'line',
+      label: lineLabel,
+      data: xCategories
+        ? [{x: -0.5, y: MAX_LINE_VALUE}, {x: xCategories.length - 0.5, y: MAX_LINE_VALUE}]
+        : [...Array(Math.round(maxXvalue + 2)).keys()].map(x => ({ x: x - 1, y: MAX_LINE_VALUE })),
+      clip: false,
+      borderColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0)',
+      pointRadius: 0,
+      borderDash: [10, 5],
+      stack: 'line-max',
+    });
+  }
+  if (typeof COMP_LINE_VALUE !== 'undefined' && COMP_LINE_VALUE !== null) {
+    const lineLabel = typeof COMP_LINE_LABEL !== 'undefined' ? COMP_LINE_LABEL : 'Max';
+    datasets.push({
+      type: 'line',
+      label: lineLabel,
+      data: xCategories
+        ? [{x: -0.5, y: COMP_LINE_VALUE}, {x: xCategories.length - 0.5, y: COMP_LINE_VALUE}]
+        : [...Array(Math.round(maxXvalue + 2)).keys()].map(x => ({ x: x - 1, y: COMP_LINE_VALUE })),
+      clip: false,
+      borderColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0)',
+      pointRadius: 0,
+      borderDash: [10, 5],
+      stack: 'line-comp',
+    });
+  }
 
   if (y_axis.key === "iops" && BAR_TYPE === 'line') {
     const maxPeak = iopsData.flat().length ? Math.max(...iopsData.flat().map(d => d.data.peakiops)) : 1000;
@@ -148,20 +193,20 @@ function updateChart() {
       scales: {
         x: {
           type: "linear",
-          offset: x_axis === "fixed_freq",
+          offset: !!xCategories,
+          stacked,
           title: { display: true, text: `${xValues[CUR_X_AXIS].prettyName}` },
           min: 0,
-          max: logarithmic ? Math.log2(maxXvalue) : maxXvalue,
+          max: xCategories ? xCategories.length - 1 : logarithmic ? Math.log2(maxXvalue) : maxXvalue,
           ticks: {
+            stepSize: 1,
             callback: (v) => logarithmic ? Math.pow(2, v) : v,
           },
-          grid: {
-            drawTicks: true,
-            tickLength: 10
-          }
+          grid: { drawTicks: true, tickLength: 10 },
         },
         y: {
           title: { display: true, text: `${y_axis.prettyName} (${y_axis.unit})` },
+          stacked,
           min: 0,
           grace: BAR_TYPE === "bar" ? "20%" : 0,
           ticks: { callback: (v) => y_axis.key === "iops" ? v / 1e6 : v },
@@ -182,17 +227,18 @@ function updateChart() {
             title: () => "",
             label: (context) => {
               const d = context.raw;
+              const displayY = d.y_display ?? d.y;
               if (context.dataset.label.includes("Peak IOPS")) {
                 return `Peak IOPS: ${separatedNumber(d.y)}`;
               } else if (d.data.thr_sib) {
                 return [
-                  `${y_axis.prettyName}: ${separatedNumber(d.y)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
+                  `${y_axis.prettyName}: ${separatedNumber(displayY)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
                   `Standard Deviation: ${separatedNumber(d.v)}`,
                   `Hyper threads: ${d.data.hyperthreads}`
                 ];
               } else {
                 return [
-                  `${y_axis.prettyName}: ${separatedNumber(d.y)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
+                  `${y_axis.prettyName}: ${separatedNumber(displayY)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
                   `Standard Deviation: ${separatedNumber(d.v)}`
                 ];
               }
@@ -206,7 +252,7 @@ function updateChart() {
             }
           }
         },
-        errorBars: BAR_TYPE === 'bar',
+        errorBars: BAR_TYPE === 'bar' && !stacked,
         shadingArea: BAR_TYPE === 'line',
         showMax: BAR_TYPE === "bar" || document.getElementById("show-max-value").checked,
       },
@@ -382,6 +428,7 @@ Chart.register({
   afterDatasetsDraw(chart) {
     const { ctx } = chart;
     const drawn_labels = [];
+    const stacked = typeof STACKED !== 'undefined' && STACKED;
 
     let count = chart.data.datasets.length;
     if (BAR_TYPE === "line" && yValues[CUR_Y_AXIS].key === "iops") count--;
@@ -396,16 +443,30 @@ Chart.register({
       ctx.strokeStyle = dataset.backgroundColor;
 
       if (BAR_TYPE === "bar") {
-        ctx.textAlign = "left";
+        if (dataset.type === 'line') {
+          ctx.restore();
+          continue;
+        }
+
+        ctx.textAlign = stacked ? "center" : "left";
+
         for (var j = 0; j < dataset.data.length; j++) {
           const bar = dataset_meta.data[j];
-          const text = separatedNumber(dataset.data[j].y);
+          const value = dataset.data[j].y_display ?? dataset.data[j].y;
+          const text = value > 1000 ? separatedNumber(value) : value.toFixed(1);
+
           ctx.save();
-          ctx.translate(bar.x, bar.y - 10);
-          ctx.rotate(-Math.PI / 2);
-          ctx.fillStyle = "black";
+          if (stacked) {
+            ctx.translate(bar.x, bar.y + 10);
+            ctx.fillStyle = "white";
+          } else {
+            ctx.translate(bar.x, bar.y - 10);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillStyle = "black";
+          }
           ctx.fillText(text, 0, 0);
           ctx.restore();
+
         }
       } else {
         const lastPoint = dataset.data[dataset.data.length-1];
