@@ -142,142 +142,6 @@ function updateChart() {
         ...datasets,
       ]
     },
-    plugins: [{
-      id: "shadingArea",
-      beforeDatasetsDraw(chart) {
-        if (BAR_TYPE !== 'line') return;
-
-        const { ctx, scales: { y } } = chart;
-
-        const tickHeight = y.height / y.max;
-        let count = chart.data.datasets.length;
-        if (y_axis.key === "iops") count--;
-
-        for (var i = 0; i < count; i++) {
-          const dataset = chart.data.datasets[i];
-          const dataset_meta = chart.getDatasetMeta(i);
-          if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
-
-          ctx.save();
-
-          ctx.beginPath();
-          ctx.fillStyle = dataset.backgroundColor;
-          ctx.strokeStyle = dataset.backgroundColor;
-          ctx.globalAlpha = 0.2;
-
-          ctx.moveTo(dataset_meta.data[0].x, dataset_meta.data[0].y - tickHeight * dataset.data[0].v);
-
-          for (var j = 0; j < dataset.data.length; j++) {
-            ctx.lineTo(dataset_meta.data[j].x, dataset_meta.data[j].y - tickHeight * dataset.data[j].v);
-          }
-          for (var j = dataset.data.length-1; j >= 0; j--) {
-            ctx.lineTo(dataset_meta.data[j].x, dataset_meta.data[j].y + tickHeight * dataset.data[j].v);
-          }
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
-      }
-    },{
-      id: "errorBars",
-      afterDatasetsDraw(chart) {
-        if (BAR_TYPE !== 'bar') return;
-
-        const { ctx, scales: { y } } = chart;
-        let count = chart.data.datasets.length;
-
-        for (var i = 0; i < count; i++) {
-          const dataset = chart.data.datasets[i];
-          const dataset_meta = chart.getDatasetMeta(i);
-          if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
-
-          ctx.save();
-          ctx.strokeStyle = "black";
-          ctx.lineWidth = 1.5;
-
-          for (var j = 0; j < dataset.data.length; j++) {
-            const d = dataset.data[j];
-            const bar = dataset_meta.data[j];
-            const capHalf = Math.min(bar.width / 4, 6);
-            const yTop = y.getPixelForValue(d.y + d.v);
-            const yBottom = y.getPixelForValue(Math.max(0, d.y - d.v));
-
-            ctx.beginPath();
-            ctx.moveTo(bar.x, yTop);
-            ctx.lineTo(bar.x, yBottom);
-            ctx.moveTo(bar.x - capHalf, yTop);
-            ctx.lineTo(bar.x + capHalf, yTop);
-            ctx.moveTo(bar.x - capHalf, yBottom);
-            ctx.lineTo(bar.x + capHalf, yBottom);
-            ctx.stroke();
-          }
-
-          ctx.restore();
-        }
-      }
-    },{
-      id: "showMax",
-      afterDatasetsDraw(chart) {
-        const { ctx } = chart;
-        const drawn_labels = [];
-
-        if (BAR_TYPE === "bar" || document.getElementById("show-max-value").checked) {
-          let count = chart.data.datasets.length;
-          if (BAR_TYPE === "line" && y_axis.key === "iops") count--;
-
-          for (var i = 0; i < count; i++) {
-            const dataset = chart.data.datasets[i];
-            const dataset_meta = chart.getDatasetMeta(i);
-            if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
-
-            ctx.save();
-            ctx.fillStyle = dataset.backgroundColor;
-            ctx.strokeStyle = dataset.backgroundColor;
-
-            if (BAR_TYPE === "bar") {
-              ctx.textAlign = "left";
-              for (var j = 0; j < dataset.data.length; j++) {
-                const bar = dataset_meta.data[j];
-                const text = separatedNumber(dataset.data[j].y);
-                ctx.save();
-                ctx.translate(bar.x, bar.y - 10);
-                ctx.rotate(-Math.PI / 2);
-                ctx.fillStyle = "black";
-                ctx.fillText(text, 0, 0);
-                ctx.restore();
-              }
-            } else {
-              const lastPoint = dataset.data[dataset.data.length-1];
-              const lastPointMeta = dataset_meta.data[dataset.data.length-1];
-              const text = separatedNumber(lastPoint.y);
-
-              const coord = { x: lastPointMeta.x + 10, y: lastPointMeta.y-6, w: ctx.measureText(text).width, h: 10 };
-
-              let goUp = coord.y;
-              let goDown = coord.y;
-
-              while (drawn_labels.some(r =>
-                goDown < r.y + r.h &&
-                goDown + coord.h > r.y
-              )) {
-                goDown += 4;
-              }
-              while (drawn_labels.some(r =>
-                goUp < r.y + r.h &&
-                goUp + coord.h > r.y
-              )) {
-                goUp -= 4;
-              }
-
-              if (coord.y-goUp < goDown-coord.y) coord.y = goUp;
-              else coord.y = goDown;
-
-              ctx.fillText(text, coord.x, coord.y+6);
-              drawn_labels.push({ ...coord, y: coord.y });
-            }
-          }
-        }
-      }
-    }],
     options: {
       animation: false,
       responsive: true,
@@ -341,12 +205,14 @@ function updateChart() {
               return (chartData.datasets[legendItem.datasetIndex].label);
             }
           }
-        }
+        },
+        errorBars: BAR_TYPE === 'bar',
+        shadingArea: BAR_TYPE === 'line',
+        showMax: BAR_TYPE === "bar" || document.getElementById("show-max-value").checked,
       },
     }
   });
 }
-updateChart();
 
 function updateFreqChart(datapoint) {
   const datasets = [];
@@ -417,7 +283,7 @@ function updateFreqChart(datapoint) {
               return (chartData.datasets[legendItem.datasetIndex].label);
             }
           }
-        }
+        },
       }
     }
   });
@@ -439,3 +305,138 @@ document.querySelectorAll(".controls .button-row.y button").forEach(button => {
     updateChart();
   })
 });
+
+/**
+ * Chart plugins
+ */
+Chart.register({
+  id: "shadingArea",
+  beforeDatasetsDraw(chart) {
+    const { ctx, scales: { y } } = chart;
+
+    const tickHeight = y.height / y.max;
+    let count = chart.data.datasets.length;
+    if (yValues[CUR_Y_AXIS].key === "iops") count--;
+
+    for (var i = 0; i < count; i++) {
+      const dataset = chart.data.datasets[i];
+      const dataset_meta = chart.getDatasetMeta(i);
+      if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
+
+      ctx.save();
+
+      ctx.beginPath();
+      ctx.fillStyle = dataset.backgroundColor;
+      ctx.strokeStyle = dataset.backgroundColor;
+      ctx.globalAlpha = 0.2;
+
+      ctx.moveTo(dataset_meta.data[0].x, dataset_meta.data[0].y - tickHeight * dataset.data[0].v);
+
+      for (var j = 0; j < dataset.data.length; j++) {
+        ctx.lineTo(dataset_meta.data[j].x, dataset_meta.data[j].y - tickHeight * dataset.data[j].v);
+      }
+      for (var j = dataset.data.length-1; j >= 0; j--) {
+        ctx.lineTo(dataset_meta.data[j].x, dataset_meta.data[j].y + tickHeight * dataset.data[j].v);
+      }
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+},{
+  id: "errorBars",
+  afterDatasetsDraw(chart) {
+    const { ctx, scales: { y } } = chart;
+    let count = chart.data.datasets.length;
+
+    for (var i = 0; i < count; i++) {
+      const dataset = chart.data.datasets[i];
+      const dataset_meta = chart.getDatasetMeta(i);
+      if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
+
+      ctx.save();
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 1.5;
+
+      for (var j = 0; j < dataset.data.length; j++) {
+        const d = dataset.data[j];
+        const bar = dataset_meta.data[j];
+        const capHalf = Math.min(bar.width / 4, 6);
+        const yTop = y.getPixelForValue(d.y + d.v);
+        const yBottom = y.getPixelForValue(Math.max(0, d.y - d.v));
+
+        ctx.beginPath();
+        ctx.moveTo(bar.x, yTop);
+        ctx.lineTo(bar.x, yBottom);
+        ctx.moveTo(bar.x - capHalf, yTop);
+        ctx.lineTo(bar.x + capHalf, yTop);
+        ctx.moveTo(bar.x - capHalf, yBottom);
+        ctx.lineTo(bar.x + capHalf, yBottom);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+  }
+},{
+  id: "showMax",
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const drawn_labels = [];
+
+    let count = chart.data.datasets.length;
+    if (BAR_TYPE === "line" && yValues[CUR_Y_AXIS].key === "iops") count--;
+
+    for (var i = 0; i < count; i++) {
+      const dataset = chart.data.datasets[i];
+      const dataset_meta = chart.getDatasetMeta(i);
+      if (!dataset_meta.data?.length || dataset_meta.hidden) continue;
+
+      ctx.save();
+      ctx.fillStyle = dataset.backgroundColor;
+      ctx.strokeStyle = dataset.backgroundColor;
+
+      if (BAR_TYPE === "bar") {
+        ctx.textAlign = "left";
+        for (var j = 0; j < dataset.data.length; j++) {
+          const bar = dataset_meta.data[j];
+          const text = separatedNumber(dataset.data[j].y);
+          ctx.save();
+          ctx.translate(bar.x, bar.y - 10);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillStyle = "black";
+          ctx.fillText(text, 0, 0);
+          ctx.restore();
+        }
+      } else {
+        const lastPoint = dataset.data[dataset.data.length-1];
+        const lastPointMeta = dataset_meta.data[dataset.data.length-1];
+        const text = separatedNumber(lastPoint.y);
+
+        const coord = { x: lastPointMeta.x + 10, y: lastPointMeta.y-6, w: ctx.measureText(text).width, h: 10 };
+
+        let goUp = coord.y;
+        let goDown = coord.y;
+
+        while (drawn_labels.some(r =>
+          goDown < r.y + r.h &&
+          goDown + coord.h > r.y
+        )) {
+          goDown += 4;
+        }
+        while (drawn_labels.some(r =>
+          goUp < r.y + r.h &&
+          goUp + coord.h > r.y
+        )) {
+          goUp -= 4;
+        }
+
+        if (coord.y-goUp < goDown-coord.y) coord.y = goUp;
+        else coord.y = goDown;
+
+        ctx.fillText(text, coord.x, coord.y+6);
+        drawn_labels.push({ ...coord, y: coord.y });
+      }
+    }
+  }
+});
+updateChart();
