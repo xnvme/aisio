@@ -18,7 +18,9 @@ apt_version = "12-8"
 url = "https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_570.124.06_linux.run"
 
 [nvidia.cuda.samples]
+remote = "https://github.com/NVIDIA/cuda-samples"
 tag = "v12.8"
+path = "/root/git/cuda-samples"
 
 [nvidia.gds.repository]
 tag = "v2.26.6"
