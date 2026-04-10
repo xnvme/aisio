@@ -135,9 +135,11 @@ steps:
 
 - name: cuda_samples
   run: |
-    git clone https://github.com/NVIDIA/cuda-samples.git git/cuda-samples
-    cd git/cuda-samples; git checkout {{ config.nvidia.cuda.samples.tag }}
-    mkdir git/cuda-samples/build
+    git clone {{ config.nvidia.cuda.samples.remote }} {{ config.nvidia.cuda.samples.path }}
+    cd {{ config.nvidia.cuda.samples.path }}; git checkout {{ config.nvidia.cuda.samples.tag }}
+    mkdir {{ config.nvidia.cuda.samples.path }}/build
+    cd {{ config.nvidia.cuda.samples.path }}/build; cmake ..
+    cd {{ config.nvidia.cuda.samples.path }}/build; make -j $(nproc)
 
 - name: cuda_check
   run: |
