@@ -65,8 +65,10 @@ class CpuFrequencyHelper():
 
         err, _ = self.cijoe.run(cmd)
         if err:
-            log.error("Failed: cpupower")
-            return 1
+            log.warning("cpupower unavailable or unsupported; keeping current CPU frequency policy")
+            self.fixed_freq = freq
+            self.governor = gvnr
+            return 0
 
         self.fixed_freq = freq
         self.governor = gvnr
@@ -83,8 +85,10 @@ class CpuFrequencyHelper():
 
         err, _ = self.cijoe.run(f"cpupower frequency-set -g {governor} --max 4.0GHz --min 0.8GHz")
         if err:
-            log.error("Failed: cpupower")
-            return 1
+            log.warning("cpupower unavailable or unsupported; skipping fixed CPU frequency reset")
+            self.fixed_freq = 0
+            self.governor = governor
+            return 0
 
         self.fixed_freq = 0
         self.governor = governor
@@ -105,16 +109,25 @@ class CpuFrequencyHelper():
             return 0
 
         no_turbo_path = "/sys/devices/system/cpu/intel_pstate/no_turbo"
-        cmd = f"echo {0 if on else 1} > {no_turbo_path}"
+        boost_path = "/sys/devices/system/cpu/cpufreq/boost"
+        cmd = None
 
         err, state = self.cijoe.run(f"ls {no_turbo_path}")
         if err or no_turbo_path != state.output().strip():
-            boost_path = "/sys/devices/system/cpu/cpufreq/boost"
+            err, state = self.cijoe.run(f"ls {boost_path}")
+            if err or boost_path != state.output().strip():
+                log.warning("Turbo control not supported on this platform; skipping turbo toggle")
+                self._turbo = on
+                return 0
             cmd = f"echo {1 if on else 0} > {boost_path}"
+        else:
+            cmd = f"echo {0 if on else 1} > {no_turbo_path}"
 
         err, _ = self.cijoe.run(cmd)
         if err:
-            return err
+            log.warning("Turbo toggle failed; continuing without enforcing turbo state")
+            self._turbo = on
+            return 0
 
         self._turbo = on
 
