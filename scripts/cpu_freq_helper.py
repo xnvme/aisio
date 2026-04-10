@@ -15,6 +15,7 @@ class CpuFrequencyHelper():
         self._steps = None
         self._smt = None
         self._turbo = None
+        self.cpu_control_supported = True
 
     def get_cpu_frequency_steps(self) -> Tuple[int, List[float]]:
         """
@@ -27,6 +28,7 @@ class CpuFrequencyHelper():
         err, state = self.cijoe.run('cpupower frequency-info | grep "available frequency steps"')
         if err or not state.output():
             log.error("Failed: cpupower")
+            self.cpu_control_supported = False
             return 1, None
 
         line_regex = r"\s*available frequency steps:\s+(([\d.]+ GHz,? ?)+)"
@@ -66,6 +68,7 @@ class CpuFrequencyHelper():
         err, _ = self.cijoe.run(cmd)
         if err:
             log.warning("cpupower unavailable or unsupported; keeping current CPU frequency policy")
+            self.cpu_control_supported = False
             self.fixed_freq = freq
             self.governor = gvnr
             return 0
@@ -86,6 +89,7 @@ class CpuFrequencyHelper():
         err, _ = self.cijoe.run(f"cpupower frequency-set -g {governor} --max 4.0GHz --min 0.8GHz")
         if err:
             log.warning("cpupower unavailable or unsupported; skipping fixed CPU frequency reset")
+            self.cpu_control_supported = False
             self.fixed_freq = 0
             self.governor = governor
             return 0
@@ -117,6 +121,7 @@ class CpuFrequencyHelper():
             err, state = self.cijoe.run(f"ls {boost_path}")
             if err or boost_path != state.output().strip():
                 log.warning("Turbo control not supported on this platform; skipping turbo toggle")
+                self.cpu_control_supported = False
                 self._turbo = on
                 return 0
             cmd = f"echo {1 if on else 0} > {boost_path}"
@@ -126,6 +131,7 @@ class CpuFrequencyHelper():
         err, _ = self.cijoe.run(cmd)
         if err:
             log.warning("Turbo toggle failed; continuing without enforcing turbo state")
+            self.cpu_control_supported = False
             self._turbo = on
             return 0
 
