@@ -42,6 +42,11 @@ def main(args, cijoe):
         results = json.load(file)
 
     datasets = convert_to_data(results)
+    cpu_control_warning = any(
+        not row.get("cpu_control_supported", True)
+        for dataset in datasets
+        for row in dataset["data"]
+    )
 
     cuda_bandwidth = ""
     bandwidth_path = artifacts / "cuda-sample-p2p-bandwidth"
@@ -64,7 +69,13 @@ def main(args, cijoe):
     html_path.parent.mkdir(parents=True, exist_ok=True)
     with html_path.open("w") as body:
         body.write(
-            template.render({"datasets": datasets, "cuda_bandwidth": cuda_bandwidth})
+            template.render(
+                {
+                    "datasets": datasets,
+                    "cuda_bandwidth": cuda_bandwidth,
+                    "cpu_control_warning": cpu_control_warning,
+                }
+            )
         )
 
     return 0

@@ -35,11 +35,13 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--smt", type=int, default=[0,1], nargs="+", help="0 for SMT off, 1 for SMT on, [0,1] for testing both")
     parser.add_argument("--hyperthreads", type=int, default=[0,1], nargs="+", help="0 for hyper threads off, 1 for hyper threads on, [0,1] for testing both. Note that you cannot test with hyper threads if SMT is turned off")
     parser.add_argument("--stress", type=int, default=[0,1], nargs="+", help="0 for not stressing unused CPUs, 1 for stressing unused CPUs, [0,1] for testing both")
-    parser.add_argument("--time", type=int, default=10, help="Time for for bdevperf to run for each test")
+    parser.add_argument("--time", type=int, default=5, help="Time for each benchmark run")
+    parser.add_argument("--fio_size", type=str, default="16GiB", help="Working-set size for fio_xnvme")
     parser.add_argument("--results_dir", type=Path, default=None, help="Path to existing directory in which the results should be saved. Note: Already existing results will not be benchmarked again")
     parser.add_argument("--repetitions", type=int, default=5, help="The amount of times each benchmark will be repeated. The result will be average of the repetitions")
     parser.add_argument("--nqueues", type=int, default=[1], nargs="+", help="Number of queues per device (used by xnvmeperf-cuda)")
-    parser.add_argument("--tool", choices=["bdevperf", "xnvmeperf", "spdk_nvme_perf", "xnvmeperf-cuda"], default="xnvmeperf")
+    parser.add_argument("--rws", type=str, default=["randread"], nargs="+", help="List of I/O patterns to test")
+    parser.add_argument("--tool", choices=["bdevperf", "xnvmeperf", "spdk_nvme_perf", "xnvmeperf-cuda", "fio_xnvme"], default="xnvmeperf")
     parser.add_argument("--backend", type=str, default="upcie")
 
 
@@ -75,7 +77,7 @@ def main(args, cijoe: Cijoe):
         log.error("Failed: transfer_cpu_frequency_logger()")
         return err
 
-    benchmarker = BenchHelper(cijoe, bdev_configs, bdev_results, cfm, args.tool, args.backend)
+    benchmarker = BenchHelper(cijoe, bdev_configs, bdev_results, cfm, args.tool, args.backend, args.fio_size)
     if not benchmarker.initialised:
         log.error("Failed: could not initialise BenchHelper")
         return 1
@@ -95,7 +97,7 @@ def main(args, cijoe: Cijoe):
             now = time()
 
             for i in range(args.repetitions):
-                err, result = benchmarker.run_benchmark(qd, iosz, devs, 0, args.time, "N/A", f"-{i}", nq)
+                err, result = benchmarker.run_benchmark("randread", qd, iosz, devs, 0, args.time, "N/A", f"-{i}", nq)
                 if err:
                     log.error("Failed: run_benchmark()")
                     return err
@@ -124,17 +126,17 @@ def main(args, cijoe: Cijoe):
     tests = []
 
     if 0 in args.hyperthreads:
-        tests += product([0], args.turbo, args.smt, args.stress, args.cpu_freqs, test_devs, test_cpus, args.sizes, args.depths)
+        tests += product([0], args.turbo, args.smt, args.stress, args.cpu_freqs, test_devs, test_cpus, args.rws, args.sizes, args.depths)
     if 1 in args.hyperthreads:
         # shift range to match cpu hyperthreads
         test_cpus = [x for cpu in test_cpus for x in [cpu*2-1, cpu*2]]
-        tests += product([1], args.turbo, args.smt, args.stress, args.cpu_freqs, test_devs, test_cpus, args.sizes, args.depths)
+        tests += product([1], args.turbo, args.smt, args.stress, args.cpu_freqs, test_devs, test_cpus, args.rws, args.sizes, args.depths)
 
-    tests = [(ht,tu,sm,st,f,d,c,o,q) for (ht,tu,sm,st,f,d,c,o,q) in tests if not (not sm and ht)]
+    tests = [(ht,tu,sm,st,f,d,c,rw,o,q) for (ht,tu,sm,st,f,d,c,rw,o,q) in tests if not (not sm and ht)]
 
     finished, total, now = 0, len(tests), time()
 
-    for ht, tu, sm, st, freq, devs, cpus, iosz, qd in tests:
+    for ht, tu, sm, st, freq, devs, cpus, rw, iosz, qd in tests:
         err = cfm.toggle_smt(sm)
         if err:
             log.error(f"Failed: cfm.toggle_smt({sm})")
@@ -160,7 +162,7 @@ def main(args, cijoe: Cijoe):
         now = time()
 
         for i in range(args.repetitions):
-            err, result = benchmarker.run_benchmark(qd, iosz, devs, cpus, args.time, freq, f"{suffix}-{i}")
+            err, result = benchmarker.run_benchmark(rw, qd, iosz, devs, cpus, args.time, freq, f"{suffix}-{i}")
             if err:
                 log.error("Failed: run_benchmark()")
                 return err
