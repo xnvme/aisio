@@ -1,0 +1,32 @@
+{%- set fixed = {"qdepth": "QD 128", "iosize": "BS 512", "ncpus": "8 Cores"} %}
+{%- set ns = namespace(parts=[]) %}
+{%- for key, val in fixed.items() %}
+{%- if key != xaxis %}
+{%- set ns.parts = ns.parts + [val] %}
+{%- endif %}
+{%- endfor %}
+title: |
+  Throughput in IOPS when exercising a random-read workload using {{driver}} through
+  `{{tool}}`
+
+  16 PCIe Gen5 NVMe SSDs ({{ ns.parts | join(", ") }}) and 2x Intel® Xeon® Gold 6442Y
+
+xlabel: {{ xlabel }}
+ylabel: IOPS (Millions)
+footnote: The SSDs are unpopulated to determine upper bound of CPU I/O capability
+
+rooflines:
+- name: Device IOPS Capacity
+  value_iops: 61727008
+  color: '#fb6a4a'
+  style: ':'
+
+{# results[x] has [turbo_off, turbo_on] where each element has the form [avg, std] -#}
+bars:
+{%- for x in results.keys() %}
+- label: "{{ x }}"
+  {%- for label, result in results[x].items() %}
+  {{ label }}: {{ result[0] }}
+  {{ label }}_std: {{ result[1] }}
+  {%- endfor %}
+{% endfor %}

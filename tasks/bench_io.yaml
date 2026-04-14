@@ -59,8 +59,8 @@ steps:
     hyperthreads: [0,1]
     stress: [0,1]
     results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
-    tool: xnvmeperf
-    backend: upcie
+    tool: &tool xnvmeperf
+    backend: &backend upcie
 
 - name: combine
   uses: bench_combine
@@ -69,3 +69,11 @@ steps:
 
 - name: visualize
   uses: bench_visualize
+
+- name: lineplot_yaml
+  uses: docs_plots_lineplot
+  with:
+    path: *results-dir
+    tool: *tool
+    backend: *backend
+    xaxes: [ "ncpus", "qdepth", "iosize", "ndevs" ]
