@@ -51,14 +51,14 @@ steps:
   with:
     depths: &qd [128]
     sizes: &io [512]
-    numcpus_specific: &cpus [1]
+    numcpus_specific: &cpus [1, 2] # 4 hardware threads
     numdevs_specific: &devs [16]
     cpu_freqs: &cpufreq ["performance"]
     turbo: &turbo [1]
     smt: &smt [1]
     hyperthreads: &ht [1]
     stress: &stress [0]
-    results_dir: &results-dir "{{ local.env.HOME }}/bench-tools-results"
+    results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
     tool: bdevperf
 
 - name: spdk_nvme_perf
@@ -133,3 +133,8 @@ steps:
   uses: bench_visualize
   with:
     template: benchmark-tools
+
+- name: barplot_yaml
+  uses: docs_plots_barplot_tool
+  with:
+    path: *results-dir
