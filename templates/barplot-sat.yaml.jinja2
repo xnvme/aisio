@@ -1,0 +1,27 @@
+title: |
+  P2P Bandwidth in {bw_unit} when exercising a random-read workload using `xnvmeperf`
+  Parametrized for CPU-initiated I/O (queue-depth 128) with NVMe Command Data Payloads sent P2P
+  between {{devices}} PCIe Gen5 NVMe SSDs and 1 PCIe Gen5 GPU (payload sizes: 512, 4096, 8192 bytes)
+
+xlabel: "NVMe Command Data Payload (bytes)"
+ylabel: "Bandwidth ({bw_unit})"
+footnote: "PCIe bandwidth observed via `dcgmi dmon`"
+
+# Rooflines (in bytes/s)
+rooflines:
+- name: "PCIe Gen5 x16 line-rate"
+  value_nbytes: 64000000000       # 64 GB/s
+  color: "#fb6a4a"
+  style: ":"
+- name: "p2pBandwidthTest"
+  value_nbytes: {{ cuda_bandwidth * 1000000000}}       # ~{{ cuda_bandwidth }} GB/s
+  color: "#cb181d"
+  style: "--"
+
+# Bar data: payload and total PCIe bandwidth in bytes/s
+bars:
+{%- for iosize in [512, 4096, 8192] %}
+- label: "{{iosize}}"
+  payload_nbytes: {{results[iosize]["payload_nbytes"]}}   # ~{{ (results[iosize]["payload_nbytes"] / 1000000000) | round(1) }} GB/s
+  total_nbytes: {{results[iosize]["total_nbytes"]}}   # ~{{ (results[iosize]["total_nbytes"] / 1000000000) | round(1) }} GB/s
+{% endfor %}

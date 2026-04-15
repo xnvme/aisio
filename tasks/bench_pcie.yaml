@@ -52,13 +52,13 @@ steps:
     depths: [128]
     sizes: [512, 4096, 8192]
     numcpus_specific: [1]
-    numdevs_specific: [16]
+    numdevs_specific: [4] # should be the same as barplot.with.devices
     cpu_freqs: ["performance"]
     turbo: [1]
     smt: [1]
     hyperthreads: [0]
     stress: [0]
-    results_dir: &results-dir "{{ local.env.HOME }}/bench-pcie-results"
+    results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
     tool: xnvmeperf
     backend: upcie-cuda
 
@@ -74,3 +74,9 @@ steps:
   uses: bench_visualize
   with:
     template: benchmark-pcie
+
+- name: barplot
+  uses: docs_plots_barplot_sat
+  with:
+    path: *results-dir
+    devices: 4 # should be the same as run.with.numdevs_specific
