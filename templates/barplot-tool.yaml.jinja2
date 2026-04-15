@@ -1,0 +1,28 @@
+title: |
+  Illustrating software overhead through comparison of benchmarking tools and NVMe drivers
+  Comparing bdevperf vs nvmeperf vs xnvmeperf and SPDK vs uPCIe
+  16 PCIe Gen5 NVMe SSDs (QD 128, BS 512) and 2x Intel® Xeon® Gold 6442Y
+
+xlabel: "Number of CPU Threads"
+ylabel: "IOPS (Millions)"
+footnote: The SSDs are unpopulated to determine upper bound of CPU I/O capability
+
+tools:
+- key: spdk_bdevperf
+  label: "SPDK bdevperf"
+- key: spdk_nvme_perf
+  label: "SPDK nvmeperf"
+- key: xnvmeperf_spdk
+  label: "xnvmeperf (be=SPDK)"
+- key: xnvmeperf_upcie
+  label: "xnvmeperf (be=upcie)"
+- key: xnvmeperf_upcie_cuda
+  label: "xnvmeperf (be=upcie-cuda)"
+
+bars:
+{%- for threads in results %}
+- label: "{{threads}}"
+  {%- for k,v in results[threads] %}
+  {{k}}: {{v}}
+  {%- endfor %}
+{% endfor %}
