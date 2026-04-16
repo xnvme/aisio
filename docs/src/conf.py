@@ -72,5 +72,8 @@ html_theme_options = {
 # external_toc_path = "_toc.yml"
 # external_toc_exclude_missing = False
 
+# Necessary for hiding warnings for images that are generated at build time
+suppress_warnings = ["image.not_readable"]
+
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from latex_theme import latex_engine, latex_documents, latex_elements

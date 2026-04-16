@@ -146,7 +146,7 @@ We found that the results peaked when using a queue depth of 128. With turbo boo
 enabled, we reached the device cap with both queue depths 128, 256 and 512, but
 disabling turbo boost highlights the peak at 128.
 
-```{figure} _static/bench_cpu-queuedepth.png
+```{figure} lineplot-spdk-qdepth.png
 :alt: CPU bench results
 :width: 700px
 :align: center
@@ -162,7 +162,7 @@ to look at the bandwidth, as we saw a significant increase in bandwidth when
 increasing the I/O size. Performance does not necessarily suffer from higher I/O
 sizes, only the amount of operations completed per second.
 
-```{figure} _static/bench_cpu-iosize_iops.png
+```{figure} lineplot-spdk-iosize.png
 :alt: CPU bench results
 :width: 700px
 :align: center
@@ -189,7 +189,7 @@ and increasing the amount of CPUs gives diminishing returns, as seen in the grap
 below. We are able to reach a similar result as with turbo boost enabled once the
 core-to-device ratio is 1:1, meaning there is one core per device.
 
-```{figure} _static/bench_cpu-cores.png
+```{figure} lineplot-spdk-ncpus.png
 :alt: CPU bench results
 :width: 700px
 :align: center
@@ -201,7 +201,7 @@ Results of parameterization C with and without turbo boost enabled.
 
 The results scale linearly with the amount of devices used.
 
-```{figure} _static/bench_cpu-devices.png
+```{figure} lineplot-spdk-ndevs.png
 :alt: Graph showing the results of four benchmark results with optimal parameters
 :width: 700px
 :align: center
@@ -222,7 +222,7 @@ SPDK backend against xnvmeperf with the uPCIe backends (``upcie`` and
 with the **upcie** and **upcie-cuda** backends further isolating the effect of
 P2P buffer placement by sharing the same uPCIe driver.
 
-```{figure} _static/bench_tools-results.png
+```{figure} barplot-tool.png
 :alt: Results for running benchmarks with different tools and drivers
 :width: 700px
 :align: center
