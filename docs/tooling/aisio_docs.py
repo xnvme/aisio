@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+from pathlib import Path
 import subprocess
 import threading
 import time
@@ -8,6 +9,8 @@ import importlib.util
 import json
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, HTTPServer
+
+import plots
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -105,6 +108,33 @@ def find_docs_src() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Plot generation
+# ---------------------------------------------------------------------------
+
+
+def make_plots(build_dir: str) -> None:
+    docs_src = Path(find_docs_src())
+    artifacts = docs_src.parent.parent / "artifacts"
+
+    Path(build_dir).mkdir(parents=True, exist_ok=True)
+
+    with plots.artifacts_from_archive(artifacts / "tool-comparison.tar.gz") as archive:
+        plots.barplot_tool(archive, build_dir)
+
+    with plots.artifacts_from_archive(artifacts / "pcie-bandwidth-saturation.tar.gz") as archive:
+        plots.barplot_sat(archive, build_dir)
+
+    with plots.artifacts_from_archive(artifacts / "cpu-initiated-spdk.tar.gz") as archive:
+        plots.lineplot(archive, build_dir, "spdk")
+        plots.lineplot(archive, build_dir, "spdk", "qdepth")
+        plots.lineplot(archive, build_dir, "spdk", "iosize")
+        plots.lineplot(archive, build_dir, "spdk", "ndevs")
+
+    with plots.artifacts_from_archive(artifacts / "cpu-initiated-upcie.tar.gz") as archive:
+        plots.lineplot(archive, build_dir, "upcie")
+
+
+# ---------------------------------------------------------------------------
 # Extract latex_documents from latex_theme.py
 # ---------------------------------------------------------------------------
 
@@ -146,6 +176,8 @@ def build_html() -> None:
     docs_src = find_docs_src()
     docs_root = os.path.dirname(docs_src)
     html_dir = os.path.join(docs_root, "build", "html")
+
+    make_plots(html_dir)
     run(f"{sphinx_build()} -b html {docs_src} {html_dir}")
 
 
@@ -158,6 +190,8 @@ def build_pdf() -> None:
     _set_build_status(ok=False, error="running")
 
     try:
+        make_plots(latex_dir)
+
         # Run Sphinx -> LaTeX
         run(f"{sphinx_build()} -b latex {docs_src} {latex_dir}")
 
@@ -685,6 +719,8 @@ def serve() -> None:
 
     # Start landing page on 8000
     start_landing_server()
+
+    make_plots(html_dir)
 
     # Live HTML server on 8001
     cmd = (
