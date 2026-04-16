@@ -156,11 +156,14 @@ Results of parameterization C with different queue depths.
 
 #### I/O size
 
-Increasing the I/O size to 4096 results in each operation taking more time and
-therefore the reached IOPS decreases as seen in the graph. However, it is relevant
-to look at the bandwidth, as we saw a significant increase in bandwidth when
-increasing the I/O size. Performance does not necessarily suffer from higher I/O
-sizes, only the amount of operations completed per second.
+Increasing the I/O size to 4096 results in each operation taking more time, so the
+reached IOPS decreases as seen in the graph. However, the bandwidth tells a
+different story: it scales roughly proportionally with I/O size, doubling from
+approximately 30 GiB/s at 512 bytes to approximately 215 GiB/s at 4096 bytes, where
+it plateaus. This plateau coincides with the point at which IOPS drops sharply,
+suggesting a bandwidth ceiling is reached rather than a CPU-side bottleneck.
+Performance does not necessarily suffer from higher I/O sizes; the trade-off is
+fewer, larger operations rather than degraded throughput.
 
 ```{figure} lineplot-spdk-iosize.png
 :alt: CPU bench results
@@ -168,14 +171,6 @@ sizes, only the amount of operations completed per second.
 :align: center
 
 Results of parameterization C with different I/O sizes.
-```
-
-```{figure} _static/bench_cpu-iosize_mibs.png
-:alt: CPU bench results
-:width: 700px
-:align: center
-
-Measured bandwidth for parameterization C with different I/O sizes.
 ```
 
 (sec-results-cpu-cores)=
