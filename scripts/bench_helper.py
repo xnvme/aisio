@@ -254,7 +254,10 @@ class BenchHelper():
                 log.error("Failed: DcgmHelper.stop_and_parse()")
                 return err, None
 
-        cpu_freqs = [[cpu_freqs[idx], self.cpu_pairs[idx]] for idx in selected_cpus]
+        if self.cfm.cpu_control_supported and cpu_freqs:
+            cpu_freqs = [[cpu_freqs[idx], self.cpu_pairs[idx]] for idx in selected_cpus]
+        else:
+            cpu_freqs = []
 
         result = {
             "rw": rw,
