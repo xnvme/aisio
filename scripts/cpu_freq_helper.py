@@ -187,8 +187,17 @@ class CpuFrequencyHelper():
             log.error(f"Failed: cat {self._output}")
             return 1, None
 
-        lines = state.output().split("\n")
-        lo, hi = int(len(lines)*0.1), int(len(lines)*0.9)
+        lines = [line for line in state.output().split("\n") if line.strip()]
+        if not lines:
+            log.warning("CPU frequency logger produced no output; skipping cpu frequency collection")
+            self.cpu_control_supported = False
+            return 0, []
+        if lines[0] == "UNSUPPORTED":
+            log.warning("CPU frequency logger unsupported on this platform; skipping cpu frequency collection")
+            self.cpu_control_supported = False
+            return 0, []
+
+        lo, hi = int(len(lines) * 0.1), int(len(lines) * 0.9)
         data = [[int(f) for f in line.split()[1:]] for line in lines[lo:hi]]
 
         avgs = []
