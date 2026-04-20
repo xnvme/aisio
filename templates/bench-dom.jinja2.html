@@ -5,15 +5,15 @@
   <script>
     function disableInvalidRadios (element) {
       if (element.getAttribute("name") !== "smt") return;
-      const htRadio2 = document.querySelector(`#htRadios input[value="2"]`);
+      const htRadioOn = document.querySelector(`#htRadios input[value="1"]`);
       if (element.getAttribute("value") === "0") {
-        if (htRadio2.checked) {
-          const htRadio1 = document.querySelector(`#htRadios input[value="1"]`);
-          htRadio1.click();
+        if (htRadioOn.checked) {
+          const htRadioBoth = document.querySelector(`#htRadios input[value="undefined"]`);
+          htRadioBoth.click();
         }
-        htRadio2.disabled = true;
+        htRadioOn.disabled = true;
       } else {
-        htRadio2.disabled = false;
+        htRadioOn.disabled = false;
       }
     }
   </script>

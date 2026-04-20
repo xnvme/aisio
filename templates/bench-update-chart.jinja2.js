@@ -81,10 +81,10 @@ function updateChart() {
 
   environments.forEach(({key}) => {
     const selectedRadio = document.querySelector(`input[name="${key}"]:checked`).value;
-    if (selectedRadio === 0) {
-      filtered_results = filtered_results.map(elem => ({...elem, data: data.filter(d => d[key] === false)}));
-    } else if (selectedRadio === 1) {
-      filtered_results = filtered_results.map(elem => ({...elem, data: data.filter(d => d[key] === true)}));
+    if (selectedRadio === "0") {
+      filtered_results = filtered_results.map(elem => ({...elem, data: elem.data.filter(d => d[key] == false)}));
+    } else if (selectedRadio === "1") {
+      filtered_results = filtered_results.map(elem => ({...elem, data: elem.data.filter(d => d[key] == true)}));
     }
   });
   filtered_results = filtered_results.filter(({data}) => data.length);
