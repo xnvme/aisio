@@ -12,6 +12,11 @@
 #show-max-value {
   display: none;
 }
+
+label:has([value="undefined"]) {
+  pointer-events: none;
+  opacity: 0.2;
+}
 </style>
 </head>
 <body>
@@ -67,16 +72,16 @@ const radioDefaults = [128, 1, 16, 512, "performance", 1, 1, 1, 0];
 
 /* Split datasets by tool instead of environment */
 const splitDatasetOnTool = () => {
-  let all = results[0];
+  let all = results.flatMap(r => r.data);
 
   results = [];
-  const tools = [...new Set(all.data.map(d => d.tool))].sort();
+  const tools = [...new Set(all.map(d => d.tool))].sort();
   for (let i = 0; i < tools.length; i++) {
     const tool = tools[i];
     results.push({
       label: tool,
       color: colours[i % colours.length],
-      data: all.data.filter(d => d.tool === tool).map(d => ({...d, peakiops: d.iops })),
+      data: all.filter(d => d.tool === tool).map(d => ({...d, peakiops: d.iops })),
     });
   }
 
