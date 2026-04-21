@@ -123,6 +123,26 @@ cijoe --monitor \
     tasks/bench_tools.yaml
 ```
 
+#### PCIe Bandwidth Saturation (``bench_pcie.yaml``)
+
+Characterises PCIe link utilisation on the **upcie-cuda** path by running
+xnvmeperf at varying I/O sizes while collecting hardware-level PCIe bandwidth
+counters via DCGM and a reference P2P bandwidth measurement from
+``p2pBandwidthLatencyTest``. Described in detail in
+{ref}`sec-experiments-pcie-bandwidth`.
+
+``nvstack.toml`` is required to supply the CUDA samples path and DCGM
+field configuration used during the run.
+
+```
+cijoe --monitor \
+    -c configs/transport.toml \
+    -c configs/aisio.toml \
+    -c configs/devices_16.toml \
+    -c configs/nvstack.toml \
+    tasks/bench_pcie.yaml
+```
+
 ### File-based
 
 File-based benchmarks load datasets from an XFS filesystem on a dedicated
