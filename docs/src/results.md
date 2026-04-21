@@ -303,3 +303,47 @@ the same NVMe driver and differ only in buffer placement, this indicates that
 routing the data path through P2P DMA to GPU device memory does not measurably
 affect the IOPS achieved by the NVMe command submission path under these
 conditions.
+
+(sec-results-pcie-bandwidth)=
+## PCIe Bandwidth Characterisation
+
+This section presents the results of the experiment described in
+{ref}`sec-experiments-pcie-bandwidth`.
+
+```{figure} barplot-sat.png
+:alt: Stacked bar chart of PCIe bandwidth by I/O size
+:width: 700px
+:align: center
+
+PCIe RX bandwidth by NVMe command data payload size, measured with 4 PCIe Gen5
+NVMe SSDs transferring data P2P to a PCIe Gen5 GPU via the upcie-cuda backend.
+Each bar is stacked: the lower segment is the payload bandwidth reported by
+xnvmeperf; the upper segment is the remainder observed by DCGM. The dashed lines
+mark the PCIe Gen5 x16 line rate (64.0 GB/s) and the reference P2P bandwidth from
+``p2pBandwidthLatencyTest`` (55.98 GB/s).
+```
+
+### Small I/O: Link Underutilised
+
+With 512-byte payloads, xnvmeperf reports 7.9 GB/s payload bandwidth and DCGM
+measures 10.1 GB/s total PCIe receive traffic, corresponding to approximately 16%
+of the PCIe Gen5 x16 line rate. This is consistent with the IOPS-bound regime
+observed in {ref}`sec-results-tool-comparison`: at small I/O sizes the constraint
+is NVMe command throughput, not PCIe link capacity.
+
+### Large I/O: Link Approaches Saturation
+
+With 4096- and 8192-byte payloads, DCGM measures approximately 57.8 GB/s in both
+cases, approaching the ``p2pBandwidthLatencyTest`` reference of 55.98 GB/s and
+reaching approximately 90% of the 64.0 GB/s line rate. The identical result at
+both I/O sizes indicates that the PCIe link, rather than NVMe command throughput,
+is the binding constraint at these I/O sizes. xnvmeperf reports approximately
+45.2 GB/s of payload bandwidth for both sizes.
+
+### PCIe Protocol Overhead
+
+Across all three I/O sizes, the total PCIe receive bandwidth measured by DCGM
+exceeds the payload bandwidth reported by xnvmeperf by a consistent factor of
+approximately 1.28. The consistency of this ratio across I/O sizes and IOPS levels
+indicates that the excess scales with bytes transferred rather than with operation
+count.
