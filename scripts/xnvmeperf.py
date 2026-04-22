@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 
 
 REQUIRED_KEYS = ["cpumask", "iopattern", "qdepth", "iosize", "runtime", "backend", "devices"]
+CUDA_REQUIRED_KEYS = ["iopattern", "qdepth", "iosize", "runtime", "backend", "devices"]
 
 
 def add_args(parser: ArgumentParser):
@@ -31,6 +32,26 @@ def xnvmeperf_cmd(bin: str, args: dict) -> str:
         f"--be {args['backend']}",
         " ".join(args["devices"]),
     ]
+    return " ".join(parameters)
+
+
+def xnvmeperf_cuda_cmd(bin: str, args: dict) -> str:
+    if any(key not in args for key in CUDA_REQUIRED_KEYS):
+        log.error(f"Failed: Missing arguments for {bin} cuda-run")
+        return ""
+
+    parameters = [
+        f"{bin}",
+        "cuda-run",
+        f"--qdepth {args['qdepth']}",
+        f"--iosize {args['iosize']}",
+        f"--runtime {args['runtime']}",
+        f"--iopattern {args['iopattern']}",
+        f"--be {args['backend']}",
+    ]
+    if args.get("nqueues"):
+        parameters.append(f"--nqueues {args['nqueues']}")
+    parameters.append(" ".join(args["devices"]))
     return " ".join(parameters)
 
 

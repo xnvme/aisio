@@ -38,7 +38,8 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--time", type=int, default=10, help="Time for for bdevperf to run for each test")
     parser.add_argument("--results_dir", type=Path, default=None, help="Path to existing directory in which the results should be saved. Note: Already existing results will not be benchmarked again")
     parser.add_argument("--repetitions", type=int, default=5, help="The amount of times each benchmark will be repeated. The result will be average of the repetitions")
-    parser.add_argument("--tool", choices=["bdevperf", "xnvmeperf", "spdk_nvme_perf"], default="xnvmeperf")
+    parser.add_argument("--nqueues", type=int, default=[1], nargs="+", help="Number of queues per device (used by xnvmeperf-cuda)")
+    parser.add_argument("--tool", choices=["bdevperf", "xnvmeperf", "spdk_nvme_perf", "xnvmeperf-cuda"], default="xnvmeperf")
     parser.add_argument("--backend", type=str, default="upcie")
 
 
@@ -54,9 +55,10 @@ def main(args, cijoe: Cijoe):
 
     cijoe.run_local(f"mkdir -p {bdev_configs} {bdev_results}")
 
-    if (args.numcpus_range and args.numcpus_specific) or (not args.numcpus_range and not args.numcpus_specific):
-        log.error("Failed: You must define exactly 1 of arguments: numcpus_range, numcpus_specific")
-        return 1
+    if args.tool != "xnvmeperf-cuda":
+        if (args.numcpus_range and args.numcpus_specific) or (not args.numcpus_range and not args.numcpus_specific):
+            log.error("Failed: You must define exactly 1 of arguments: numcpus_range, numcpus_specific")
+            return 1
 
     if (args.numdevs_range and args.numdevs_specific) or (not args.numdevs_range and not args.numdevs_specific):
         log.error("Failed: You must define exactly 1 of arguments: numdevs_range, numdevs_specific")
@@ -81,6 +83,33 @@ def main(args, cijoe: Cijoe):
     test_devs = args.numdevs_specific
     if not test_devs:
         test_devs = create_range(args.numdevs_range, devices)
+
+    if args.tool == "xnvmeperf-cuda":
+        tests = list(product(test_devs, args.sizes, args.depths, args.nqueues))
+        finished, total, now = 0, len(tests), time()
+
+        for devs, iosz, qd, nq in tests:
+            if not args.monitor:
+                print_progress(finished, total, time()-now)
+
+            now = time()
+
+            for i in range(args.repetitions):
+                err, result = benchmarker.run_benchmark(qd, iosz, devs, 0, args.time, "N/A", f"-{i}", nq)
+                if err:
+                    log.error("Failed: run_benchmark()")
+                    return err
+
+                if not result:
+                    log.error("Got no results")
+                    return 1
+
+            finished += 1
+
+        if not args.monitor:
+            print_progress(finished, total, time()-now)
+
+        return 0
 
     test_cpus = args.numcpus_specific
     if not test_cpus:
