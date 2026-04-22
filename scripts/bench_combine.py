@@ -34,20 +34,26 @@ def main(args, cijoe: Cijoe):
 
     all_results = defaultdict(list)
 
+    REGEX = r".*-thrsib(?P<ht>[01])-freq_.*-stress(?P<st>[01])-SMT(?P<sm>[01])-turbo(?P<tu>[01])-\d"
+    CUDA_REGEX = r"d\d+-c\d+-o\d+-q\d+-nq(?P<nq>\d+)-be_.*-tool_xnvmeperf-cuda-\d"
+
     for path in bdev_results.glob("*-0.out"):
-        REGEX = r".*-thrsib(?P<ht>[01])-freq_.*-stress(?P<st>[01])-SMT(?P<sm>[01])-turbo(?P<tu>[01])-\d"
         m = match(REGEX, path.stem)
-        if not m:
+        cuda_m = match(CUDA_REGEX, path.stem) if not m else None
+
+        if m:
+            ht, st, sm, tu = map(int, m.groups())
+            label = (
+                f"{'U' if ht else 'Not u'}sing thread siblings; "
+                f"SMT {'on' if sm else 'off'}; "
+                f"stress {'on' if st else 'off'}; "
+                f"turbo {'on' if tu else 'off'}"
+            )
+        elif cuda_m:
+            label = f"xnvmeperf-cuda; nqueues {int(cuda_m.group('nq'))}"
+        else:
             log.error(f"Failed parsing filename({path.stem})")
             return 1
-
-        ht, st, sm, tu = map(int, m.groups())
-        label = (
-            f"{'U' if ht else 'Not u'}sing thread siblings; "
-            f"SMT {'on' if sm else 'off'}; "
-            f"stress {'on' if st else 'off'}; "
-            f"turbo {'on' if tu else 'off'}"
-        )
 
         repeated_results = []
 

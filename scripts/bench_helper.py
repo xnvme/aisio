@@ -33,7 +33,7 @@ import logging as log
 from bdevperf import bdevperf_cmd, create_config as bdevperf_config
 from dcgm_helper import DcgmHelper
 from spdk_nvme_perf import spdk_nvme_perf_cmd
-from xnvmeperf import xnvmeperf_cmd
+from xnvmeperf import xnvmeperf_cmd, xnvmeperf_cuda_cmd
 
 
 class BenchHelper():
@@ -77,7 +77,7 @@ class BenchHelper():
                 self.bin = Path(spdk_path) / "build" / "examples" / "bdevperf"
             else:
                 self.bin = Path(spdk_path)  / "build" / "bin" / "spdk_nvme_perf"
-        elif tool == "xnvmeperf":
+        elif tool in ["xnvmeperf", "xnvmeperf-cuda"]:
             self.bin = "xnvmeperf"
         else:
             log.error(f"Failed: Unknown tool({tool})")
@@ -101,24 +101,28 @@ class BenchHelper():
 
         return 0
 
-    def run_benchmark(self, depth: int, size: int, ndevs: int, ncpus: int, time: int, cpu_freq: float, suffix: str = ""):
+    def run_benchmark(self, depth: int, size: int, ndevs: int, ncpus: int, time: int, cpu_freq: float, suffix: str = "", nqueues: int = 1):
         if not self.initialised:
             log.error("Failed: benchmarker not initialised correctly")
             return 1, None
 
-        filename = (
-            f"d{ndevs}-"
-            f"c{ncpus}-"
-            f"o{size}-"
-            f"q{depth}-"
-            f"be_{self.backend}-"
-            f"tool_{self.tool}-"
-            f"thrsib{1 if self.use_thrsib else 0}-"
-            f"freq_{cpu_freq}-"
-            f"stress{1 if self.stress else 0}"
-            f"{suffix}"
-            ".out"
-        )
+        is_cuda = self.tool == "xnvmeperf-cuda"
+
+        if is_cuda:
+            filename = (
+                f"d{ndevs}-c{ncpus}-o{size}-q{depth}-nq{nqueues}-"
+                f"be_{self.backend}-tool_{self.tool}"
+                f"{suffix}.out"
+            )
+        else:
+            filename = (
+                f"d{ndevs}-c{ncpus}-o{size}-q{depth}-"
+                f"be_{self.backend}-tool_{self.tool}-"
+                f"thrsib{1 if self.use_thrsib else 0}-"
+                f"freq_{cpu_freq}-"
+                f"stress{1 if self.stress else 0}"
+                f"{suffix}.out"
+            )
         res_path = self.results_path / filename
 
         if res_path.exists():
@@ -127,13 +131,15 @@ class BenchHelper():
                 return 0, result
 
         bench_args = {
-            "cpumask": self.cpu_masks[ncpus],
             "iopattern": "randread",
             "qdepth": depth,
             "iosize": size,
             "runtime": time,
             "devices": [d["pci_addr"] for d in self.devices[0:ndevs]],
         }
+
+        if not is_cuda:
+            bench_args["cpumask"] = self.cpu_masks[ncpus]
 
         command = f"/usr/bin/time "
 
@@ -152,11 +158,19 @@ class BenchHelper():
             bench_args["backend"] = self.backend
             command += xnvmeperf_cmd(self.bin, bench_args)
 
+        elif is_cuda:
+            bench_args["backend"] = self.backend
+            bench_args["nqueues"] = nqueues
+            command += xnvmeperf_cuda_cmd(self.bin, bench_args)
+
         else:
             log.error(f"Unknown tool: {self.tool}")
             return -1, None
 
-        selected_cpus = [v[0] for v in self.cpu_pairs if int(bench_args["cpumask"], 16) & (1 << v[0])]
+        if is_cuda:
+            selected_cpus = []
+        else:
+            selected_cpus = [v[0] for v in self.cpu_pairs if int(bench_args["cpumask"], 16) & (1 << v[0])]
 
         if self.stress and (stressed_cpus := [str(x) for x in range(len(self.cpu_pairs)) if x not in selected_cpus]):
             command = "\n".join([
@@ -224,6 +238,7 @@ class BenchHelper():
             "iosize": size,
             "ndevs": ndevs,
             "ncpus": ncpus,
+            "nqueues": nqueues,
             "cpu_usage": cpu_usage,
             "cpu_freqs": cpu_freqs,
             "fixed_freq": self.cfm.fixed_freq,
@@ -309,7 +324,7 @@ class BenchHelper():
             table_regex = r"\s*(?P<name>\w+)\s+:\s+(?P<runtime>[0-9.]+)?\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<fails>[0-9.]+)\s+(?P<tos>[0-9.]+)\s+(?P<avg_lat>[0-9.]+)\s+(?P<min_lat>[0-9.]+)\s+(?P<max_lat>[0-9.]+)"
         elif self.tool == "spdk_nvme_perf":
             table_regex = r"\s*(?P<name>.+?)\s*?:\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<avg_lat>[0-9.]+)\s+(?P<min_lat>[0-9.]+)\s+(?P<max_lat>[0-9.]+)"
-        elif self.tool == "xnvmeperf":
+        elif self.tool in ["xnvmeperf", "xnvmeperf-cuda"]:
             table_regex = r"\s*(?P<name>\w+):?\s+(?P<cpus>[0-9,]+)?\s+(?P<iops>[0-9.]+)\s+(?P<mibs>[0-9.]+)\s+(?P<fails>[0-9.]+)"
         else:
             log.error(f"Unkown tool: {self.tool}")
