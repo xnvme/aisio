@@ -54,12 +54,12 @@ def bdevperf_cmd(bin: str, args: dict) -> str:
 
     parameters = [
         f"{bin}",
-        f"-c {args["config_path"]}",
-        f"-m {args["cpumask"]}",
-        f"-q {args["qdepth"]}",
-        f"-o {args["iosize"]}",
-        f"-t {args["runtime"]}",
-        f"-w {args["iopattern"]}",
+        f"-c {args['config_path']}",
+        f"-m {args['cpumask']}",
+        f"-q {args['qdepth']}",
+        f"-o {args['iosize']}",
+        f"-t {args['runtime']}",
+        f"-w {args['iopattern']}",
     ]
     return " ".join(parameters)
 

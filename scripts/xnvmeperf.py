@@ -23,12 +23,12 @@ def xnvmeperf_cmd(bin: str, args: dict) -> str:
     parameters = [
         f"{bin}",
         "run",
-        f"--cpumask {args["cpumask"]}",
-        f"--qdepth {args["qdepth"]}",
-        f"--iosize {args["iosize"]}",
-        f"--runtime {args["runtime"]}",
-        f"--iopattern {args["iopattern"]}",
-        f"--be {args["backend"]}",
+        f"--cpumask {args['cpumask']}",
+        f"--qdepth {args['qdepth']}",
+        f"--iosize {args['iosize']}",
+        f"--runtime {args['runtime']}",
+        f"--iopattern {args['iopattern']}",
+        f"--be {args['backend']}",
         " ".join(args["devices"]),
     ]
     return " ".join(parameters)

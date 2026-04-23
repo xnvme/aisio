@@ -22,11 +22,11 @@ def spdk_nvme_perf_cmd(bin: str, args: dict) -> str:
 
     parameters = [
         f"{bin}",
-        f"-c {args["cpumask"]}",
-        f"-q {args["qdepth"]}",
-        f"-o {args["iosize"]}",
-        f"-t {args["runtime"]}",
-        f"-w {args["iopattern"]}",
+        f"-c {args['cpumask']}",
+        f"-q {args['qdepth']}",
+        f"-o {args['iosize']}",
+        f"-t {args['runtime']}",
+        f"-w {args['iopattern']}",
         " ".join(f'-r "trtype:PCIe traddr:{d}"' for d in args["devices"]),
     ]
     return " ".join(parameters)
