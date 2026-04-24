@@ -328,6 +328,62 @@ arithmetic means.
 Instructions for running ``bench_pcie.yaml`` are provided in
 {ref}`sec-experimental-framework`.
 
+(sec-experiments-cuda-iosize)=
+## Device-initiated I/O: I/O Size Scaling
+
+This experiment sweeps I/O size across a wide range, from 512 bytes up to 64
+KiB, with queue depth as the secondary variable and ``nqueues`` fixed at 1. The
+aim is to identify the minimum thread count required to saturate the PCIe link
+at each I/O size.
+
+**xnvmeperf** drives device-initiated I/O via the ``cuda-run`` subcommand with
+the **upcie-cuda** backend. With ``nqueues=1``, each CUDA thread handles one
+in-flight command, so the total thread count equals queue depth × number of
+devices. As I/O size grows, each command transfers more payload bytes, so fewer
+in-flight commands are needed to fill the PCIe link. The minimum saturating
+queue depth is therefore expected to decrease as I/O size increases, revealing
+the thread count required at each I/O size.
+
+Hardware-level PCIe receive bandwidth is collected via DCGM alongside the
+application-level payload bandwidth reported by xnvmeperf, and a reference P2P
+bandwidth measurement from ``p2pBandwidthLatencyTest`` provides the practical
+ceiling.
+
+### Independent Variables
+
+| Variable              | Parameter Set                                                |
+| --------------------- | ------------------------------------------------------------ |
+| I/O size              | { 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 }         |
+| Queue depth           | { 1, 2, 4, 8, 16, 32, 64, 128 }                              |
+| Number of queues      | 1                                                            |
+| Number of devices     | 16                                                           |
+| Total CUDA threads    | queue depth × 16 = { 16, 32, 64, 128, 256, 512, 1024, 2048 } |
+| Tool and backend      | xnvmeperf (cuda-run) + upcie-cuda                            |
+
+### Metrics Collected
+
+| Metric                                  | Reported by                        |
+| --------------------------------------- | ---------------------------------- |
+| Payload bandwidth (GB/s)                | xnvmeperf                          |
+| Total PCIe RX bandwidth (p95, bytes/s)  | DCGM field 1010 via ``dcgmi dmon`` |
+| Peak P2P bidirectional bandwidth (GB/s) | ``p2pBandwidthLatencyTest``        |
+
+### Environment
+
+The benchmarks were run on the {ref}`sec-env-hpc-server`. NVMe devices are bound
+to user space drivers. The CPU governor is set to ``performance`` with turbo
+boost and SMT enabled. Each configuration is run five times and results are
+reported as arithmetic means.
+
+### Execution of the Experiment
+
+Instructions for running ``bench_cuda_iosize.yaml`` are provided in
+{ref}`sec-experimental-framework`.
+
+### Results
+
+Results are presented in {ref}`sec-results-cuda-iosize`.
+
 (sec-experiments-cuda-qdepth)=
 ## Device-initiated I/O: Queue Depth Scaling
 

@@ -143,6 +143,25 @@ cijoe --monitor \
     tasks/bench_pcie.yaml
 ```
 
+#### Device-initiated I/O: I/O Size Scaling (``bench_cuda_iosize.yaml``)
+
+Characterises the minimum CUDA thread count needed to saturate the PCIe link
+under device-initiated I/O, using **xnvmeperf** with the ``cuda-run`` subcommand
+and the **upcie-cuda** backend, with queue depth as the secondary variable.
+Described in detail in {ref}`sec-experiments-cuda-iosize`.
+
+``nvstack.toml`` is required to supply the CUDA samples path used during the
+run.
+
+```
+cijoe --monitor \
+    -c configs/transport.toml \
+    -c configs/aisio.toml \
+    -c configs/devices_16.toml \
+    -c configs/nvstack.toml \
+    tasks/bench_cuda_iosize.yaml
+```
+
 #### Device-initiated I/O: Queue Depth Scaling (``bench_cuda_qdepth.yaml``)
 
 Characterises how IOPS scales with queue depth under device-initiated I/O, using
