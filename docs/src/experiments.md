@@ -327,3 +327,52 @@ arithmetic means.
 
 Instructions for running ``bench_pcie.yaml`` are provided in
 {ref}`sec-experimental-framework`.
+
+(sec-experiments-cuda-qdepth)=
+## Device-initiated I/O: Queue Depth Scaling
+
+This experiment holds I/O size fixed at 512 bytes and sweeps queue depth across
+a wide range, with the number of queues per device as the secondary variable.
+The aim is to identify the queue depth at which each queue-count configuration
+saturates under device-initiated I/O.
+
+**xnvmeperf** drives device-initiated I/O via the ``cuda-run`` subcommand
+with the **upcie-cuda** backend. The subcommand distributes NVMe queues across
+devices: with ``nqueues=N`` and 16 devices, each device is assigned N queue
+pairs; each in-flight command is serviced by a dedicated CUDA thread. The total
+thread count equals queue depth × ``nqueues`` × number of devices. Increasing
+either dimension raises both the thread count and the number of commands in
+flight. The experiment sweeps both dimensions to identify which combination
+first reaches device saturation.
+
+### Independent Variables
+
+| Variable              | Parameter Set                                    |
+| --------------------- | ------------------------------------------------ |
+| Queue depth           | { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 }        |
+| Number of queues      | { 1, 2, 4, 8, 16 }                               |
+| I/O size              | 512                                              |
+| Number of devices     | 16                                               |
+| Tool and backend      | xnvmeperf (cuda-run) + upcie-cuda                |
+
+### Metrics Collected
+
+| Metric            | Reported by  |
+| ----------------- | ------------ |
+| Completed IOPS    | xnvmeperf    |
+
+### Environment
+
+The benchmarks were run on the {ref}`sec-env-hpc-server`. NVMe devices are bound
+to user space drivers. The CPU governor is set to ``performance`` with turbo
+boost and SMT enabled. Each configuration is run five times and results are
+reported as arithmetic means.
+
+### Execution of the Experiment
+
+Instructions for running ``bench_cuda_qdepth.yaml`` are provided in
+{ref}`sec-experimental-framework`.
+
+### Results
+
+Results are presented in {ref}`sec-results-cuda-qdepth`.
