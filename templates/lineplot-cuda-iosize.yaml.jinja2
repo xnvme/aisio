@@ -1,0 +1,26 @@
+title: |
+  Bandwidth when exercising a random-read workload using `xnvmeperf` with device-initiated I/O
+  16 PCIe Gen5 NVMe SSDs (nqueues 1, queue depth varied) via the `upcie-cuda` backend
+
+xlabel: I/O Size (bytes)
+ylabel: Bandwidth (GB/s)
+footnote: Device-initiated I/O using the `cuda-run` subcommand; data buffers reside in GPU memory
+
+rooflines:
+- name: PCIe Gen5 x16 line-rate
+  value_nbytes: 64000000000
+  color: '#fb6a4a'
+  style: ':'
+- name: p2pBandwidthTest
+  value_nbytes: {{ (cuda_bandwidth * 1000000000) | round | int }}
+  color: '#cb181d'
+  style: '--'
+
+bars:
+{%- for iosize, series in results.items() %}
+- label: "{{ iosize }}"
+  {%- for qdepth, result in series.items() %}
+  qdepth_{{ qdepth }}: {{ result[0] }}
+  qdepth_{{ qdepth }}_std: {{ result[1] }}
+  {%- endfor %}
+{% endfor %}
