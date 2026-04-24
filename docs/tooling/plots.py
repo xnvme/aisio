@@ -1,3 +1,4 @@
+import re
 import matplotlib.pyplot as plt
 import numpy as np
 import tarfile
@@ -197,7 +198,31 @@ def barplot_sat(artifacts, output, unit="GB/s"):
     plt.close(fig)
 
 
-def lineplot(artifacts, output, driver, xaxis="ncpus"):
+def _sort_groups_numeric(groups):
+    """Sort groups by trailing integer if every group name has one."""
+    if all(re.search(r'\d+$', g) for g in groups):
+        return sorted(groups, key=lambda g: int(re.search(r'(\d+)$', g).group(1)))
+    return groups
+
+
+def _line_colors(n):
+    """Return n colors: use COLOR_SCHEME for small n, plasma for larger sets."""
+    if n <= len(COLOR_SCHEME):
+        return COLOR_SCHEME[:n]
+    cmap = plt.cm.plasma
+    return [cmap(0.1 + 0.8 * i / (n - 1)) for i in range(n)]
+
+
+def _fmt_bytes(val):
+    n = int(val)
+    if n >= 1024 * 1024:
+        return f"{n // (1024 * 1024)} MiB"
+    elif n >= 1024:
+        return f"{n // 1024} KiB"
+    return f"{n} B"
+
+
+def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     in_file = Path(artifacts) / f"lineplot-{driver}-{xaxis}.yaml"
     out_file = Path(output) / f"lineplot-{driver}-{xaxis}.png"
 
@@ -218,7 +243,15 @@ def lineplot(artifacts, output, driver, xaxis="ncpus"):
         roofline_key = "value_iops"
         roofline_label = lambda val: f"{val:.0f}M"
 
-    groups = [key for key in bars[0].keys() if key != "label" and "_std" not in key]
+    groups = _sort_groups_numeric(
+        [key for key in bars[0].keys() if key != "label" and "_std" not in key]
+    )
+    if colormap:
+        cmap = plt.cm.get_cmap(colormap)
+        n = len(groups)
+        colors = [cmap(0.1 + 0.8 * i / (n - 1)) for i in range(n)]
+    else:
+        colors = _line_colors(len(groups))
 
     fig, ax = setup_figure(cfg)
 
@@ -226,11 +259,18 @@ def lineplot(artifacts, output, driver, xaxis="ncpus"):
     ax.set_xticks(x)
     ax.set_xlim(x[0] - 0.5, x[-1] + 0.5)
 
-    for group, color in zip(groups, COLOR_SCHEME):
+    if "size" in cfg.get("xlabel", "").lower():
+        try:
+            ax.set_xticklabels([_fmt_bytes(b["label"]) for b in bars], fontsize=9)
+        except (ValueError, TypeError):
+            pass
+
+    for group, color in zip(groups, colors):
         data = np.array([b[group] for b in bars], dtype=float) / scale
-        std = np.array([b[f"{group}_std"]  for b in bars], dtype=float) / scale
+        std = np.array([b[f"{group}_std"] for b in bars], dtype=float) / scale
         label = group.replace("_", " ")
 
+        ax.fill_between(x, data - std, data + std, alpha=0.15, color=color)
         ax.plot(x, data, color=color, linewidth=2, marker="o", markersize=4,
                 label=label)
 
