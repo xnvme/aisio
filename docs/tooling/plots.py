@@ -201,14 +201,22 @@ def lineplot(artifacts, output, driver, xaxis="ncpus"):
     in_file = Path(artifacts) / f"lineplot-{driver}-{xaxis}.yaml"
     out_file = Path(output) / f"lineplot-{driver}-{xaxis}.png"
 
-    scale = 1e6
-
     with open(in_file) as file:
         cfg = yaml.safe_load(file)
 
     bars = cfg["bars"]
     if not bars:
         return
+
+    rooflines = cfg.get("rooflines", [])
+    if rooflines and "value_nbytes" in rooflines[0]:
+        scale = 1e9
+        roofline_key = "value_nbytes"
+        roofline_label = lambda val: f"{val:.1f} GB/s"
+    else:
+        scale = 1e6
+        roofline_key = "value_iops"
+        roofline_label = lambda val: f"{val:.0f}M"
 
     groups = [key for key in bars[0].keys() if key != "label" and "_std" not in key]
 
@@ -228,10 +236,10 @@ def lineplot(artifacts, output, driver, xaxis="ncpus"):
 
     # Rooflines
     ymax = 0
-    for r in cfg.get("rooflines", []):
-        val = r["value_iops"] / scale
+    for r in rooflines:
+        val = r[roofline_key] / scale
         ax.axhline(y=val, color=r["color"], linestyle=r["style"], linewidth=1.5,
-                label=f"{r['name']} ({val:.0f}M)", zorder=1)
+                label=f"{r['name']} ({roofline_label(val)})", zorder=1)
         ymax = max(ymax, val)
     ax.set_ylim(0, ymax * 1.15)
 
