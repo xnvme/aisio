@@ -133,6 +133,9 @@ def make_plots(build_dir: str) -> None:
     with plots.artifacts_from_archive(artifacts / "cpu-initiated-upcie.tar.gz") as archive:
         plots.lineplot(archive, build_dir, "upcie")
 
+    with plots.artifacts_from_archive(artifacts / "device-initiated-iosize.tar.gz") as archive:
+        plots.lineplot(archive, build_dir, "cuda", "iosize")
+
     with plots.artifacts_from_archive(artifacts / "device-initiated-qdepth.tar.gz") as archive:
         plots.lineplot(archive, build_dir, "cuda", "qdepth")
 

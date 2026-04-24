@@ -343,6 +343,58 @@ approximately 1.28. The consistency of this ratio across I/O sizes and IOPS leve
 indicates that the excess scales with bytes transferred rather than with operation
 count.
 
+(sec-results-cuda-iosize)=
+## Device-initiated I/O: I/O Size Scaling
+
+Results are presented as PCIe RX bandwidth vs. I/O size, with one line per
+queue depth (``qdepth`` ∈ { 1, 2, 4, 8, 16, 32, 64, 128 }). All configurations
+use **xnvmeperf** with the ``cuda-run`` subcommand and the **upcie-cuda**
+backend, ``nqueues=1``, and 16 NVMe devices. Total CUDA thread count equals
+queue depth × 16. The dashed reference line marks the peak P2P bandwidth from
+``p2pBandwidthLatencyTest``.
+
+```{figure} lineplot-cuda-iosize.png
+:alt: PCIe RX bandwidth vs. I/O size for xnvmeperf (cuda-run) with varying queue depth
+:width: 700px
+:align: center
+
+PCIe RX bandwidth vs. I/O size for xnvmeperf (cuda-run), 16 NVMe devices,
+nqueues=1. The minimum queue depth to saturate the ~45 GB/s practical ceiling
+drops from >128 at 512 B to 2 at 64 KiB.
+```
+
+The queue depth required to saturate the PCIe link decreases monotonically as
+I/O size grows. At 512-byte I/O, even the maximum configuration of 2048 CUDA
+threads (``qdepth=128``, 16 devices) delivers only 21.6 GB/s. The workload is
+constrained by per-device IOPS limits, not by available PCIe bandwidth. As I/O
+size increases, each command carries more payload, and the saturation threshold
+drops accordingly.
+
+All lines converge at a practical ceiling of approximately 44–45 GB/s, which
+falls roughly 80% of the way to the 56.1 GB/s ``p2pBandwidthLatencyTest``
+reference. This gap is consistent with the overhead of NVMe command processing
+and PCIe protocol framing on top of raw DMA throughput, as characterised in
+{ref}`sec-results-pcie-bandwidth`.
+
+The saturation queue depths are:
+
+| I/O size | Min. ``qdepth`` to saturate | Total CUDA threads |
+| -------- | --------------------------- | ------------------ |
+| 512 B    | > 128 (not reached)         | > 2048             |
+| 1024 B   | > 128 (not reached)         | > 2048             |
+| 2048 B   | 64                          | 1024               |
+| 4096 B   | 32                          | 512                |
+| 8192 B   | 16                          | 256                |
+| 16384 B  | 8                           | 128                |
+| 32768 B  | 4                           | 64                 |
+| 65536 B  | 2                           | 32                 |
+
+At 64 KiB, a single queue depth of 2, 32 CUDA threads across 16 devices, is
+sufficient to sustain ~45 GB/s of storage bandwidth with no CPU involvement
+in the command path. ``qdepth=1`` still achieves 41.7 GB/s at this I/O size,
+demonstrating that device-initiated I/O can approach the practical link ceiling
+with minimal thread-count overhead.
+
 (sec-results-cuda-qdepth)=
 ## Device-initiated I/O: Queue Depth Scaling
 
