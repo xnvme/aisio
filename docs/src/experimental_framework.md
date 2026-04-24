@@ -143,6 +143,21 @@ cijoe --monitor \
     tasks/bench_pcie.yaml
 ```
 
+#### Device-initiated I/O: Queue Depth Scaling (``bench_cuda_qdepth.yaml``)
+
+Characterises how IOPS scales with queue depth under device-initiated I/O, using
+**xnvmeperf** with the ``cuda-run`` subcommand and the **upcie-cuda** backend,
+with the number of queues per device as the secondary variable. Described in
+detail in {ref}`sec-experiments-cuda-qdepth`.
+
+```
+cijoe --monitor \
+    -c configs/transport.toml \
+    -c configs/aisio.toml \
+    -c configs/devices_16.toml \
+    tasks/bench_cuda_qdepth.yaml
+```
+
 ### File-based
 
 File-based benchmarks load datasets from an XFS filesystem on a dedicated

@@ -1,0 +1,72 @@
+doc: |
+  Device-initiated I/O: Queue Depth Scaling
+  ==========================================
+
+  Characterises how IOPS scales with queue depth under device-initiated I/O,
+  using xnvmeperf with the cuda-run subcommand and the upcie-cuda backend, with
+  the number of queues per device as a secondary independent variable.
+
+  Configuration file
+  ------------------
+  See `configs/devices_16.toml` for an example configuration file.
+
+  The configuration file must also define a list of NVMe block devices. To find these,
+  run
+
+    `lspci | grep Non-Volatile`
+
+  and change the `pci_addr` keys in the `[[devices]]` to match the PCI addresses of the
+  found devices.
+
+  If the boot device is an NVMe device, see "Binding to userspace" below.
+
+  Allocating hugepages
+  --------------------
+  It is not necessary to run this step if the workflow is run repeatedly.
+
+  Binding to userspace
+  --------------------
+  This scripts assumes if the boot device is an NVMe device, then the `xnvme.driver.prefix`
+  variable has been defined to add the device's PCIe address to the PCI_BLACKLIST env var
+  for the xnvme-driver script. Example:
+
+    [xnvme.driver]
+    prefix = "PCI_BLACKLIST=0000:01:00.0"
+
+  It's important that if the boot device is also an NVMe device that it's added in the
+  `PCI_BLACKLIST` in step "bind_to_userspace", since the xnvme-driver script otherwise
+  will unbind it, making the machine unusable (until next reboot).
+
+  It is not necessary to run this step if the workflow is run repeatedly.
+
+steps:
+- name: allocate_hugepages
+  run: |
+    sysctl -w vm.nr_hugepages=1024
+    mkdir -p /dev/hugepages
+    mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+
+- name: bind_to_userspace
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run
+  uses: bench_runall
+  with:
+    depths: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+    sizes: [512]
+    numdevs_specific: [16]
+    nqueues: [1, 2, 4, 8, 16]
+    results_dir: &results-dir "{{ local.env.HOME }}/bench-cuda-results"
+    tool: xnvmeperf-cuda
+    backend: upcie-cuda
+
+- name: combine
+  uses: bench_combine
+  with:
+    results_dir: *results-dir
+
+- name: lineplot_yaml
+  uses: docs_plots_lineplot_cuda_qdepth
+  with:
+    path: *results-dir

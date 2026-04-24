@@ -1,0 +1,22 @@
+title: |
+  IOPS when exercising a random-read workload using `xnvmeperf` with device-initiated I/O
+  16 PCIe Gen5 NVMe SSDs (BS 512, nqueues varied) via the `upcie-cuda` backend
+
+xlabel: Queue Depth
+ylabel: IOPS (Millions)
+footnote: Device-initiated I/O using the `cuda-run` subcommand; data buffers reside in GPU memory
+
+rooflines:
+- name: Device IOPS Capacity
+  value_iops: 61727008
+  color: '#fb6a4a'
+  style: ':'
+
+bars:
+{%- for qdepth, series in results.items() %}
+- label: "{{ qdepth }}"
+  {%- for nqueues, result in series.items() %}
+  nqueues_{{ nqueues }}: {{ result[0] }}
+  nqueues_{{ nqueues }}_std: {{ result[1] }}
+  {%- endfor %}
+{% endfor %}
