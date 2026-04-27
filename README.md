@@ -133,6 +133,7 @@ unbound from the kernel driver before running. SSH into the target and unmount
 the dataset volume, rebind the device, and allocate hugepages:
 
 ```
+modprobe uio_pci_generic
 umount /mnt/datasets
 devbind --device '0000:01:00.0' --bind uio_pci_generic  # pci_addr from datasets.toml
 hugepages setup --count 1024
