@@ -83,7 +83,18 @@ cijoe --monitor \
     tasks/setup_udmabuf_import.yaml
 ```
 
-## Step 4: Install the NVIDIA Software Stack
+## Step 4: Disable IOMMU
+
+SSH into the target and edit the `/etc/default/grub` to disable IOMMU. Add the
+appropriate parameter for your CPU in the `GRUB_CMDLINE_LINUX_DEFAULT`.
+
+```
+GRUB_CMDLINE_LINUX_DEFAULT="... intel_iommu=off"
+# or
+GRUB_CMDLINE_LINUX_DEFAULT="... amd_iommu=off"
+```
+
+## Step 5: Install the NVIDIA Software Stack
 
 Install the **NVIDIA** drivers, CUDA toolkit, and GDS (GPUDirect Storage):
 
@@ -94,7 +105,7 @@ cijoe --monitor \
     tasks/setup_nvstack.yaml
 ```
 
-## Step 5: Set Up AiSIO Components
+## Step 6: Set Up AiSIO Components
 
 Build and install the AiSIO software stack (xNVMe, SPDK, xal, fil):
 
@@ -105,7 +116,7 @@ cijoe --monitor \
     tasks/setup_aisio.yaml
 ```
 
-## Step 6: Set Up Datasets
+## Step 7: Set Up Datasets
 
 Update `configs/datasets.toml` with the correct device information for your
 NVMe SSD:
@@ -126,7 +137,7 @@ cijoe --monitor \
     tasks/setup_dataset.yaml
 ```
 
-## Step 7: Run Benchmarks
+## Step 8: Run Benchmarks
 
 `bench_aisio.yaml` uses the xNVMe uPCIe path, so the NVMe device must be
 unbound from the kernel driver before running. SSH into the target and unmount
