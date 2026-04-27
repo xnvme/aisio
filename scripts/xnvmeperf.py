@@ -7,6 +7,7 @@ CUDA_REQUIRED_KEYS = ["iopattern", "qdepth", "iosize", "runtime", "backend", "de
 
 
 def add_args(parser: ArgumentParser):
+    parser.add_argument("--command", type=str, default="run")
     parser.add_argument("--devices", type=str, default=[], nargs="+")
     parser.add_argument("--ndevs", type=int, default=0)
     parser.add_argument("--iopattern", type=str, default="randread")
@@ -15,6 +16,7 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--runtime", type=int, default=10)
     parser.add_argument("--cpumask", type=str, default="0x1")
     parser.add_argument("--backend", type=str, default="upcie")
+    parser.add_argument("--nqueues", type=int, default=1)
 
 
 def xnvmeperf_cmd(bin: str, args: dict) -> str:
@@ -48,10 +50,9 @@ def xnvmeperf_cuda_cmd(bin: str, args: dict) -> str:
         f"--runtime {args['runtime']}",
         f"--iopattern {args['iopattern']}",
         f"--be {args['backend']}",
+        f"--nqueues {args['nqueues']}",
+        " ".join(args["devices"]),
     ]
-    if args.get("nqueues"):
-        parameters.append(f"--nqueues {args['nqueues']}")
-    parameters.append(" ".join(args["devices"]))
     return " ".join(parameters)
 
 
@@ -67,7 +68,11 @@ def main(args, cijoe):
         devs = cijoe.getconf("devices", None)
         args.devices = [d["pci_addr"] for d in devs[:args.ndevs]]
 
-    cmd = xnvmeperf_cmd("xnvmeperf", vars(args))
+    if args.command == "cuda-run":
+        cmd = xnvmeperf_cuda_cmd("xnvmeperf", vars(args))
+    else:
+        cmd = xnvmeperf_cmd("xnvmeperf", vars(args))
+
     err, _ = cijoe.run(cmd)
 
     return err

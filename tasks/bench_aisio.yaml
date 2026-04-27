@@ -33,20 +33,34 @@ steps:
     batches: 300
     repetitions: 1
 
-- name: upcie
+- name: cpu-initiated
   uses: xnvmeperf
   with:
     backend: "upcie"
     devices: ["{{ config.filesystems.dset.pci_addr }}"]
     runtime: 10
     iosize: 512
+    qdepth: 128
     iopattern: randread
 
-- name: upcie-cuda
+- name: p2p
   uses: xnvmeperf
   with:
     backend: "upcie-cuda"
     devices: ["{{ config.filesystems.dset.pci_addr }}"]
     runtime: 10
     iosize: 512
+    qdepth: 128
+    iopattern: randread
+
+- name: dev-initiated
+  uses: xnvmeperf
+  with:
+    command: "cuda-run"
+    backend: "upcie-cuda"
+    devices: ["{{ config.filesystems.dset.pci_addr }}"]
+    nqueues: 1
+    runtime: 10
+    iosize: 512
+    qdepth: 128
     iopattern: randread
