@@ -3,7 +3,7 @@
 
 In this section, we will present the results of running the experiments.
 
-## Conventional CPU-initiated Setup
+## CPU-initiated I/O: Optimal Parameter Search
 
 ### Determining Device IOPS Capacity
 

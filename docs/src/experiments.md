@@ -1,10 +1,11 @@
 (sec-experiments)=
 # Experiments
 
-(meta text)
+In this section, we will describe the experiments for exploring the parameter
+space with which we do I/O and for evaluating the performance of AiSIO.
 
 (sec-experiments-cpu-initiated)=
-## Conventional CPU-initiated Setup
+## CPU-initiated I/O: Optimal Parameter Search
 
 In the first experimental setup, the I/O is CPU-driven and the host-memory is
 used for submission and completion queues, and for command payloads. All tests
