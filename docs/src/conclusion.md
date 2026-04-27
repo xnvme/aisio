@@ -18,7 +18,7 @@ measurably affect command submission throughput in this synthetic workload.
 
 Several parts of the plan remain open. File-based benchmarks comparing the
 AiSIO uPCIe path against GDS and POSIX have not yet been run. The HOMI PoC
-covers the SR-IOV multipath configuration; the ublk-based software-mediated
-path, the host-resident control-plane daemon, and device-initiated I/O paths
+covers the SR-IOV multipath configuration and device-initiated I/O; the
+ublk-based software-mediated path and the host-resident control-plane daemon
 are not yet complete. The work required to address these is described in the
 following chapter.
