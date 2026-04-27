@@ -300,7 +300,7 @@ affect the IOPS achieved by the NVMe command submission path under these
 conditions.
 
 (sec-results-pcie-bandwidth)=
-## PCIe Bandwidth Characterisation
+## PCIe Bandwidth Characterization
 
 This section presents the results of the experiment described in
 {ref}`sec-experiments-pcie-bandwidth`.
@@ -318,7 +318,7 @@ mark the PCIe Gen5 x16 line rate (64.0 GB/s) and the reference P2P bandwidth fro
 ``p2pBandwidthLatencyTest`` (55.98 GB/s).
 ```
 
-### Small I/O: Link Underutilised
+### Small I/O: Link Underutilized
 
 With 512-byte payloads, xnvmeperf reports 7.9 GB/s payload bandwidth and DCGM
 measures 10.1 GB/s total PCIe receive traffic, corresponding to approximately 16%
@@ -373,7 +373,7 @@ drops accordingly.
 All lines converge at a practical ceiling of approximately 44–45 GB/s, which
 falls roughly 80% of the way to the 56.1 GB/s ``p2pBandwidthLatencyTest``
 reference. This gap is consistent with the overhead of NVMe command processing
-and PCIe protocol framing on top of raw DMA throughput, as characterised in
+and PCIe protocol framing on top of raw DMA throughput, as characterized in
 {ref}`sec-results-pcie-bandwidth`.
 
 The saturation queue depths are:

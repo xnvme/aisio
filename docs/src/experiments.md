@@ -88,14 +88,14 @@ The collected metrics are:
 | ------------------------------ | --------------------------------------------------------- |
 | Completed IOPS                 | bdevperf                                                  |
 | Bandwidth (MiB/s)              | bdevperf                                                  |
-| CPU utilisation (%)            | ``/usr/bin/time``                                         |
+| CPU utilization (%)            | ``/usr/bin/time``                                         |
 | Measured CPU frequencies (kHz) | ``/sys/devices/system/cpu/cpuX/cpufreq/scaling_cur_freq`` |
 
 All numbers are reported as arithmetic means over the 10-second measurement
 interval.
 
 As bdevperf uses busy polling, it will always result in approx. N\*100% CPU
-utilisation, where N is the number of used logical CPUs.
+utilization, where N is the number of used logical CPUs.
 
 The CPU frequencies of each logical CPU is collected by a minimal shell script
 that reads from ``/sys/devices/system/cpu/cpuX/cpufreq/scaling_cur_freq`` every
@@ -269,7 +269,7 @@ The independent variables are:
 Results are presented in {ref}`sec-results-tool-comparison`.
 
 (sec-experiments-pcie-bandwidth)=
-## PCIe Bandwidth Characterisation
+## PCIe Bandwidth Characterization
 
 With the **upcie-cuda** driver, NVMe command data payloads are transferred directly
 to GPU device memory via P2P DMA, and therefore we want to inspect how much of the
@@ -282,7 +282,7 @@ benchmark tool agrees with what the PCIe hardware counters observe.
 This experiment runs the **upcie-cuda** path and compares the payload bandwidth
 reported by **xnvmeperf** against the total PCIe receive traffic independently
 observed by DCGM. The difference between the two reveals the share of the link
-consumed by NVMe and PCIe protocol traffic rather than payload. To contextualise
+consumed by NVMe and PCIe protocol traffic rather than payload. To contextualize
 both figures against the practical ceiling of the P2P link, the experiment also
 measures peak bidirectional P2P bandwidth using ``p2pBandwidthLatencyTest`` from
 the CUDA samples suite.

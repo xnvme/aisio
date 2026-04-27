@@ -77,8 +77,8 @@ precludes multi-device parallelism.
 | Storage     | 1x Samsung 980 PRO 1TB                                     |
 
 Unlike the {ref}`sec-env-gpu-workstation`, P2P is only possible between devices
-installed in the PCIe expansion slot labelled **PCI_E1** and the M.2 slot
-labelled **M2_1**. These are connected to the CPU root complex whereas the other
+installed in the PCIe expansion slot labeled **PCI_E1** and the M.2 slot
+labeled **M2_1**. These are connected to the CPU root complex whereas the other
 PCIe and M.2 slots are connected to the platform controller hub (PCH).
 
 (sec-env-legacy)=

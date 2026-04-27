@@ -690,7 +690,7 @@ accelerator resident drivers.
 
 ### Payload Description
 
-NVMe commands reference data buffers through the data pointer field, labelled
+NVMe commands reference data buffers through the data pointer field, labeled
 ``DPTR``, which occupies ``CDW6``, ``CDW7``, ``CDW8``, and ``CDW9`` of the
 command. The NVMe specification defines several possible interpretations of
 ``DPTR`` depending on the command opcode, the command set, and the data transfer
