@@ -92,11 +92,11 @@ cijoe \
 
 Results are rendered as an interactive HTML page at
 ``cijoe-output/artifacts/benchmark-results.html``, which allows results
-from different parameterisations to be compared.
+from different parameterizations to be compared.
 
 #### CPU-initiated I/O (``bench_io.yaml``)
 
-Characterises the maximum IOPS achievable through CPU-driven I/O using
+Characterizes the maximum IOPS achievable through CPU-driven I/O using
 SPDK's bdevperf across a wide parameter space. Described in detail in
 {ref}`sec-experiments-cpu-initiated`.
 
@@ -125,7 +125,7 @@ cijoe --monitor \
 
 #### PCIe Bandwidth Saturation (``bench_pcie.yaml``)
 
-Characterises PCIe link utilisation on the **upcie-cuda** path by running
+Characterizes PCIe link utilization on the **upcie-cuda** path by running
 xnvmeperf at varying I/O sizes while collecting hardware-level PCIe bandwidth
 counters via DCGM and a reference P2P bandwidth measurement from
 ``p2pBandwidthLatencyTest``. Described in detail in
@@ -145,7 +145,7 @@ cijoe --monitor \
 
 #### Device-initiated I/O: I/O Size Scaling (``bench_cuda_iosize.yaml``)
 
-Characterises the minimum CUDA thread count needed to saturate the PCIe link
+Characterizes the minimum CUDA thread count needed to saturate the PCIe link
 under device-initiated I/O, using **xnvmeperf** with the ``cuda-run`` subcommand
 and the **upcie-cuda** backend, with queue depth as the secondary variable.
 Described in detail in {ref}`sec-experiments-cuda-iosize`.
@@ -164,7 +164,7 @@ cijoe --monitor \
 
 #### Device-initiated I/O: Queue Depth Scaling (``bench_cuda_qdepth.yaml``)
 
-Characterises how IOPS scales with queue depth under device-initiated I/O, using
+Characterizes how IOPS scales with queue depth under device-initiated I/O, using
 **xnvmeperf** with the ``cuda-run`` subcommand and the **upcie-cuda** backend,
 with the number of queues per device as the secondary variable. Described in
 detail in {ref}`sec-experiments-cuda-qdepth`.
@@ -192,7 +192,7 @@ cijoe --monitor \
     tasks/setup_dataset.yaml
 ```
 
-Three datasets are generated, each modelling a different real-world
+Three datasets are generated, each modeling a different real-world
 workload in terms of file count and file size distribution:
 
 **imagenetish** models an image classification dataset. It consists of
