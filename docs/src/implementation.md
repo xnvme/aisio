@@ -94,13 +94,36 @@ for user space NVMe access, as described in the [xNVMe uPCIe backend
 documentation](https://xnvme.io/en/next/background/backends/upcie/index.html) —
 which in turn is the NVMe layer used by HOMI.
 
-uPCIe includes an optional GPU integration layer. This adds CUDA-backed memory
-management, enabling CPU-initiated NVMe I/O with device memory as the data buffer
-via peer-to-peer PCIe transfers.
+uPCIe includes an optional GPU integration layer that adds CUDA-backed memory
+management. This enables two distinct I/O modes. In the **CPU-initiated P2P
+mode**, the CPU submits NVMe commands while data buffers reside in GPU device
+memory, with data transferred between the NVMe controller and GPU device memory
+via peer-to-peer PCIe DMA. In the **device-initiated mode**, CUDA kernels submit
+and complete NVMe commands directly, without any CPU involvement.
 
-The mechanism relies on the NVMe command's Physical Region Page (PRP) list
-containing the physical addresses of the device memory buffer. Obtaining these is
-nontrivial, and is the subject of the following section.
+For device-initiated I/O, ``xnvme_cuda_queue_create()`` allocates a GPU-resident
+NVMe queue pair in CUDA device memory using ``cuMemAlloc``. The queue pair
+structure holds virtual-address pointers to the submission queue (SQ) and
+completion queue (CQ) — allocated from the GPU's DMA-capable heap — along with
+a mapping of the NVMe doorbell registers from PCIe BAR0 into the GPU's address
+space. It also tracks the SQ tail, CQ head, phase bit, and a clock-based timeout
+derived from the GPU's SM clock rate.
+
+CUDA kernels call ``xnvme_cuda_cmd_io()`` collectively across all threads
+in a block. The submission flow proceeds in four stages. First, each thread
+enqueues its NVMe command into the SQ using word-by-word volatile pointer
+writes, bypassing the per-SM L1 cache so writes reach system DRAM and become
+visible to the NVMe DMA engine without waiting for cache eviction. Second, a
+``__syncthreads()`` barrier ensures all commands are written before the doorbell
+is rung. Third, thread 0 issues a ``__threadfence_system()`` fence and writes
+the updated SQ tail to the MMIO doorbell register, triggering the controller to
+fetch and execute the queued commands. Fourth, each thread polls its CQ entry
+using the phase bit to detect completion, with timeout tracked in GPU clock
+cycles.
+
+Both modes rely on the NVMe command's Physical Region Page (PRP) list containing
+the physical addresses of the data buffer. Obtaining these from CUDA device
+memory is nontrivial, and is the subject of the following section.
 
 ### Device Memory Physical Address Resolution via udmabuf-import
 
@@ -127,3 +150,18 @@ followed by ``UDMABUF_GET_MAP`` to retrieve an array of ``(dma_addr, len)``
 tuples. These are indexed into a lookup table (LUT) keyed at 64 KiB granularity,
 the native page size for NVIDIA GPU device memory, enabling runtime translation
 from any device memory virtual address to the corresponding physical address.
+
+### xnvmeperf Device-Initiated Benchmarking
+
+xnvmeperf integrates device-initiated I/O through its ``cuda-run`` subcommand.
+The host allocates GPU-resident NVMe queue pairs and DMA buffers in CUDA device
+memory, builds NVMe commands with PRP lists populated from physical addresses
+resolved via the udmabuf-import mechanism described above, and uploads the
+commands to the GPU. CUDA kernels then execute in a tight loop: one block per
+queue, one thread per queue slot, submitting and completing I/O continuously
+without returning to the CPU between rounds. A host-mapped flag signals the
+kernels to stop after the configured runtime, at which point per-queue round
+counts are read back and used to compute throughput. Sequential and random
+access patterns are supported through separate kernel implementations; the
+random kernel uses a per-thread linear congruential generator seeded from the
+host to produce independent LBA sequences without shared-memory coordination.

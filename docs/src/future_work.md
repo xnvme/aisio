@@ -43,16 +43,6 @@ described in Section {ref}`sec-architecture` becomes possible on identical
 hardware — an evaluation that would clarify the performance and operational
 trade-offs between the two approaches.
 
-## Device-Resident NVMe Driver
-
-The PoC includes a device-resident NVMe driver built on xNVMe, using libnvm
-as the underlying PCIe access library. This driver is now being
-re-implemented to replace libnvm with uPCIe and dma-buf, aligning it with
-the open, composable architecture described in this work. Until this
-re-implementation is complete and stable, reliable benchmarking of
-device-initiated I/O paths is not possible, and the HIP port needed to
-extend support to AMD GPUs, described in the following section, cannot begin.
-
 ## Broader Accelerator Support
 
 The current PoC is developed and validated against NVIDIA GPUs using CUDA for
@@ -64,19 +54,16 @@ work in three areas. First, device memory allocation must be ported from
 `cuMemAlloc` to the HIP equivalent. Second, dma-buf export must be adapted
 from `cuMemGetHandleForAddressRange` to the corresponding amdgpu kernel driver
 interface. Third, the device-resident NVMe driver must be ported from CUDA to
-HIP; this is the most substantial effort, and is further complicated by the
-driver still being under active development.
+HIP; this is the most substantial effort.
 
 ## Multi-Accelerator Topologies
 
 While multi-accelerator support is a goal of this work, only
-single-accelerator configurations have been targeted so far. Several of the
-preceding items — in particular dynamic queue management and the
-device-resident NVMe driver re-implementation — are prerequisites for this.
-Beyond those, achieving multi-accelerator support also requires accounting for
-PCIe topology effects on P2P transfer latency and bandwidth, and managing
-concurrent access to shared namespaces from multiple devices within the HOMI
-control plane.
+single-accelerator configurations have been targeted so far. Dynamic queue
+management is a prerequisite for this. Beyond that, achieving multi-accelerator
+support also requires accounting for PCIe topology effects on P2P transfer
+latency and bandwidth, and managing concurrent access to shared namespaces from
+multiple devices within the HOMI control plane.
 
 ## Remote Storage and RDMA
 
@@ -93,9 +80,9 @@ targets.
 
 ## Evaluating Device-Initiated Paths
 
-The benchmarks presented in this work characterize CPU-initiated I/O with host
-memory buffers and compare user space NVMe driver implementations. Systematic
-evaluation of device-initiated configurations — measuring the impact of
-removing the CPU from the command path — remains as future work, pending the
-completion of the device-resident NVMe driver re-implementation described
-above.
+Initial benchmarking of device-initiated I/O is in place: xnvmeperf's
+``cuda-run`` subcommand drives NVMe I/O entirely from CUDA kernels, and I/O size
+scaling and queue depth scaling experiments are complete. The next step is
+integrating device-initiated I/O into FIL to evaluate performance with file-based
+workloads, where block translation through XAL and the full AiSIO stack are
+exercised end-to-end.
