@@ -272,7 +272,7 @@ addresses within the CPU's overall address space, separate from main system RAM.
 The CPU then uses standard load and store instructions to read from or write to
 these memory addresses, which directly manipulate the state of the I/O device.
 
-Later we will take a closer look at thos PCIe attached devices expose register
+Later we will take a closer look at how those PCIe attached devices expose register
 and memory spaces.
 
 (sec-pcie)=
