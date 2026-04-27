@@ -3,7 +3,7 @@ doc: |
   =================================================
 
   This adds dma-buf importer functionality to UDMABUF and the ability to share
-  physical addresses, from the dma-buf, with userspace. 
+  physical addresses, from the dma-buf, with userspace.
 
   The patch is added untop of the source of the kernel included with Ubuntu.
   This ensures compatibility with the other parts of the AiSIO stack that
@@ -25,7 +25,7 @@ steps:
 
 - name: install_dependencies
   run: |
-    apt-get -fy install bison build-essential debhelper-compat flex libelf-dev libncurses-dev libssl-dev
+    apt-get -fy install bison build-essential debhelper-compat flex libelf-dev libncurses-dev libpci-dev libssl-dev
 
 - name: fetch_kernel_source
   run: |
@@ -52,7 +52,7 @@ steps:
     cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --disable DEBUG_INFO
     cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --set-str SYSTEM_TRUSTED_KEYS ""
     cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --set-str SYSTEM_REVOCATION_KEYS ""
-    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --disable MODULE_SIG 
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --disable MODULE_SIG
 
 - name: prepare
   run: |
@@ -74,9 +74,13 @@ steps:
   with:
     state: down
     timeout: 60
-  
+
 - name: wait_up
   uses: core.wait_for_transport
   with:
     state: up
     timeout: 300
+
+- name: install_cpupower
+  run: |
+    cd /usr/src/{{ config.linux.source.pkg }}; make tools/cpupower_install prefix=/usr libdir=/usr/lib
