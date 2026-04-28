@@ -2,12 +2,19 @@
 (sec-experiments-cpu-initiated)=
 # CPU-initiated I/O: Optimal Parameter Search
 
-In the first experimental setup, the I/O is CPU-driven and the host-memory is
-used for submission and completion queues, and for command payloads. All tests
-are driven by SPDK's benchmarking tool, bdevperf, wrapped in a Python script that
-automates running the experiment with different parameters. The results are
-reported as the average of running each benchmark five times to reduce the impact
-of variance between runs.
+The AiSIO evaluation spans CPU-initiated, P2P, and device-initiated I/O paths.
+Before comparing them, it is necessary to establish what optimal CPU-initiated
+performance looks like and which system parameters govern it. This experiment
+characterizes the performance of CPU-initiated I/O across a wide parameter
+space, identifying the configuration that maximizes IOPS. The resulting
+parameterization serves as the reference point for subsequent experiments, and
+the scalability results provide context for interpreting the other I/O paths
+studied in this work.
+
+I/O is CPU-driven with host memory used for submission and completion queues and
+for command payloads. All measurements are driven by SPDK's benchmarking tool,
+bdevperf, and results are reported as the average of five runs per configuration
+to reduce variance.
 
 ## Independent variables
 
@@ -221,6 +228,7 @@ When inspecting the CPU frequencies, we generally see that the performance CPU
 governor keep the clock speed at 3.3 GHz for all CPUs, which is the maximum clock
 speed we were able to reach with turbo boost enabled. The powersave governor
 reduces the clock speed in order to reduce the power consumption, which explains
+the significant IOPS reduction observed.
 
 % A: Using, stress off: 23 972 222 - 61.16% decrease
 % B: Using, stress on: 23 879 418 - 61.25% decrease
@@ -342,3 +350,14 @@ The results scale linearly with the amount of devices used.
 
 Results of parameterization C with different devices.
 ```
+
+## Summary
+
+The optimal configuration — "performance" governor, turbo boost enabled, SMT
+enabled, queue depth 128, 512-byte I/O — achieves approximately 62 million IOPS
+across 16 devices using 8 physical cores. Performance scales linearly with both
+device count and core count up to the device capacity ceiling, and the per-device
+capacity observed in single-device runs (3.86 million IOPS) serves as the roofline
+used in subsequent experiments. This parameterization is held fixed in the
+benchmark tool and NVMe driver comparison that follows, isolating the effect of
+tool and driver choice from the parameter space explored here.
