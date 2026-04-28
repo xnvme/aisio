@@ -198,7 +198,7 @@ latency rather than paying it in full. Even with latency tracking removed,
 latency tracking also contribute to the result.
 
 At three and four threads, xnvmeperf with the SPDK backend reaches 32.8
-and 36.1 million IOPS respectively, still well below the ~62 million IOPS
+and 36.1 million IOPS respectively, still well below the 61.7 million IOPS
 device roofline. Across all thread counts, the SPDK-based tools collectively
 demonstrate that layered software overhead accumulates: removing layers yields
 meaningful gains at each step, but the combined overhead of the SPDK stack
@@ -256,7 +256,7 @@ a core assumption of the AiSIO P2P architecture.
 Notably, the upcie and upcie-cuda backends achieve approximately 37 million
 IOPS with a single CPU thread and approximately 47 million IOPS with two threads
 across 16 devices. At three threads, both backends reach the device roofline
-of ~62 million IOPS and adding a fourth thread brings no further improvement,
+of 61.7 million IOPS and adding a fourth thread brings no further improvement,
 thus confirming device saturation. The {ref}`sec-experiments-cpu-initiated`
 experiment required 8 physical cores to reach the same ceiling; the uPCIe path
 reaches it with three CPU threads, using fewer than half the cores, reflecting

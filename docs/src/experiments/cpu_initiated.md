@@ -354,7 +354,7 @@ Results of parameterization C with different devices.
 ## Summary
 
 The optimal configuration — "performance" governor, turbo boost enabled, SMT
-enabled, queue depth 128, 512-byte I/O — achieves approximately 62 million IOPS
+enabled, queue depth 128, 512-byte I/O — achieves approximately 61.7 million IOPS
 across 16 devices using 8 physical cores. Performance scales linearly with both
 device count and core count up to the device capacity ceiling, and the per-device
 capacity observed in single-device runs (3.86 million IOPS) serves as the roofline
