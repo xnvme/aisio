@@ -868,17 +868,34 @@ when building systems where devices interact without traditional OS mediation.
 (sec-filesystems)=
 ## Files and File Systems
 
-File systems define on disk layout, metadata, and allocation.
+File systems sit above the block device and map the names and byte offsets that
+applications use to the physical block addresses that storage devices require.
+When an application reads from a file, the operating system resolves the file
+path through the Virtual File System (VFS) to an inode, determines which
+physical blocks cover the requested byte range from the file's extent tree, and
+issues block I/O to those addresses. Under OS-mediated I/O this translation is
+handled transparently by the kernel; when I/O bypasses the kernel it becomes an
+explicit responsibility of the I/O stack.
 
-**Extents** represent contiguous file regions through a starting block and
-length.
+For device-initiated I/O, accelerators cannot perform pathname resolution or
+query kernel metadata structures at runtime. The logical-to-physical block
+mapping must therefore be extracted on the host in advance and made available
+to the initiating device. **Extents** express this mapping: each extent
+identifies a contiguous file region by its starting logical block and length. A
+complete extent tree covers a file's full address space and is the primary
+structure used to translate file offsets into physical block ranges without
+kernel involvement.
 
-**On disk format** encodes superblocks, inodes, allocation groups, and B tree
-metadata.
-
-**FIEMAP** reveals the physical extents of a file but requires the file system
-to be mounted and does not expose all metadata needed for accelerator resident
-scheduling.
+Two mechanisms exist for obtaining this information from a file system. The
+**FIEMAP** ioctl queries the kernel for a file's physical extents across any
+mounted file system, but depends on the file system being mounted and does not
+expose all on-disk structures needed for offline extent resolution. Direct
+decoding of the **on-disk format** does not require a mounted file system and
+provides a complete view of the mapping, enabling extent information to be
+pre-loaded into a host-resident cache independently of the kernel storage stack.
+File systems encode extent metadata alongside structures such as superblocks and
+inodes, with the specific layout varying by implementation. XFS, for example,
+organizes this metadata into allocation groups and B-tree extent trees.
 
 (sec-posix)=
 ## POSIX Semantics
