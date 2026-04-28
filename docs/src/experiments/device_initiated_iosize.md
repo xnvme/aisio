@@ -1,8 +1,13 @@
 (sec-experiments-cuda-iosize)=
 # Device-initiated I/O: I/O Size Scaling
 
-This experiment sweeps I/O size across a wide range, from 512 bytes up to 64
-KiB, with queue depth as the secondary variable and ``nqueues`` fixed at 1. The
+In device-initiated I/O, GPU threads are the resource that drives commands, and
+those threads compete with compute workloads for GPU resources. The PCIe
+bandwidth saturation experiment characterized the transition from IOPS-bound to
+bandwidth-bound regimes and the protocol overhead ratio for CPU-initiated P2P.
+This experiment examines the same questions under device-initiated I/O by sweeping
+I/O size across a wide range, from 512 bytes up to 64 KiB, with queue depth
+as the secondary variable. The number of queues, ``nqueues``, is fixed at 1. The
 aim is to identify the minimum thread count required to saturate the PCIe link
 at each I/O size.
 
@@ -101,3 +106,13 @@ sufficient to sustain ~45 GB/s of storage bandwidth with no CPU involvement
 in the command path. ``qdepth=1`` still achieves 41.7 GB/s at this I/O size,
 demonstrating that device-initiated I/O can approach the practical link ceiling
 with minimal thread-count overhead.
+
+## Summary
+
+The minimum thread count required to saturate the PCIe link decreases
+monotonically with I/O size. At small I/O sizes the constraint is per-device
+IOPS rather than link capacity, and even 2048 CUDA threads across 16 devices
+cannot saturate the link at 512 or 1024 bytes. At 64 KiB, just 32 threads
+suffice. The practical bandwidth ceiling for device-initiated I/O is
+approximately 44–45 GB/s, consistent with the ~28% protocol overhead
+characterized in the preceding bandwidth experiment.

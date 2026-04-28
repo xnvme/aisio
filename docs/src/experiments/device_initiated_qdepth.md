@@ -1,7 +1,10 @@
 (sec-experiments-cuda-qdepth)=
 # Device-initiated I/O: Queue Depth Scaling
 
-This experiment holds I/O size fixed at 512 bytes and sweeps queue depth across
+The previous experiment showed that at 512-byte I/O the PCIe link cannot be
+saturated regardless of thread count, and that the constraint is device IOPS,
+which was established to be ~62 M IOPS in the CPU-initiated experiment. This
+experiment holds I/O size fixed at 512 bytes and sweeps queue depth across
 a wide range, with the number of queues per device as the secondary variable.
 The aim is to identify the queue depth at which each queue-count configuration
 saturates under device-initiated I/O.
@@ -89,3 +92,14 @@ respectively for no throughput gain, making them suboptimal.
 it saturates the device at 4096 total threads, matching ``nqueues=2`` at
 ``qdepth=128``, while requiring only half the per-queue depth, halving the
 number of commands in flight per queue.
+
+## Summary
+
+A single queue per device cannot saturate the devices at 512-byte I/O regardless
+of queue depth. Adding a second queue breaks this ceiling: ``nqueues=2`` with
+``qdepth=128`` reaches the 61.7 M IOPS roofline at 4096 total threads, and
+``nqueues=4`` with ``qdepth=64`` matches this result with half the per-queue
+depth. Beyond ``nqueues=4``, additional queues increase thread count without
+improving throughput. Together with the I/O size scaling results, these findings
+characterize the thread count and queue configuration required to fully utilize
+device-initiated I/O across both the bandwidth-bound and IOPS-bound regimes.
