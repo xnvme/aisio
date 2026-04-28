@@ -1,6 +1,11 @@
 (sec-experimental-framework)=
 # Experimental Framework
 
+This section describes the system configuration, software stack, and benchmark
+workflows used to produce the experimental results. It covers both the synthetic
+NVMe benchmarks that characterize raw I/O performance and the file-based
+benchmarks that evaluate end-to-end dataset loading.
+
 ## System Setup
 
 All environment provisioning is automated using
