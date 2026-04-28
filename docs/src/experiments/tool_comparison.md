@@ -1,11 +1,21 @@
 (sec-experiments-tool-comparison)=
 # Benchmark Tool Comparison
 
-The preceding experiment uses bdevperf, SPDK's block-device benchmark, to measure
-CPU-initiated I/O performance. The question arises whether the choice of
-benchmarking tool and the choice of user space NVMe driver affect the results.
-To address both questions, we make an experiment where three tools are under
-comparison:
+The preceding experiment established the CPU-initiated IOPS ceiling using bdevperf
+and SPDK. The AiSIO proof-of-concept, however, uses xNVMe with the uPCIe backend —
+a different benchmark tool, a different NVMe abstraction layer, and a different
+NVMe driver. To make comparisons across I/O path architectures meaningful, it is
+necessary to first understand how much tool and driver choice alone account for
+differences in results.
+
+This experiment holds the hardware environment and I/O parameters fixed at the
+values from the preceding experiment and varies only the benchmark tool and NVMe
+driver, isolating their individual contributions to measured IOPS. It also
+introduces the upcie-cuda backend, which places data buffers in GPU device memory
+and transfers them via P2P DMA — the same data path exercised in the PCIe
+bandwidth and device-initiated experiments that follow.
+
+The tools under comparison are:
 
 - **bdevperf**: SPDK's block device benchmark. I/O is issued through SPDK's bdev
   (block device) abstraction layer, which interposes between the application and
@@ -209,3 +219,17 @@ the same NVMe driver and differ only in buffer placement, this indicates that
 routing the data path through P2P DMA to GPU device memory does not measurably
 affect the IOPS achieved by the NVMe command submission path under these
 conditions.
+
+## Summary
+
+Three findings emerge from this experiment. First, the SPDK bdev abstraction layer
+imposes substantial cost: bypassing it with SPDK NVMe Perf yields approximately 70%
+higher IOPS at one thread. Second, uPCIe reaches approximately 2.5 times the IOPS
+of SPDK when the benchmark tool and xNVMe layer are held constant, a result that can
+be attributed to uPCIe's leaner command path and avoidance of intermediate memory
+copies. Third, and most directly relevant to the AiSIO design, routing data through
+P2P DMA to GPU device memory does not measurably affect command throughput: the
+upcie-cuda backend matches the upcie backend within measurement variance. This last
+finding validates a core assumption of the AiSIO P2P architecture and motivates
+the PCIe bandwidth characterization that follows, which examines how much of the
+available link capacity the upcie-cuda path actually uses.
