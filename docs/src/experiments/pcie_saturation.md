@@ -1,21 +1,22 @@
 (sec-experiments-pcie-bandwidth)=
-# PCIe Bandwidth Characterization
+# PCIe Bandwidth Saturation
 
-With the **upcie-cuda** driver, NVMe command data payloads are transferred directly
-to GPU device memory via P2P DMA, and therefore we want to inspect how much of the
-available PCIe bandwidth the data path consumes relative to the link capacity.
-Application-level benchmarks such as xnvmeperf report payload bytes, but do not
-account for the NVMe and PCIe protocol traffic that accompanies each transfer. As
-such, we also want to evaluate whether the payload bandwidth reported by the
-benchmark tool agrees with what the PCIe hardware counters observe.
+The preceding experiments were conducted at 512-byte I/O, where each command
+carries so little data that the PCIe link operates far below capacity even at
+tens of millions of IOPS — the bottleneck is how fast commands can be submitted
+and completed, not how much data the link can carry. At larger I/O sizes, however, the
+bottleneck shifts: as each command carries more payload, the PCIe link itself
+becomes the limiting factor rather than device IOPS, CPU throughput, or GPU
+capacity. Identifying where this transition occurs is important for understanding
+the practical operating range of the P2P data path and for interpreting the
+device-initiated I/O experiments that follow.
 
-This experiment runs the **upcie-cuda** path and compares the payload bandwidth
-reported by **xnvmeperf** against the total PCIe receive traffic independently
-observed by DCGM. The difference between the two reveals the share of the link
-consumed by NVMe and PCIe protocol traffic rather than payload. To contextualize
-both figures against the practical ceiling of the P2P link, the experiment also
-measures peak bidirectional P2P bandwidth using ``p2pBandwidthLatencyTest`` from
-the CUDA samples suite.
+This experiment sweeps I/O size across three points — 512, 4096, and 8192 bytes —
+and measures both the payload bandwidth reported by xnvmeperf and the total PCIe
+receive traffic observed by DCGM at the GPU endpoint. The gap between the two
+reveals the share of the link consumed by NVMe and PCIe protocol traffic rather
+than payload. A reference peak P2P bandwidth from ``p2pBandwidthLatencyTest``
+establishes the practical ceiling of the link under sustained P2P transfers.
 
 ## Independent Variables
 
@@ -28,6 +29,12 @@ The experiment fixes all parameters except NVMe command data payload size:
 | Number of CPU threads | 1                      |
 | Number of devices     | 4                      |
 | I/O size              | { 512, 4096, 8192 }    |
+
+Four devices were selected to ensure that the PCIe link, rather than aggregate
+device capacity, is the binding constraint at large I/O sizes. The Samsung PM1753
+is rated at 14.5 GB/s bandwidth, and four devices therefore provide up to
+4 × 14.5 GB/s = 58 GB/s aggregate, which is sufficient to stress the PCIe Gen5 x16
+link (64 GB/s line rate) rather than leave it underutilized.
 
 ## Metrics Collected
 
@@ -99,3 +106,13 @@ exceeds the payload bandwidth reported by xnvmeperf by a consistent factor of
 approximately 1.28. The consistency of this ratio across I/O sizes and IOPS levels
 indicates that the excess scales with bytes transferred rather than with operation
 count.
+
+## Summary
+
+At small I/O sizes the P2P link operates far below capacity; at 4 KiB and above,
+total PCIe traffic approaches the practical P2P ceiling (~55.98 GB/s), reaching
+approximately 90% of the Gen5 x16 line rate. Protocol overhead accounts for a
+consistent 28% above payload bandwidth across all tested I/O sizes, indicating it
+scales with bytes transferred rather than operation count. The device-initiated
+experiments that follow use the same upcie-cuda path and reference the P2P
+bandwidth ceiling established here.
