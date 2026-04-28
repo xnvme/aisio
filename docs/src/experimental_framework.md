@@ -128,7 +128,7 @@ cijoe --monitor \
     tasks/bench_tools.yaml
 ```
 
-#### PCIe Bandwidth Saturation (``bench_pcie.yaml``)
+#### CPU-Initiated P2P I/O: PCIe Bandwidth Saturation (``bench_pcie.yaml``)
 
 Characterizes PCIe link utilization on the **upcie-cuda** path by running
 xnvmeperf at varying I/O sizes while collecting hardware-level PCIe bandwidth
