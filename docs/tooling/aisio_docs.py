@@ -182,7 +182,7 @@ def build_html() -> None:
     docs_root = os.path.dirname(docs_src)
     html_dir = os.path.join(docs_root, "build", "html")
 
-    make_plots(html_dir)
+    make_plots(os.path.join(html_dir, "experiments"))
     run(f"{sphinx_build()} -b html {docs_src} {html_dir}")
 
 
@@ -725,7 +725,7 @@ def serve() -> None:
     # Start landing page on 8000
     start_landing_server()
 
-    make_plots(html_dir)
+    make_plots(os.path.join(html_dir, "experiments"))
 
     # Live HTML server on 8001
     cmd = (
