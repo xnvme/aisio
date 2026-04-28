@@ -8,7 +8,7 @@ single hardware environment, structured to characterize the resource efficiency
 of the uPCIe and uPCIe-cuda data paths from the ground up.
 
 The {ref}`sec-experiments-cpu-initiated` experiment established a ceiling of
-approximately 62 million IOPS across 16 NVMe devices, requiring 8 physical cores
+approximately 61.7 million IOPS across 16 NVMe devices, requiring 8 physical cores
 running at full utilization under busy-polling, with performance scaling linearly
 with both device count and core count. This serves as the roofline and CPU cost
 reference against which the subsequent experiments are compared.
