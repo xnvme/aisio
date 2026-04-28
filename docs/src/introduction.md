@@ -79,6 +79,11 @@ proprietary infrastructure.
 
 ## AiSIO
 
+The presented approaches share a common limitation: each targets one bottleneck
+without addressing the others, and each does so at a cost to OS interoperability
+or file system semantics. An open system that combines all three approaches while
+preserving OS-managed storage semantics does not yet exist.
+
 Accelerator-integrated Storage I/O (AiSIO) designates a class of system
 software architectures that address all three bottlenecks through open,
 composable components while preserving interoperability with OS-managed storage.
@@ -95,3 +100,8 @@ implementation within the AiSIO class. HOMI demonstrates how these principles
 can be realized in open and modifiable system software, enabling multiple I/O
 paths to coexist with shared access to storage resources while preserving
 operating-system semantics.
+
+This paper introduces AiSIO as a conceptual framework, defines a taxonomy of
+I/O paths within that framework, presents the HOMI architecture, and describes a
+proof-of-concept implementation evaluated through a series of synthetic
+benchmarks.
