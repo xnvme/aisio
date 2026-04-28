@@ -113,7 +113,7 @@ cijoe --monitor \
     tasks/bench_io.yaml
 ```
 
-#### Benchmark Tool Comparison (``bench_tools.yaml``)
+#### CPU-initiated I/O: Software Abstraction Overhead (``bench_tools.yaml``)
 
 Runs bdevperf, SPDK NVMe Perf, and xnvmeperf (with the spdk, upcie, and
 upcie-cuda backends) under identical parameters to isolate the effect of
