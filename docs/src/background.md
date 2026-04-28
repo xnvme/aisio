@@ -944,7 +944,7 @@ can parse the on-disk format of the XFS file system, including superblocks,
 allocation groups, inodes, and extent trees, to extract extent information
 independently of the file system mount state.
 
-## Transition to Architecture
+## Summary
 
 The background above summarizes the mechanisms and constraints that shape modern
 storage I/O, spanning PCIe transport and routing, memory and DMA visibility,
