@@ -1,15 +1,25 @@
 #include <errno.h>
-#include <stdint.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <homid.h>
 #include <homid_ipc.h>
 #include <homid_log.h>
+#include <homid_xal.h>
 #include <homi_proto.h>
+
+struct worker_args {
+	int shmid;
+	struct homi_shm *shm;
+	struct homid *homid;
+};
 
 static int
 _open_socket(char *socket_path)
@@ -23,6 +33,7 @@ _open_socket(char *socket_path)
 		return -errno;
 	}
 
+	unlink(socket_path);
 	saddr.sun_family = AF_LOCAL;
 	strncpy(saddr.sun_path, socket_path, sizeof(saddr.sun_path));
 	saddr.sun_path[sizeof(saddr.sun_path) - 1] = '\0';
@@ -65,7 +76,7 @@ homid_ipc_open(char *socket_path, struct homid_ipc_connection **conn)
 		goto failed;
 	}
 
-	homid_log(LOG_INFO, "Listening for client connections ...");
+	homid_log(LOG_INFO, "Listening for client connections on %s", socket_path);
 
 	*conn = cand;
 
@@ -93,74 +104,192 @@ homid_ipc_close(struct homid_ipc_connection *conn)
 static void *
 worker(void *arg)
 {
-	int sock_fd = (int)(intptr_t)arg;
+	struct worker_args *wargs = arg;
+	struct homid *homid = wargs->homid;
 	struct homi_msg_header hdr;
-	char *payload;
+	void *payload;
 	int err;
 
-	err = homi_proto_socket_read(sock_fd, &hdr, &payload);
-	if (err) {
-		homid_log(LOG_ERR, "Failed: homi_proto_socket_read(hdr); err(%d)", err);
-		goto exit;
-	}
+	homid_log(LOG_NOTICE, "New client connected with shmid(%d); Listening for requests ...", wargs->shmid);
 
-	switch ((enum homi_msg_type)hdr.type) {
-	case HOMI_MSG_TYPE_HELLOWORLD: {
-		struct homi_req_helloworld *request = (struct homi_req_helloworld *)payload;
-		char *response;
+	while (1) {
+		sem_wait(&wargs->shm->req_ready);
 
-		if (!request) {
-			homid_log(LOG_ERR, "Error: Payload required for HELLOWORLD request");
-			goto exit;
+		if (wargs->shm->done) {
+			break;
 		}
 
-		homid_log(LOG_INFO, "Helloworld: received %d", request->value);
-
-		response = "hello world!";
-		hdr.payload_len = strlen(response) + 1;
-
-		err = homi_proto_socket_write(sock_fd, &hdr, response, strlen(response) + 1);
+		err = homi_proto_shm_read(wargs->shm, &hdr, &payload);
 		if (err) {
-			homid_log(LOG_ERR, "Failed: homi_proto_socket_write(); err(%d)", err);
-			goto exit;
+			homid_log(LOG_ERR, "Failed: homi_proto_shm_read(); err(%d)", err);
+			sem_post(&wargs->shm->res_ready);
+			continue;
 		}
 
-		break;
-	}
-	default:
-		homid_log(LOG_WARNING, "Unknown message type: %u", hdr.type);
-		break;
+		switch ((enum homi_msg_type)hdr.type) {
+		case HOMI_MSG_TYPE_HELLOWORLD:
+			struct homi_req_helloworld *request = (struct homi_req_helloworld *)payload;
+			char *response = "hello world!";
+
+			if (!request) {
+				homid_log(LOG_ERR, "Error: Payload required for HELLOWORLD request");
+				break;
+			}
+
+			homid_log(LOG_INFO, "Helloworld: received %d", request->value);
+
+			err = homi_proto_shm_write(wargs->shm, &hdr, response, strlen(response) + 1);
+			if (err) {
+				homid_log(LOG_ERR, "Failed: homi_proto_shm_write(); err(%d)", err);
+			}
+
+			break;
+		case HOMI_MSG_TYPE_XAL_CONNECT:
+			struct homi_req_xal_connect *req = (struct homi_req_xal_connect *)payload;
+			struct homi_res_xal_connect res = {0};
+			struct homid_device *device = NULL;
+
+			if (!req) {
+				homid_log(LOG_ERR, "Error: Payload required for XAL_CONNECT request");
+				res.err = -EINVAL;
+				goto send_response;
+			}
+
+			device = homid_device_get(homid, req->dev_uri);
+
+			if (!device) {
+				homid_log(LOG_ERR, "XAL_CONNECT: device not found: %s", req->dev_uri);
+				res.err = -ENODEV;
+				goto send_response;
+			}
+
+			res.sb = *xal_get_sb(device->xal);
+			memcpy(res.shm_name, device->shm_name, sizeof(res.shm_name));
+
+send_response:
+			err = homi_proto_shm_write(wargs->shm, &hdr, &res, sizeof(res));
+			if (err) {
+				homid_log(LOG_ERR, "Failed: homi_proto_shm_write(); err(%d)", err);
+			}
+
+			break;
+		default:
+			homid_log(LOG_WARNING, "Unknown message type: %u", hdr.type);
+			break;
+		}
+
+		sem_post(&wargs->shm->res_ready);
 	}
 
-exit:
-	free(payload);
-	close(sock_fd);
+	sem_destroy(&wargs->shm->req_ready);
+	sem_destroy(&wargs->shm->res_ready);
+	shmdt(wargs->shm);
+	shmctl(wargs->shmid, IPC_RMID, NULL);
+
+	homid_log(LOG_NOTICE, "Client with shmid(%d) disconnected", wargs->shmid);
+
+	free(wargs);
+
 	return NULL;
 }
 
 int
-homid_ipc_accept(struct homid_ipc_connection *conn)
+homid_ipc_accept(struct homid *homid)
 {
-	struct sockaddr addr;
+	struct homid_ipc_connection *conn;
+	struct worker_args *wargs;
 	pthread_t thr_id;
-	uint32_t len;
+	ssize_t n;
 	int client_fd, err;
 
-	len = sizeof(addr);
+	if (!homid) {
+		homid_log(LOG_ERR, "Error: No homid struct given");
+		return -EINVAL;
+	}
 
-	homid_log(LOG_DEBUG, "Waiting for incoming connections...\n");
-	client_fd = accept(conn->fd, &addr, &len);
+	conn = homid->conn;
 
+	homid_log(LOG_DEBUG, "Waiting for incoming connections...");
+
+	client_fd = accept(conn->fd, NULL, NULL);
 	if (client_fd < 0) {
 		homid_log(LOG_WARNING, "Failed: accept(); continuing");
 		return 0;
 	}
 
-	err = pthread_create(&thr_id, NULL, worker, (void *)(intptr_t)client_fd);
-	if (err) {
-			homid_log(LOG_ERR, "Failed: pthread_create(); err(%d)", err);
-			return err;
+	wargs = calloc(1, sizeof(*wargs));
+	if (!wargs) {
+		err = -errno;
+		homid_log(LOG_CRIT, "Failed: calloc(); err(%d)", err);
+		close(client_fd);
+		return err;
 	}
 
+	wargs->shmid = shmget(IPC_PRIVATE, sizeof(struct homi_shm), 0660);
+	if (wargs->shmid < 0) {
+		err = -errno;
+		homid_log(LOG_ERR, "Failed: shmget(); err(%d)", err);
+		goto failed;
+	}
+
+	wargs->shm = shmat(wargs->shmid, NULL, 0);
+	if (wargs->shm == (void *)-1) {
+		err = -errno;
+		homid_log(LOG_ERR, "Failed: shmat(); err(%d)", err);
+		wargs->shm = NULL;
+		goto failed;
+	}
+
+	wargs->shm->done = 0;
+	wargs->homid = homid;
+
+	err = sem_init(&wargs->shm->req_ready, 1, 0);
+	if (err < 0) {
+		err = -errno;
+		homid_log(LOG_ERR, "Failed: sem_init(req_ready); err(%d)", err);
+		goto failed;
+	}
+
+	err = sem_init(&wargs->shm->res_ready, 1, 0);
+	if (err < 0) {
+		err = -errno;
+		homid_log(LOG_ERR, "Failed: sem_init(res_ready); err(%d)", err);
+		goto failed;
+	}
+
+	n = write(client_fd, &wargs->shmid, sizeof(wargs->shmid));
+	if (n < 0) {
+		err = -errno;
+		homid_log(LOG_ERR, "Failed: write(shmid); err(%d)", err);
+		goto failed;
+	}
+
+	close(client_fd);
+	client_fd = -1;
+
+	err = pthread_create(&thr_id, NULL, worker, wargs);
+	if (err) {
+		err = -err;
+		homid_log(LOG_ERR, "Failed: pthread_create(); err(%d)", err);
+		goto failed;
+	}
+
+	pthread_detach(thr_id);
+
 	return 0;
+
+failed:
+	if (wargs->shm) {
+		shmdt(wargs->shm);
+	}
+	if (wargs->shmid >= 0) {
+		shmctl(wargs->shmid, IPC_RMID, NULL);
+	}
+	free(wargs);
+
+	if (client_fd >= 0) {
+		close(client_fd);
+	}
+
+	return err;
 }

@@ -6,6 +6,7 @@
 #include <libxal.h>
 #include <libxnvme.h>
 
+#include <homid.h>
 #include <homid_log.h>
 #include <homid_xal.h>
 #include <homid_opts.h>
@@ -98,7 +99,7 @@ homid_device_setup(struct homid_opts *opts, struct homid_device **devices)
 	unsigned int ndevs = opts->ndevs;
 	int err;
 
-	devs = calloc(ndevs, sizeof(struct homid_device *));
+	devs = calloc(ndevs, sizeof(struct homid_device));
 	if (!devs) {
 		err = -errno;
 		homid_log(LOG_ERR, "Failed to allocate devices: %d", err);
@@ -107,6 +108,10 @@ homid_device_setup(struct homid_opts *opts, struct homid_device **devices)
 
 	for (unsigned int i = 0; i < ndevs; i++) {
 		char *uri = opts->dev_uris[i];
+
+		strncpy(devs[i].uri, uri, sizeof(devs[i].uri) - 1);
+		snprintf(devs[i].shm_name, sizeof(devs[i].shm_name), "/homid_dev%u", i);
+		xal_opts->shm_name = devs[i].shm_name;
 
 		err = homid_xnvme_setup(uri, &devs[i].dev);
 		if (err) {
@@ -127,4 +132,19 @@ homid_device_setup(struct homid_opts *opts, struct homid_device **devices)
 failed:
 	homid_device_close(ndevs, devs);
 	return err;
+}
+
+struct homid_device *
+homid_device_get(struct homid *homid, char *uri)
+{
+	struct homid_device *found = NULL;
+
+	for (uint32_t i = 0; i < homid->ndevs; i++) {
+		if (!strcmp(homid->dev[i].uri, uri)) {
+			found = &homid->dev[i];
+			break;
+		}
+	}
+
+	return found;
 }

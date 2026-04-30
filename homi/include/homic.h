@@ -4,10 +4,12 @@
 /**
  * Connect to the homid daemon.
  *
- * Opens a Unix domain socket connection to the daemon. Must be called before
+ * Connects to the daemon via a socket to obtain the shared memory id,
+ * then attaches to the segment for subsequent requests. Must be called before
  * any other homic functions. The connection is held globally; call
  * homic_disconnect() to release it.
  *
+ * @param socket_path  Path to the daemon's socket.
  * @return  0 on success, negative errno on failure.
  */
 int
@@ -16,8 +18,8 @@ homic_connect(char *socket_path);
 /**
  * Disconnect from the homid daemon.
  *
- * Closes the socket and releases the global connection. Safe to call if not
- * connected.
+ * Detaches from the shared memory segment and releases the global connection.
+ * Safe to call if not connected.
  */
 void
 homic_disconnect();
@@ -33,6 +35,20 @@ homic_disconnect();
  * @return       0 on success, negative errno on failure.
  */
 int
-homic_helloworld(int value, char **out);
+homic_helloworld(int32_t value, char **out);
+
+/**
+ * Connect to xal for a specific device.
+ *
+ * Sends an XAL_CONNECT request to the daemon, maps the inode and extent pools
+ * from POSIX shared memory, and constructs a read-only xal via xal_from_pools().
+ * Requires an active connection established with homic_connect().
+ *
+ * @param dev_uri  URI of the device to connect to.
+ * @param out      Output: read-only xal struct backed by shared memory.
+ * @return         0 on success, negative errno on failure.
+ */
+int
+homic_connect_xal(char *dev_uri, struct xal **out);
 
 #endif /* HOMIC_H */
