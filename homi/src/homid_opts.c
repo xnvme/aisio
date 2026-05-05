@@ -116,11 +116,13 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 		goto exit;
 	}
 
-	if (xal_backend.u.int64 == XAL_BACKEND_XFS) {
-		opts->xal_opts.be = XAL_BACKEND_XFS;
-	} else if (xal_backend.u.int64 == XAL_BACKEND_FIEMAP) {
-		opts->xal_opts.be = XAL_BACKEND_FIEMAP;
-	} else {
+	switch (xal_backend.u.int64)
+	{
+	case XAL_BACKEND_XFS:
+	case XAL_BACKEND_FIEMAP:
+		opts->xal_opts.be = xal_backend.u.int64;
+		break;
+	default:
 		homid_log(LOG_ERR, "Missing or invalid 'xal.backend' property in config");
 		err = -EINVAL;
 		goto exit;
@@ -133,14 +135,10 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 
 	switch (xal_watchmode.u.int64)
 	{
-	case 0:
-		opts->xal_opts.watch_mode = XAL_WATCHMODE_NONE;
-		break;
-	case 1:
-		opts->xal_opts.watch_mode = XAL_WATCHMODE_DIRTY_DETECTION;
-		break;
-	case 2:
-		opts->xal_opts.watch_mode = XAL_WATCHMODE_EXTENT_UPDATE;
+	case XAL_WATCHMODE_NONE:
+	case XAL_WATCHMODE_DIRTY_DETECTION:
+	case XAL_WATCHMODE_EXTENT_UPDATE:
+		opts->xal_opts.watch_mode = xal_watchmode.u.int64;
 		break;
 	default:
 		homid_log(LOG_WARNING, "'xal.watchmode' defaulting to 'none'");
@@ -153,13 +151,16 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 		homid_log(LOG_WARNING, "Missing or invalid 'xal.file_lookupmode' property in config");
 	}
 
-	if (xal_file_lookupmode.u.int64 == XAL_FILE_LOOKUPMODE_TRAVERSE) {
-		opts->xal_opts.file_lookupmode = XAL_FILE_LOOKUPMODE_TRAVERSE;
-	} else if (xal_file_lookupmode.u.int64 == XAL_FILE_LOOKUPMODE_HASHMAP) {
-		opts->xal_opts.file_lookupmode = XAL_FILE_LOOKUPMODE_HASHMAP;
-	} else {
+	switch (xal_file_lookupmode.u.int64)
+	{
+	case XAL_FILE_LOOKUPMODE_TRAVERSE:
+	case XAL_FILE_LOOKUPMODE_HASHMAP:
+		opts->xal_opts.file_lookupmode = xal_file_lookupmode.u.int64;
+		break;
+	default:
 		homid_log(LOG_WARNING, "'xal.file_lookupmode' defaulting to 'traverse'");
 		opts->xal_opts.file_lookupmode = XAL_FILE_LOOKUPMODE_TRAVERSE;
+		break;
 	}
 
 exit:

@@ -1,6 +1,9 @@
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <syslog.h>
 
 #include <libxal.h>
@@ -11,11 +14,31 @@
 #include <homid_xal.h>
 #include <homid_opts.h>
 
+static void
+on_xal_dirty(struct xal *xal, void *cb_args)
+{
+	struct homi_xal_state *state = cb_args;
+
+	(void)xal;
+	atomic_store(&state->dirty, true);
+}
+
+static void
+on_xal_seq_lock(struct xal *xal, int seq, void *cb_args)
+{
+	struct homi_xal_state *state = cb_args;
+
+	(void)xal;
+	atomic_store_explicit(&state->seq_lock, seq, memory_order_release);
+}
+
 int
 homid_xal_setup(struct xal_opts *opts, struct homid_device *device)
 {
+	char shm_state_name[80];
+	struct homi_xal_state *state;
 	struct xal *xal;
-	int err;
+	int shm_fd, err;
 
 	if (!device) {
 		err = -EINVAL;
@@ -32,20 +55,61 @@ homid_xal_setup(struct xal_opts *opts, struct homid_device *device)
 	err = xal_dinodes_retrieve(xal);
 	if (err) {
 		homid_log(LOG_ERR, "xal_dinodes_retrieve(): %d", err);
-		goto close;
+		goto close_xal;
 	}
 
 	err = xal_index(xal);
 	if (err) {
 		homid_log(LOG_ERR, "xal_index(): %d", err);
-		goto close;
+		goto close_xal;
 	}
 
+	snprintf(shm_state_name, sizeof(shm_state_name), "%s_state", device->shm_name);
+
+	shm_fd = shm_open(shm_state_name, O_CREAT | O_RDWR, 0666);
+	if (shm_fd < 0) {
+		err = -errno;
+		homid_log(LOG_ERR, "shm_open(%s): %d", shm_state_name, err);
+		goto close_xal;
+	}
+
+	err = ftruncate(shm_fd, sizeof(struct homi_xal_state));
+	if (err) {
+		err = -errno;
+		homid_log(LOG_ERR, "ftruncate(%s): %d", shm_state_name, err);
+		close(shm_fd);
+		goto unlink_state;
+	}
+
+	state = mmap(NULL, sizeof(struct homi_xal_state), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+	close(shm_fd);
+	if (state == MAP_FAILED) {
+		err = -errno;
+		homid_log(LOG_ERR, "mmap(%s): %d", shm_state_name, err);
+		goto unlink_state;
+	}
+
+	atomic_store(&state->dirty, false);
+	atomic_store(&state->seq_lock, 0);
+
+	if (opts->file_lookupmode) {
+		err = xal_watch_filesystem(xal, on_xal_dirty, state);
+		if (err) {
+			homid_log(LOG_WARNING, "xal_watch_filesystem(): %d; dirty detection unavailable", err);
+		}
+	}
+
+	xal_set_seq_lock_cb(xal, on_xal_seq_lock, state);
+
 	device->xal = xal;
+	device->state = state;
+	device->watching = (err == 0);
 
 	return 0;
 
-close:
+unlink_state:
+	shm_unlink(shm_state_name);
+close_xal:
 	xal_close(xal);
 	return err;
 }
@@ -81,6 +145,18 @@ homid_device_close(unsigned int ndevs, struct homid_device *devices)
 
 		if (!dev) {
 			continue;
+		}
+
+		if (dev->watching) {
+			xal_stop_watching_filesystem(dev->xal);
+		}
+
+		if (dev->state) {
+			char shm_state_name[80];
+
+			snprintf(shm_state_name, sizeof(shm_state_name), "%s_state", dev->shm_name);
+			munmap(dev->state, sizeof(struct homi_xal_state));
+			shm_unlink(shm_state_name);
 		}
 
 		xal_close(dev->xal);

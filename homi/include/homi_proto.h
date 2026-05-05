@@ -1,9 +1,21 @@
 #ifndef HOMI_PROTO_H
 #define HOMI_PROTO_H
 
+#include <stdatomic.h>
 #include <stdint.h>
 
 #include <libxal.h>
+
+/**
+ * Concurrency state for an xal instance, shared between daemon and clients via POSIX shared memory.
+ *
+ * An odd seq_lock means the daemon is currently modifying the pools; clients must not read.
+ * dirty means the inode tree has structurally changed and clients should treat their xal as stale.
+ */
+struct homi_xal_state {
+	atomic_bool dirty;
+	atomic_int seq_lock;
+};
 
 #define HOMI_MAX_CONNECTS   8
 

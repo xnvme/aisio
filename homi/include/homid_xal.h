@@ -1,13 +1,18 @@
 #ifndef HOMID_XAL_H
 #define HOMID_XAL_H
 
+#include <stdbool.h>
+
 #include <homid_opts.h>
+#include <homi_proto.h>
 
 struct homid;
 
 struct homid_device {
 	struct xnvme_dev *dev;
 	struct xal *xal;
+	struct homi_xal_state *state;
+	bool watching;
 	char uri[HOMID_DEVURI_MAXLEN];
 	char shm_name[64];
 };

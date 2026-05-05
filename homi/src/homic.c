@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <semaphore.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +23,7 @@ struct homic_shm_xal {
 	void *inodes_mem;
 	size_t extents_size;
 	void *extents_mem;
+	struct homi_xal_state *state_mem;
 };
 
 struct homic_client {
@@ -109,6 +111,7 @@ homic_disconnect()
 
 		munmap(xal->inodes_mem, xal->inodes_size);
 		munmap(xal->extents_mem, xal->extents_size);
+		munmap(xal->state_mem, sizeof(struct homi_xal_state));
 	}
 	free(g_homic_client->shm_xal);
 
@@ -191,15 +194,16 @@ retrieve_mountpoint(const char *dev_uri, char *mountpoint)
 }
 
 int
-homic_connect_xal(char *dev_uri, struct xal **out)
+homic_connect_xal(char *dev_uri, struct xal **out, struct homi_xal_state **state_out)
 {
 	struct homi_msg_header hdr = {0};
 	struct homi_req_xal_connect req = {0};
 	struct homi_res_xal_connect *res;
 	struct homic_shm_xal *shm_xal;
+	struct homi_xal_state *state_mem;
 	struct xal_sb sb;
 	struct stat st;
-	char shm_name[64], shm_name_inodes[80], shm_name_extents[80];
+	char shm_name[64], shm_name_inodes[80], shm_name_extents[80], shm_name_state[80];
 	char mountpoint_buf[XAL_PATH_MAXLEN + 1];
 	const char *mountpoint = NULL;
 	size_t inodes_size, extents_size, new_count;
@@ -251,6 +255,7 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 
 	snprintf(shm_name_inodes, sizeof(shm_name_inodes), "%s_inodes", shm_name);
 	snprintf(shm_name_extents, sizeof(shm_name_extents), "%s_extents", shm_name);
+	snprintf(shm_name_state, sizeof(shm_name_state), "%s_state", shm_name);
 
 	shm_fd = shm_open(shm_name_inodes, O_RDONLY, 0);
 	if (shm_fd < 0) {
@@ -304,10 +309,26 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 		goto unmap_inodes;
 	}
 
+	shm_fd = shm_open(shm_name_state, O_RDONLY, 0);
+	if (shm_fd < 0) {
+		err = -errno;
+		fprintf(stderr, "Failed: shm_open(state); err(%d)\n", err);
+		goto unmap_extents;
+	}
+
+	state_mem = mmap(NULL, sizeof(struct homi_xal_state), PROT_READ, MAP_SHARED, shm_fd, 0);
+	close(shm_fd);
+	shm_fd = -1;
+	if (state_mem == MAP_FAILED) {
+		err = -errno;
+		fprintf(stderr, "Failed: mmap(state); err(%d)\n", err);
+		goto unmap_extents;
+	}
+
 	err = xal_from_pools(&sb, mountpoint, inodes_mem, extents_mem, out);
 	if (err) {
 		fprintf(stderr, "Failed: xal_from_pools(); err(%d)\n", err);
-		goto unmap_extents;
+		goto unmap_state;
 	}
 
 	new_count = g_homic_client->shm_xal_count + 1;
@@ -319,18 +340,23 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 	}
 	if (!shm_xal) {
 		err = -ENOMEM;
-		goto unmap_extents;
+		goto unmap_state;
 	}
 
 	shm_xal[new_count - 1].inodes_mem = inodes_mem;
 	shm_xal[new_count - 1].inodes_size = inodes_size;
 	shm_xal[new_count - 1].extents_mem = extents_mem;
 	shm_xal[new_count - 1].extents_size = extents_size;
+	shm_xal[new_count - 1].state_mem = state_mem;
 	g_homic_client->shm_xal = shm_xal;
 	g_homic_client->shm_xal_count = new_count;
 
+	*state_out = state_mem;
+
 	return 0;
 
+unmap_state:
+	munmap(state_mem, sizeof(struct homi_xal_state));
 unmap_extents:
 	munmap(extents_mem, extents_size);
 unmap_inodes:
@@ -344,4 +370,31 @@ failed:
 	}
 
 	return err;
+}
+
+int
+homic_xal_read_begin(struct homi_xal_state *state, int *seq_out)
+{
+	int seq;
+
+	if (atomic_load_explicit(&state->dirty, memory_order_acquire)) {
+		return -ESTALE;
+	}
+
+	do {
+		seq = atomic_load_explicit(&state->seq_lock, memory_order_acquire);
+	} while (seq & 1);
+
+	*seq_out = seq;
+	return 0;
+}
+
+int
+homic_xal_read_end(struct homi_xal_state *state, int seq)
+{
+	atomic_thread_fence(memory_order_acquire);
+	if (atomic_load_explicit(&state->seq_lock, memory_order_relaxed) != seq) {
+		return -EAGAIN;
+	}
+	return 0;
 }
