@@ -1,0 +1,3 @@
+[fio_compare]
+fio_size = "16GiB"
+output_root = "cijoe-output/artifacts/fio-compare"

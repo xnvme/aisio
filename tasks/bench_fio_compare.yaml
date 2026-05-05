@@ -1,0 +1,219 @@
+doc: |
+  Run FIO/xNVMe backend comparison benchmarks
+  ===========================================
+
+  This workflow compares the xNVMe `spdk` and `upcie` backends using fio under
+  identical benchmark parameters.
+
+  Configuration files
+  -------------------
+  Run this workflow with:
+
+    `configs/transport.toml`
+    `configs/bench_fio_compare.toml`
+    `configs/devices_*.toml`
+
+  The compare config controls the fio working-set size and the compare artifact root.
+  The device config must provide exactly one benchmark target and use
+  `xnvme.driver.prefix` to blacklist any NVMe boot device.
+
+  Output layout
+  -------------
+  A single run generates:
+
+    `<repo>/cijoe-output/artifacts/fio-compare/<bdf>/raw/<workload>/...raw .out files`
+    `<repo>/cijoe-output/artifacts/fio-compare/<bdf>/benchmark-results.json`
+    `<repo>/cijoe-output/artifacts/fio-compare/<bdf>/benchmark-results.html`
+
+  The final JSON and HTML are generated once, after all workloads complete.
+
+steps:
+- name: validate_device_config
+  run: bash -lc 'test {{ config.devices | length }} -eq 1 || { echo "bench_fio_compare requires exactly one benchmark device"; exit 1; }'
+
+- name: allocate_hugepages
+  run: |
+    sysctl -w vm.nr_hugepages=1024
+    mkdir -p /dev/hugepages
+    mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+
+- name: prepare_read_spdk
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    bash -lc 'ns_path=$(find /sys/bus/pci/devices/{{ config.devices[0].pci_addr }}/nvme -mindepth 2 -maxdepth 2 -type d -name "nvme*n*" 2>/dev/null | head -n 1); if [ -n "$ns_path" ]; then blkdiscard -f "/dev/$(basename "$ns_path")" || true; fi'
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run_read_spdk
+  uses: bench_runall
+  with: &bench-params-read-spdk
+    depths: [1, 4, 16, 32]
+    sizes: [4096, 16384, 65536, 131072]
+    rws: ["read"]
+    time: 5
+    fio_size: "{{ config.fio_compare.fio_size }}"
+    numcpus_specific: [1]
+    numdevs_specific: [1]
+    cpu_freqs: ["performance"]
+    turbo: [1]
+    smt: [1]
+    hyperthreads: [0]
+    stress: [0]
+    repetitions: 3
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/read"
+    tool: fio_xnvme
+    backend: spdk
+
+- name: prepare_read_upcie
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    bash -lc 'ns_path=$(find /sys/bus/pci/devices/{{ config.devices[0].pci_addr }}/nvme -mindepth 2 -maxdepth 2 -type d -name "nvme*n*" 2>/dev/null | head -n 1); if [ -n "$ns_path" ]; then blkdiscard -f "/dev/$(basename "$ns_path")" || true; fi'
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run_read_upcie
+  uses: bench_runall
+  with:
+    <<: *bench-params-read-spdk
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/read"
+    backend: upcie
+
+- name: prepare_randread_spdk
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    bash -lc 'ns_path=$(find /sys/bus/pci/devices/{{ config.devices[0].pci_addr }}/nvme -mindepth 2 -maxdepth 2 -type d -name "nvme*n*" 2>/dev/null | head -n 1); if [ -n "$ns_path" ]; then blkdiscard -f "/dev/$(basename "$ns_path")" || true; fi'
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run_randread_spdk
+  uses: bench_runall
+  with: &bench-params-randread-spdk
+    depths: [1, 4, 16, 32]
+    sizes: [4096, 16384, 65536, 131072]
+    rws: ["randread"]
+    time: 5
+    fio_size: "{{ config.fio_compare.fio_size }}"
+    numcpus_specific: [1]
+    numdevs_specific: [1]
+    cpu_freqs: ["performance"]
+    turbo: [1]
+    smt: [1]
+    hyperthreads: [0]
+    stress: [0]
+    repetitions: 3
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randread"
+    tool: fio_xnvme
+    backend: spdk
+
+- name: prepare_randread_upcie
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    bash -lc 'ns_path=$(find /sys/bus/pci/devices/{{ config.devices[0].pci_addr }}/nvme -mindepth 2 -maxdepth 2 -type d -name "nvme*n*" 2>/dev/null | head -n 1); if [ -n "$ns_path" ]; then blkdiscard -f "/dev/$(basename "$ns_path")" || true; fi'
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run_randread_upcie
+  uses: bench_runall
+  with:
+    <<: *bench-params-randread-spdk
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randread"
+    backend: upcie
+
+- name: prepare_write_spdk
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    bash -lc 'ns_path=$(find /sys/bus/pci/devices/{{ config.devices[0].pci_addr }}/nvme -mindepth 2 -maxdepth 2 -type d -name "nvme*n*" 2>/dev/null | head -n 1); if [ -n "$ns_path" ]; then blkdiscard -f "/dev/$(basename "$ns_path")" || true; fi'
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run_write_spdk
+  uses: bench_runall
+  with: &bench-params-write-spdk
+    depths: [1, 4, 16, 32]
+    sizes: [4096, 16384, 65536, 131072]
+    rws: ["write"]
+    time: 5
+    fio_size: "{{ config.fio_compare.fio_size }}"
+    numcpus_specific: [1]
+    numdevs_specific: [1]
+    cpu_freqs: ["performance"]
+    turbo: [1]
+    smt: [1]
+    hyperthreads: [0]
+    stress: [0]
+    repetitions: 3
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/write"
+    tool: fio_xnvme
+    backend: spdk
+
+- name: prepare_write_upcie
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    bash -lc 'ns_path=$(find /sys/bus/pci/devices/{{ config.devices[0].pci_addr }}/nvme -mindepth 2 -maxdepth 2 -type d -name "nvme*n*" 2>/dev/null | head -n 1); if [ -n "$ns_path" ]; then blkdiscard -f "/dev/$(basename "$ns_path")" || true; fi'
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run_write_upcie
+  uses: bench_runall
+  with:
+    <<: *bench-params-write-spdk
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/write"
+    backend: upcie
+
+- name: prepare_randwrite_spdk
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    bash -lc 'ns_path=$(find /sys/bus/pci/devices/{{ config.devices[0].pci_addr }}/nvme -mindepth 2 -maxdepth 2 -type d -name "nvme*n*" 2>/dev/null | head -n 1); if [ -n "$ns_path" ]; then blkdiscard -f "/dev/$(basename "$ns_path")" || true; fi'
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run_randwrite_spdk
+  uses: bench_runall
+  with: &bench-params-randwrite-spdk
+    depths: [1, 4, 16, 32]
+    sizes: [4096, 16384, 65536, 131072]
+    rws: ["randwrite"]
+    time: 5
+    fio_size: "{{ config.fio_compare.fio_size }}"
+    numcpus_specific: [1]
+    numdevs_specific: [1]
+    cpu_freqs: ["performance"]
+    turbo: [1]
+    smt: [1]
+    hyperthreads: [0]
+    stress: [0]
+    repetitions: 3
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randwrite"
+    tool: fio_xnvme
+    backend: spdk
+
+- name: prepare_randwrite_upcie
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    bash -lc 'ns_path=$(find /sys/bus/pci/devices/{{ config.devices[0].pci_addr }}/nvme -mindepth 2 -maxdepth 2 -type d -name "nvme*n*" 2>/dev/null | head -n 1); if [ -n "$ns_path" ]; then blkdiscard -f "/dev/$(basename "$ns_path")" || true; fi'
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: run_randwrite_upcie
+  uses: bench_runall
+  with:
+    <<: *bench-params-randwrite-spdk
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randwrite"
+    backend: upcie
+
+- name: collect
+  uses: fio_compare_collect
+  with:
+    results_dirs:
+      - "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/read"
+      - "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randread"
+      - "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/write"
+      - "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randwrite"
+    output_path: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/benchmark-results.json"
+
+- name: visualize
+  uses: bench_visualize
+  with:
+    path: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/benchmark-results.json"
+    html_path: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/benchmark-results.html"
+    template: benchmark-fio-compare

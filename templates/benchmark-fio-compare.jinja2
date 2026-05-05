@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIO xNVMe Compare</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --panel: #f7f9fc;
+  --ink: #1e2430;
+  --muted: #6d7481;
+  --line: #dce3ec;
+  --accent-a: #d96b2b;
+  --accent-b: #2457c5;
+  --accent-c: #0f8b6d;
+  --shadow: 0 16px 50px rgba(30, 36, 48, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Noto Sans", sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+main {
+  width: min(1320px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+.hero {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.hero p {
+  max-width: 880px;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.warning-banner {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #f0c59c;
+  background: #fff4e8;
+  color: #8a4b19;
+  line-height: 1.5;
+}
+
+.warning-banner.hidden {
+  display: none;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.panel {
+  padding: 20px;
+}
+
+.control-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.control-group {
+  display: grid;
+  gap: 8px;
+}
+
+.control-group label.title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choices button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  padding: 8px 12px;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.choices button.active {
+  background: var(--ink);
+  color: white;
+  border-color: var(--ink);
+}
+
+.content {
+  display: grid;
+  gap: 20px;
+}
+
+.chart-panel {
+  padding: 24px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.chart-header p {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.chart-wrap {
+  position: relative;
+  min-height: 420px;
+}
+
+.chart-wrap canvas {
+  width: 100%;
+  height: 420px;
+  display: block;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+thead th {
+  text-align: left;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 10px;
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(215, 208, 195, 0.5);
+  white-space: nowrap;
+}
+
+tbody tr:hover {
+  background: rgba(36, 87, 197, 0.04);
+}
+
+.delta-pos {
+  color: var(--accent-c);
+  font-weight: 700;
+}
+
+.delta-neg {
+  color: #b03a2e;
+  font-weight: 700;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <h1>FIO xNVMe Backend Compare</h1>
+    <p>
+      Compare `spdk` and `upcie` directly across queue depth and block size.
+      This report focuses on backend differences instead of the generic benchmark
+      framework axes.
+    </p>
+    <div class="warning-banner{% if not cpu_control_warning %} hidden{% endif %}" id="cpu-control-warning">
+      <strong>CPU control warning</strong>
+      <span>
+        Turbo, governor, or fixed-frequency control was not fully enforced on this platform.
+        Treat the reported CPU policy fields as requested settings unless the row says
+        CPU control was supported.
+      </span>
+    </div>
+  </section>
+
+  <section class="layout">
+    <aside class="panel">
+      <div class="control-grid">
+        <div class="control-group">
+          <label class="title">Environment Label</label>
+          <div class="choices" id="label-choices"></div>
+        </div>
+        <div class="control-group">
+          <label class="title">Workload</label>
+          <div class="choices" id="rw-choices"></div>
+        </div>
+        <div class="control-group">
+          <label class="title">Metric</label>
+          <div class="choices" id="metric-choices"></div>
+        </div>
+        <div class="control-group">
+          <label class="title">Block Size</label>
+          <div class="choices" id="bs-choices"></div>
+        </div>
+        <div class="control-group">
+          <label class="title">Chart</label>
+          <div class="choices" id="chartmode-choices"></div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <article class="panel chart-panel">
+        <div class="chart-header">
+          <div>
+            <h2 id="chart-title">Queue depth comparison</h2>
+            <p id="chart-subtitle"></p>
+          </div>
+          <div class="badge">
+            <span class="legend-dot" style="background: var(--accent-a)"></span> SPDK
+            <span class="legend-dot" style="background: var(--accent-b)"></span> uPCIe
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart"></canvas>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="chart-header">
+          <div>
+            <h2>Detailed Table</h2>
+            <p>Delta is relative to the SPDK value for the same block size and queue depth.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Block Size</th>
+                <th>QD</th>
+                <th>SPDK IOPS</th>
+                <th>SPDK MiB/s</th>
+                <th>uPCIe IOPS</th>
+                <th>uPCIe MiB/s</th>
+                <th>Delta</th>
+              </tr>
+            </thead>
+            <tbody id="result-table"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </section>
+</main>
+
+<script>
+const datasets = [
+  {%- for dataset in datasets %}
+  {
+    label: {{ dataset.label | tojson }},
+    data: [
+      {%- for d in dataset.data %}
+      {{ d | tojson }},
+      {%- endfor %}
+    ],
+  },
+  {%- endfor %}
+];
+
+const palette = {
+  spdk: "#d96b2b",
+  upcie: "#2457c5",
+  delta: "#0f8b6d",
+};
+
+const state = {
+  label: null,
+  rw: null,
+  metric: "iops",
+  bs: null,
+  chartMode: "qd",
+};
+
+const chartModes = [
+  { key: "qd", label: "By Queue Depth" },
+  { key: "bs", label: "By Block Size" },
+];
+
+const metricModes = [
+  { key: "iops", label: "IOPS" },
+  { key: "mibs", label: "MiB/s" },
+];
+
+const chartCanvas = document.getElementById("chart");
+const tableBody = document.getElementById("result-table");
+const labelChoices = document.getElementById("label-choices");
+const rwChoices = document.getElementById("rw-choices");
+const metricChoices = document.getElementById("metric-choices");
+const bsChoices = document.getElementById("bs-choices");
+const chartModeChoices = document.getElementById("chartmode-choices");
+let resizeTimer = null;
+
+function groupedDataForLabel(label) {
+  return datasets.find(entry => entry.label === label)?.data ?? [];
+}
+
+function uniq(values) {
+  return [...new Set(values)];
+}
+
+function numericSort(values) {
+  return [...values].sort((a, b) => Number(a) - Number(b));
+}
+
+function buttonSet(container, values, selected, onClick, formatter = v => v) {
+  container.innerHTML = "";
+  values.forEach(value => {
+    const button = document.createElement("button");
+    button.textContent = formatter(value);
+    if (value === selected) {
+      button.classList.add("active");
+    }
+    button.addEventListener("click", () => onClick(value));
+    container.appendChild(button);
+  });
+}
+
+function fmtNumber(value) {
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+}
+
+function fmtDelta(value) {
+  const text = `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+  const cls = value >= 0 ? "delta-pos" : "delta-neg";
+  return `<span class="${cls}">${text}</span>`;
+}
+
+function normalizeRows(rows) {
+  return rows.map(row => ({
+    ...row,
+    iops_avg: Array.isArray(row.iops) ? row.iops[0] : row.iops,
+    mibs_avg: Array.isArray(row.mibs) ? row.mibs[0] : row.mibs,
+  }));
+}
+
+function buildTableRows(rows) {
+  const grouped = new Map();
+  rows.forEach(row => {
+    const key = `${row.iosize}:${row.qdepth}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, { iosize: row.iosize, qdepth: row.qdepth });
+    }
+    grouped.get(key)[row.backend] = row;
+  });
+
+  return [...grouped.values()].sort((a, b) => (
+    a.iosize - b.iosize || a.qdepth - b.qdepth
+  ));
+}
+
+function currentRows() {
+  return normalizeRows(
+    groupedDataForLabel(state.label).filter(row => row.rw === state.rw)
+  );
+}
+
+function updateSummary(rows) {
+  return rows;
+}
+
+function renderTable(rows) {
+  const tableRows = buildTableRows(rows);
+  tableBody.innerHTML = "";
+
+  tableRows.forEach(row => {
+    const spdk = row.spdk;
+    const upcie = row.upcie;
+    const base = state.metric === "iops" ? spdk?.iops_avg : spdk?.mibs_avg;
+    const probe = state.metric === "iops" ? upcie?.iops_avg : upcie?.mibs_avg;
+    const delta = base ? ((probe - base) / base) * 100 : null;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.iosize}</td>
+      <td>${row.qdepth}</td>
+      <td>${spdk ? fmtNumber(spdk.iops_avg) : "-"}</td>
+      <td>${spdk ? fmtNumber(spdk.mibs_avg) : "-"}</td>
+      <td>${upcie ? fmtNumber(upcie.iops_avg) : "-"}</td>
+      <td>${upcie ? fmtNumber(upcie.mibs_avg) : "-"}</td>
+      <td>${delta === null || Number.isNaN(delta) ? "-" : fmtDelta(delta)}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+
+function formatAxisValue(value, axis) {
+  if (axis === "bs") {
+    if (value >= 1024 * 1024) {
+      return `${(value / (1024 * 1024)).toFixed(value % (1024 * 1024) ? 1 : 0)} MiB`;
+    }
+    if (value >= 1024) {
+      return `${(value / 1024).toFixed(value % 1024 ? 1 : 0)} KiB`;
+    }
+    return `${value} B`;
+  }
+  return `${value}`;
+}
+
+function formatMetric(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  if (state.metric === "iops") {
+    return `${Math.round(value).toLocaleString()}`;
+  }
+  return value >= 100 ? `${Math.round(value).toLocaleString()}` : value.toFixed(1);
+}
+
+function setCanvasSize(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(320, Math.floor(rect.width));
+  const height = Math.max(320, Math.floor(rect.height || 420));
+  const dpr = window.devicePixelRatio || 1;
+  const targetWidth = Math.round(width * dpr);
+  const targetHeight = Math.round(height * dpr);
+  if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, width, height };
+}
+
+function drawRoundedRect(ctx, x, y, w, h, r, fillStyle) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+  ctx.fillStyle = fillStyle;
+  ctx.fill();
+}
+
+function drawChart(rows) {
+  const xKey = state.chartMode === "qd" ? "qdepth" : "iosize";
+  const filterKey = state.chartMode === "qd" ? "iosize" : "qdepth";
+  const filterValue = state.chartMode === "qd" ? state.bs : 32;
+  const filtered = rows.filter(row => row[filterKey] === filterValue);
+  const xValues = numericSort(uniq(filtered.map(row => row[xKey])));
+  const metricKey = state.metric === "iops" ? "iops_avg" : "mibs_avg";
+  const title = state.chartMode === "qd" ? "Queue depth comparison" : "Block size comparison";
+  const subtitle = state.chartMode === "qd"
+    ? `${state.rw}, block size ${state.bs} bytes, metric ${state.metric.toUpperCase()}`
+    : `${state.rw}, queue depth 32, metric ${state.metric.toUpperCase()}`;
+
+  document.getElementById("chart-title").textContent = title;
+  document.getElementById("chart-subtitle").textContent = subtitle;
+
+  const { ctx, width, height } = setCanvasSize(chartCanvas);
+  ctx.clearRect(0, 0, width, height);
+
+  const margin = { top: 24, right: 20, bottom: 70, left: 68 };
+  const plot = {
+    x: margin.left,
+    y: margin.top,
+    w: width - margin.left - margin.right,
+    h: height - margin.top - margin.bottom,
+  };
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.strokeStyle = "#dce3ec";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(plot.x, plot.y);
+  ctx.lineTo(plot.x, plot.y + plot.h);
+  ctx.lineTo(plot.x + plot.w, plot.y + plot.h);
+  ctx.stroke();
+
+  const series = [
+    { key: "spdk", label: "SPDK", color: palette.spdk },
+    { key: "upcie", label: "uPCIe", color: palette.upcie },
+  ];
+
+  const values = series.flatMap(seriesEntry => xValues.map(x => {
+    const row = filtered.find(entry => entry.backend === seriesEntry.key && entry[xKey] === x);
+    return row ? row[metricKey] : 0;
+  }));
+  const maxValue = Math.max(1, ...values);
+  const tickCount = 5;
+  const tickStep = maxValue / tickCount;
+
+  ctx.save();
+  ctx.fillStyle = "#6d7481";
+  ctx.font = "12px Segoe UI, Noto Sans, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= tickCount; i += 1) {
+    const value = tickStep * i;
+    const y = plot.y + plot.h - (plot.h * i / tickCount);
+    ctx.strokeStyle = i === 0 ? "#cbd5e1" : "rgba(220, 227, 236, 0.7)";
+    ctx.beginPath();
+    ctx.moveTo(plot.x, y);
+    ctx.lineTo(plot.x + plot.w, y);
+    ctx.stroke();
+    ctx.fillText(formatMetric(value), plot.x - 10, y);
+  }
+  ctx.restore();
+
+  const groupWidth = plot.w / Math.max(xValues.length, 1);
+  const barGroupWidth = Math.min(70, groupWidth * 0.72);
+  const barWidth = barGroupWidth / series.length;
+
+  xValues.forEach((xValue, idx) => {
+    const center = plot.x + idx * groupWidth + groupWidth / 2;
+    const groupLeft = center - barGroupWidth / 2;
+    series.forEach((seriesEntry, sidx) => {
+      const row = filtered.find(entry => entry.backend === seriesEntry.key && entry[xKey] === xValue);
+      if (!row) {
+        return;
+      }
+      const value = row[metricKey] ?? 0;
+      const barHeight = (value / maxValue) * plot.h;
+      const x = groupLeft + sidx * barWidth + 2;
+      const y = plot.y + plot.h - barHeight;
+      drawRoundedRect(ctx, x, y, barWidth - 4, barHeight, 6, seriesEntry.color);
+    });
+
+    ctx.save();
+    ctx.fillStyle = "#1e2430";
+    ctx.font = "12px Segoe UI, Noto Sans, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    const label = formatAxisValue(xValue, xKey === "qdepth" ? "qd" : "bs");
+    ctx.fillText(label, center, plot.y + plot.h + 10);
+    ctx.restore();
+  });
+
+  ctx.save();
+  ctx.translate(18, plot.y + plot.h / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = "#6d7481";
+  ctx.font = "12px Segoe UI, Noto Sans, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(state.metric === "iops" ? "IOPS" : "MiB/s", 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.fillStyle = "#6d7481";
+  ctx.font = "12px Segoe UI, Noto Sans, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(state.chartMode === "qd" ? "Queue Depth" : "Block Size", plot.x + plot.w / 2, height - 30);
+  ctx.restore();
+}
+
+function renderControls() {
+  const labels = datasets.map(entry => entry.label);
+  if (!state.label) {
+    state.label = labels[0];
+  }
+
+  const rows = groupedDataForLabel(state.label);
+  const workloads = uniq(rows.map(row => row.rw)).sort();
+  if (!state.rw || !workloads.includes(state.rw)) {
+    state.rw = workloads[0];
+  }
+
+  const activeRows = rows.filter(row => row.rw === state.rw);
+  const blockSizes = numericSort(uniq(activeRows.map(row => row.iosize)));
+  if (!state.bs || !blockSizes.includes(state.bs)) {
+    state.bs = blockSizes[0];
+  }
+
+  buttonSet(labelChoices, labels, state.label, value => {
+    state.label = value;
+    render();
+  });
+  buttonSet(rwChoices, workloads, state.rw, value => {
+    state.rw = value;
+    render();
+  });
+  buttonSet(metricChoices, metricModes.map(mode => mode.key), state.metric, value => {
+    state.metric = value;
+    render();
+  }, value => metricModes.find(mode => mode.key === value).label);
+  buttonSet(bsChoices, blockSizes, state.bs, value => {
+    state.bs = value;
+    render();
+  }, value => `${value}`);
+  buttonSet(chartModeChoices, chartModes.map(mode => mode.key), state.chartMode, value => {
+    state.chartMode = value;
+    render();
+  }, value => chartModes.find(mode => mode.key === value).label);
+}
+
+function render() {
+  renderControls();
+  const rows = currentRows();
+  updateSummary(rows);
+  renderTable(rows);
+  drawChart(rows);
+}
+
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => render(), 50);
+});
+
+render();
+</script>
+</body>
+</html>
