@@ -2,7 +2,7 @@ define default-help
 # Build and start
 endef
 .PHONY: default
-default: clean build install start
+default: clean config build install
 
 define clean-help
 # Remove builddir
@@ -11,16 +11,22 @@ endef
 clean:
 	@rm -r builddir || echo "Nothing to clean, continuing"
 
+define config-help
+# configure HOMI service
+endef
+.PHONY: config
+config:
+	meson setup builddir
+
 define build-help
-# Compile and configure HOMI service
+# Compile HOMI service
 endef
 .PHONY: build
 build:
-	meson setup builddir
 	meson compile -C builddir
 
 define install-help
-# Compile and configure HOMI service
+# install HOMI service
 endef
 .PHONY: install
 install:
