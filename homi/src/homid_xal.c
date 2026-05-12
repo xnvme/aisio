@@ -15,6 +15,19 @@
 #include <homid_xal.h>
 #include <homid_opts.h>
 
+static void
+on_xal_dirty(struct xal *xal, void *cb_args)
+{
+	int err;
+
+	(void)cb_args;
+
+	err = xal_index(xal);
+	if (err) {
+		homid_log(LOG_CRIT, "xal_index(): %d; pools are stale, daemon restart required", err);
+	}
+}
+
 int
 homid_xal_setup(struct xal_opts *opts, struct homid_device *device)
 {
@@ -43,6 +56,16 @@ homid_xal_setup(struct xal_opts *opts, struct homid_device *device)
 	if (err) {
 		homid_log(LOG_ERR, "xal_index(): %d", err);
 		goto close_xal;
+	}
+
+	device->watching = false;
+	if (opts->watch_mode) {
+		err = xal_watch_filesystem(xal, on_xal_dirty, NULL);
+		if (err) {
+			homid_log(LOG_WARNING, "xal_watch_filesystem(): %d; filesystem watch unavailable", err);
+		} else {
+			device->watching = true;
+		}
 	}
 
 	device->xal = xal;
@@ -85,6 +108,10 @@ homid_device_close(unsigned int ndevs, struct homid_device *devices)
 
 		if (!dev) {
 			continue;
+		}
+
+		if (dev->watching) {
+			xal_stop_watching_filesystem(dev->xal);
 		}
 
 		xal_close(dev->xal);
