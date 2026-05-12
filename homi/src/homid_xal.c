@@ -1,7 +1,11 @@
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include <libxal.h>
 #include <libxnvme.h>
@@ -32,20 +36,20 @@ homid_xal_setup(struct xal_opts *opts, struct homid_device *device)
 	err = xal_dinodes_retrieve(xal);
 	if (err) {
 		homid_log(LOG_ERR, "xal_dinodes_retrieve(): %d", err);
-		goto close;
+		goto close_xal;
 	}
 
 	err = xal_index(xal);
 	if (err) {
 		homid_log(LOG_ERR, "xal_index(): %d", err);
-		goto close;
+		goto close_xal;
 	}
 
 	device->xal = xal;
 
 	return 0;
 
-close:
+close_xal:
 	xal_close(xal);
 	return err;
 }

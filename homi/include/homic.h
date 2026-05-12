@@ -51,4 +51,17 @@ homic_helloworld(int value, char **out);
 int
 homic_connect_xal(char *dev_uri, struct xal **out);
 
+/**
+ * Wait until the xal pools are not being reindexed.
+ *
+ * Spins while the daemon is running xal_index(). Returns once it is safe to
+ * read from the xal pools. Requires an active connection established with
+ * homic_connect().
+ *
+ * @param xal  xal instance to wait on.
+ * @return     0 on success, negative errno on failure.
+ */
+int
+homic_xal_wait(struct xal *xal);
+
 #endif /* HOMIC_H */

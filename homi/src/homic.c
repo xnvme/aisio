@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <semaphore.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +20,7 @@ struct homic_shm_xal {
 	void *inodes_mem;
 	size_t extents_size;
 	void *extents_mem;
+	_Atomic bool *dirty;
 };
 
 struct homic_client {
@@ -106,6 +108,7 @@ homic_disconnect()
 
 		munmap(xal->inodes_mem, xal->inodes_size);
 		munmap(xal->extents_mem, xal->extents_size);
+		munmap(xal->dirty, sizeof(atomic_bool));
 	}
 	free(g_homic_client->shm_xal);
 
@@ -194,9 +197,10 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 	struct homi_req_xal_connect req = {0};
 	struct homi_res_xal_connect *res = NULL;
 	struct homic_shm_xal *shm_xal;
+	_Atomic bool *dirty;
 	struct xal_sb sb;
 	struct stat st;
-	char shm_name[64], shm_name_inodes[80], shm_name_extents[80];
+	char shm_name[64], shm_name_inodes[80], shm_name_extents[80], shm_name_dirty[80];
 	char mountpoint_buf[XAL_PATH_MAXLEN + 1];
 	const char *mountpoint = NULL;
 	size_t inodes_size, extents_size, new_count;
@@ -249,6 +253,7 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 
 	snprintf(shm_name_inodes, sizeof(shm_name_inodes), "%s_inodes", shm_name);
 	snprintf(shm_name_extents, sizeof(shm_name_extents), "%s_extents", shm_name);
+	snprintf(shm_name_dirty, sizeof(shm_name_dirty), "%s_dirty", shm_name);
 
 	shm_fd = shm_open(shm_name_inodes, O_RDONLY, 0);
 	if (shm_fd < 0) {
@@ -302,10 +307,26 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 		goto unmap_inodes;
 	}
 
-	err = xal_from_pools(&sb, mountpoint, inodes_mem, extents_mem, out);
+	shm_fd = shm_open(shm_name_dirty, O_RDONLY, 0);
+	if (shm_fd < 0) {
+		err = -errno;
+		fprintf(stderr, "Failed: shm_open(dirty); err(%d)\n", err);
+		goto unmap_extents;
+	}
+
+	dirty = mmap(NULL, sizeof(atomic_bool), PROT_READ, MAP_SHARED, shm_fd, 0);
+	close(shm_fd);
+	shm_fd = -1;
+	if (dirty == MAP_FAILED) {
+		err = -errno;
+		fprintf(stderr, "Failed: mmap(dirty); err(%d)\n", err);
+		goto unmap_extents;
+	}
+
+	err = xal_from_pools(&sb, mountpoint, inodes_mem, extents_mem, dirty, out);
 	if (err) {
 		fprintf(stderr, "Failed: xal_from_pools(); err(%d)\n", err);
-		goto unmap_extents;
+		goto unmap_dirty;
 	}
 
 	new_count = g_homic_client->shm_xal_count + 1;
@@ -313,13 +334,14 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 	shm_xal = realloc(g_homic_client->shm_xal, new_count * sizeof(*shm_xal));
 	if (!shm_xal) {
 		err = -ENOMEM;
-		goto unmap_extents;
+		goto unmap_dirty;
 	}
 
 	shm_xal[new_count - 1].inodes_mem = inodes_mem;
 	shm_xal[new_count - 1].inodes_size = inodes_size;
 	shm_xal[new_count - 1].extents_mem = extents_mem;
 	shm_xal[new_count - 1].extents_size = extents_size;
+	shm_xal[new_count - 1].dirty = dirty;
 	g_homic_client->shm_xal = shm_xal;
 	g_homic_client->shm_xal_count = new_count;
 
@@ -327,6 +349,8 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 
 	return 0;
 
+unmap_dirty:
+	munmap(dirty, sizeof(atomic_bool));
 unmap_extents:
 	munmap(extents_mem, extents_size);
 unmap_inodes:
@@ -339,6 +363,24 @@ failed:
 	}
 	if (sock_fd >= 0) {
 		close(sock_fd);
+	}
+
+	return err;
+}
+
+int
+homic_xal_wait(struct xal *xal)
+{
+	int err = 0;
+
+	if (!g_homic_client) {
+		err = -ENOTCONN;
+		fprintf(stderr, "Failed: No connection, please call homic_connect(); err(%d)\n", err);
+		return err;
+	}
+
+	while (xal_is_dirty(xal)) {
+		usleep(1000);
 	}
 
 	return err;
