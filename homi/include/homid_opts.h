@@ -1,4 +1,8 @@
-#define HOMID_DEVURI_MAXLEN 256
+#ifndef HOMID_OPTS_H
+#define HOMID_OPTS_H
+
+#include <libxal.h>
+#include <homi_proto.h>
 
 struct homid_opts {
 	int log_level;
@@ -24,3 +28,5 @@ struct homid_opts {
  */
 int
 homid_opts_from_toml(char *path, struct homid_opts *opts);
+
+#endif /* HOMID_OPTS_H */

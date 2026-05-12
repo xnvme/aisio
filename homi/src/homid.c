@@ -135,9 +135,12 @@ int main(int argc, char **argv)
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGINT, &sa, NULL);
 
-	while (!stop)
-	{
-		homid_ipc_accept(homid->conn);
+	while (!stop) {
+		err = homid_ipc_accept(homid);
+		if (err) {
+			homid_log(LOG_ERR, "Failed: homid_ipc_accept(); err(%d)", err);
+			continue;
+		}
 	}
 
 	homid_log(LOG_NOTICE, "Daemon terminated");

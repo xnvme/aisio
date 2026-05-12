@@ -46,11 +46,12 @@ executable('homid',
 
 library('homic',
   sources: ['src/homic.c', 'src/homi_proto.c'],
+  dependencies: [xal_dep],
   include_directories: include_dirs,
   install: true,
 )
 
-install_headers('include/homic.h')
+install_headers('include/homic.h', 'include/homi_proto.h')
 
 config_dir = join_paths('/etc', 'homi')
 config_name = 'homi.conf'
