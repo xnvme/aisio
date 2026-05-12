@@ -2,8 +2,7 @@
 #define HOMID_OPTS_H
 
 #include <libxal.h>
-
-#define HOMID_DEVURI_MAXLEN 256
+#include <homi_proto.h>
 
 struct homid_opts {
 	int log_level;

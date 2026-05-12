@@ -6,6 +6,7 @@
 #include <libxal.h>
 
 #define HOMI_MAX_CONNECTS   8
+#define HOMID_DEVURI_MAXLEN 256
 
 enum homi_msg_type {
 	HOMI_MSG_TYPE_HELLOWORLD = 0, ///< Test type, as an example of what is needed
@@ -17,7 +18,7 @@ struct homi_req_helloworld {
 };
 
 struct homi_req_xal_connect {
-	char dev_uri[256];
+	char dev_uri[HOMID_DEVURI_MAXLEN];
 };
 
 struct homi_res_xal_connect {
