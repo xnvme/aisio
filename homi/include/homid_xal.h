@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+#include <homi_proto.h>
 #include <homid_opts.h>
 
 struct homid;
