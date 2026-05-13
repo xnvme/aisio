@@ -8,6 +8,7 @@ create the HTML file, which visualizes the data.
 Retargetable: False
 -------------------
 """
+
 import json
 import jinja2
 import logging as log
@@ -18,6 +19,9 @@ from pathlib import Path
 
 def add_args(parser: ArgumentParser):
     parser.add_argument("--path", type=Path, default=None, help="Path to results.json")
+    parser.add_argument(
+        "--html_path", type=Path, default=None, help="Path to output HTML"
+    )
     parser.add_argument("--template", type=str, default="benchmark-io")
 
 
@@ -26,7 +30,9 @@ def main(args, cijoe):
 
     artifacts = Path(args.output) / "artifacts"
     json_path = args.path if args.path else artifacts / "benchmark-results.json"
-    html_path = artifacts / "benchmark-results.html"
+    html_path = (
+        args.html_path if args.html_path else artifacts / "benchmark-results.html"
+    )
 
     if not json_path.exists():
         log.error(f"Failed: could not find benchmark results on path({json_path})")
@@ -55,8 +61,11 @@ def main(args, cijoe):
     template_env = jinja2.Environment(loader=template_loader)
 
     template = template_env.get_template(f"{args.template}.jinja2")
+    html_path.parent.mkdir(parents=True, exist_ok=True)
     with html_path.open("w") as body:
-        body.write(template.render({ "datasets": datasets, "cuda_bandwidth": cuda_bandwidth }))
+        body.write(
+            template.render({"datasets": datasets, "cuda_bandwidth": cuda_bandwidth})
+        )
 
     return 0
 
@@ -83,7 +92,10 @@ def convert_to_data(all_results: dict) -> list:
     datasets = []
 
     for label, results in all_results.items():
-        data = [{k:(int(v) if isinstance(v, bool) else v) for k,v in res.items()} for res in results]
-        datasets.append({ "label": label, "data": data })
+        data = [
+            {k: (int(v) if isinstance(v, bool) else v) for k, v in res.items()}
+            for res in results
+        ]
+        datasets.append({"label": label, "data": data})
 
     return datasets
