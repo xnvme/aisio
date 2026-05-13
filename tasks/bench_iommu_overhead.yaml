@@ -118,4 +118,6 @@ steps:
   uses: iommu_overhead_combine
 
 - name: visualize
-  uses: iommu_overhead_visualize
+  uses: bench_visualize
+  with:
+    template: iommu-overhead
