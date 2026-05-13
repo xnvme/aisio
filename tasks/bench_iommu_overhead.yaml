@@ -1,0 +1,121 @@
+doc: |
+  Benchmark uPCIe IOMMU overhead
+  ==============================
+
+  This workflow automates the full uPCIe IOMMU overhead measurement:
+
+    1. boot with IOMMU disabled and collect uio_pci_generic results
+    2. boot with IOMMU enabled and collect vfio-pci results
+    3. combine both result sets and generate an HTML report
+
+  It modifies `/etc/default/grub` on the target, reboots the machine twice, and
+  waits for the CIJOE transport to return after each reboot.
+
+  The benchmark parameters live in this task so the experiment definition stays
+  self-contained.
+
+  Example:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/aisio.toml \
+      -c configs/datasets.toml \
+      tasks/bench_iommu_overhead.yaml
+
+  Recovery
+  --------
+  Before the first edit, the original grub config is copied to
+  `/etc/default/grub.aisio-iommu-overhead.bak` on the target. If a reboot
+  fails or the workflow is aborted in an unwanted boot state, restore with:
+
+    cp /etc/default/grub.aisio-iommu-overhead.bak /etc/default/grub \
+      && update-grub  # or: grub2-mkconfig -o /boot/grub2/grub.cfg
+
+  and reboot.
+
+steps:
+- name: set_iommu_off
+  uses: iommu_boot
+  with:
+    mode: set-off
+
+- name: reboot_iommu_off
+  run: shutdown -r now
+
+- name: wait_down_iommu_off
+  uses: core.wait_for_transport
+  with:
+    state: down
+    timeout: 60
+
+- name: wait_up_iommu_off
+  uses: core.wait_for_transport
+  with:
+    state: up
+    timeout: 300
+
+- name: verify_iommu_off
+  uses: iommu_boot
+  with:
+    mode: verify-off
+
+- name: benchmark_uio
+  uses: iommu_overhead
+  with:
+    repeat: 3
+    runtime: 10
+    fio_ramp_time: 5
+    fio_size: "100%"
+    workload_pause: 5
+    hugepages: 1024
+    rws: [randread, read]
+    iosizes: [4096, 131072]
+    iodepths: [1, 2, 4, 8, 16, 32]
+    driver: uio_pci_generic
+    label: uio
+
+- name: set_iommu_on
+  uses: iommu_boot
+  with:
+    mode: set-on
+
+- name: reboot_iommu_on
+  run: shutdown -r now
+
+- name: wait_down_iommu_on
+  uses: core.wait_for_transport
+  with:
+    state: down
+    timeout: 60
+
+- name: wait_up_iommu_on
+  uses: core.wait_for_transport
+  with:
+    state: up
+    timeout: 300
+
+- name: verify_iommu_on
+  uses: iommu_boot
+  with:
+    mode: verify-on
+
+- name: benchmark_vfio
+  uses: iommu_overhead
+  with:
+    repeat: 3
+    runtime: 10
+    fio_ramp_time: 5
+    fio_size: "100%"
+    workload_pause: 5
+    hugepages: 1024
+    rws: [randread, read]
+    iosizes: [4096, 131072]
+    iodepths: [1, 2, 4, 8, 16, 32]
+    driver: vfio-pci
+    label: vfio
+
+- name: combine
+  uses: iommu_overhead_combine
+
+- name: visualize
+  uses: iommu_overhead_visualize
