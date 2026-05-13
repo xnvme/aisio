@@ -1,0 +1,190 @@
+doc: |
+  Run FIO/xNVMe backend comparison benchmarks
+  ===========================================
+
+  This workflow compares the xNVMe `spdk` and `upcie` backends using fio under
+  identical benchmark parameters.
+
+  Configuration files
+  -------------------
+  Run this workflow with:
+
+    `configs/transport.toml`
+    `configs/bench_fio_compare.toml`
+    `configs/devices_*.toml`
+
+  The compare config controls the fio working-set size and the compare artifact root.
+  The device config must provide exactly one benchmark target and use
+  `xnvme.driver.prefix` to blacklist any NVMe boot device.
+
+  Output layout
+  -------------
+  A single run generates:
+
+    `<repo>/cijoe-output/artifacts/fio-compare/<bdf>/raw/<workload>/...raw .out files`
+    `<repo>/cijoe-output/artifacts/fio-compare/<bdf>/benchmark-results.json`
+    `<repo>/cijoe-output/artifacts/fio-compare/<bdf>/benchmark-results.html`
+
+  The final JSON and HTML are generated once, after all workloads complete.
+
+steps:
+- name: validate_device_config
+  run: bash -lc 'test {{ config.devices | length }} -eq 1 || { echo "bench_fio_compare requires exactly one benchmark device"; exit 1; }'
+
+- name: allocate_hugepages
+  run: |
+    sysctl -w vm.nr_hugepages=1024
+    mkdir -p /dev/hugepages
+    mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+
+- name: prepare_spdk
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: trim_before_read_spdk
+  run: bash -lc 'info=$(xnvme info --be spdk {{ config.devices[0].pci_addr }}); nsid=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsid:/{print \$2; exit}"); nsect=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsect:/{print \$2; exit}"); test -n "$nsid" -a -n "$nsect" || { echo "failed to discover nsid/nsect"; exit 1; }; xnvme dsm {{ config.devices[0].pci_addr }} --be spdk --dev-nsid "$nsid" --nsid "$nsid" --ad --slba 0x0 --llb "$((nsect - 1))"'
+
+- name: prefill_readlike_spdk
+  uses: bench_runall
+  with: &prefill-params-spdk
+    depths: [1]
+    sizes: [4096]
+    rws: ["write"]
+    fio_size: "{{ config.fio_compare.fio_size }}"
+    numcpus_specific: [1]
+    numdevs_specific: [1]
+    cpu_freqs: ["performance"]
+    turbo: [1]
+    smt: [1]
+    hyperthreads: [0]
+    stress: [0]
+    repetitions: 1
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/prefill-spdk"
+    tool: fio_xnvme
+    backend: spdk
+    prefill_only: 1
+
+- name: run_read_spdk
+  uses: bench_runall
+  with: &bench-params-read-spdk
+    depths: [1, 4, 16, 32]
+    sizes: [4096, 16384, 65536, 131072]
+    rws: ["read"]
+    fio_size: "{{ config.fio_compare.fio_size }}"
+    numcpus_specific: [1]
+    numdevs_specific: [1]
+    cpu_freqs: ["performance"]
+    turbo: [1]
+    smt: [1]
+    hyperthreads: [0]
+    stress: [0]
+    repetitions: 3
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/read"
+    tool: fio_xnvme
+    backend: spdk
+
+- name: run_randread_spdk
+  uses: bench_runall
+  with:
+    <<: *bench-params-read-spdk
+    rws: ["randread"]
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randread"
+
+- name: trim_before_write_spdk
+  run: bash -lc 'info=$(xnvme info --be spdk {{ config.devices[0].pci_addr }}); nsid=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsid:/{print \$2; exit}"); nsect=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsect:/{print \$2; exit}"); test -n "$nsid" -a -n "$nsect" || { echo "failed to discover nsid/nsect"; exit 1; }; xnvme dsm {{ config.devices[0].pci_addr }} --be spdk --dev-nsid "$nsid" --nsid "$nsid" --ad --slba 0x0 --llb "$((nsect - 1))"'
+
+- name: run_write_spdk
+  uses: bench_runall
+  with: &bench-params-write-spdk
+    depths: [1, 4, 16, 32]
+    sizes: [4096, 16384, 65536, 131072]
+    rws: ["write"]
+    fio_size: "{{ config.fio_compare.fio_size }}"
+    numcpus_specific: [1]
+    numdevs_specific: [1]
+    cpu_freqs: ["performance"]
+    turbo: [1]
+    smt: [1]
+    hyperthreads: [0]
+    stress: [0]
+    repetitions: 3
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/write"
+    tool: fio_xnvme
+    backend: spdk
+
+- name: trim_before_randwrite_spdk
+  run: bash -lc 'info=$(xnvme info --be spdk {{ config.devices[0].pci_addr }}); nsid=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsid:/{print \$2; exit}"); nsect=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsect:/{print \$2; exit}"); test -n "$nsid" -a -n "$nsect" || { echo "failed to discover nsid/nsect"; exit 1; }; xnvme dsm {{ config.devices[0].pci_addr }} --be spdk --dev-nsid "$nsid" --nsid "$nsid" --ad --slba 0x0 --llb "$((nsect - 1))"'
+
+- name: run_randwrite_spdk
+  uses: bench_runall
+  with:
+    <<: *bench-params-write-spdk
+    rws: ["randwrite"]
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randwrite"
+
+- name: prepare_upcie
+  run: |
+    {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+    modprobe uio_pci_generic
+    DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+
+- name: trim_before_read_upcie
+  run: bash -lc 'info=$(xnvme info --be upcie {{ config.devices[0].pci_addr }}); nsid=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsid:/{print \$2; exit}"); nsect=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsect:/{print \$2; exit}"); test -n "$nsid" -a -n "$nsect" || { echo "failed to discover nsid/nsect"; exit 1; }; xnvme dsm {{ config.devices[0].pci_addr }} --be upcie --dev-nsid "$nsid" --nsid "$nsid" --ad --slba 0x0 --llb "$((nsect - 1))"'
+
+- name: prefill_readlike_upcie
+  uses: bench_runall
+  with:
+    <<: *prefill-params-spdk
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/prefill-upcie"
+    backend: upcie
+
+- name: run_read_upcie
+  uses: bench_runall
+  with: &bench-params-read-upcie
+    <<: *bench-params-read-spdk
+    backend: upcie
+
+- name: run_randread_upcie
+  uses: bench_runall
+  with:
+    <<: *bench-params-read-upcie
+    rws: ["randread"]
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randread"
+
+- name: trim_before_write_upcie
+  run: bash -lc 'info=$(xnvme info --be upcie {{ config.devices[0].pci_addr }}); nsid=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsid:/{print \$2; exit}"); nsect=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsect:/{print \$2; exit}"); test -n "$nsid" -a -n "$nsect" || { echo "failed to discover nsid/nsect"; exit 1; }; xnvme dsm {{ config.devices[0].pci_addr }} --be upcie --dev-nsid "$nsid" --nsid "$nsid" --ad --slba 0x0 --llb "$((nsect - 1))"'
+
+- name: run_write_upcie
+  uses: bench_runall
+  with: &bench-params-write-upcie
+    <<: *bench-params-write-spdk
+    backend: upcie
+
+- name: trim_before_randwrite_upcie
+  run: bash -lc 'info=$(xnvme info --be upcie {{ config.devices[0].pci_addr }}); nsid=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsid:/{print \$2; exit}"); nsect=$(printf "%s\n" "$info" | awk "/^[[:space:]]+nsect:/{print \$2; exit}"); test -n "$nsid" -a -n "$nsect" || { echo "failed to discover nsid/nsect"; exit 1; }; xnvme dsm {{ config.devices[0].pci_addr }} --be upcie --dev-nsid "$nsid" --nsid "$nsid" --ad --slba 0x0 --llb "$((nsect - 1))"'
+
+- name: run_randwrite_upcie
+  uses: bench_runall
+  with:
+    <<: *bench-params-write-upcie
+    rws: ["randwrite"]
+    results_dir: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randwrite"
+
+- name: collect
+  uses: fio_compare_collect
+  with:
+    results_dirs:
+      - "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/read"
+      - "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randread"
+      - "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/write"
+      - "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/raw/randwrite"
+    output_path: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/benchmark-results.json"
+
+- name: visualize
+  uses: bench_visualize
+  with:
+    path: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/benchmark-results.json"
+    html_path: "{{ local.env.PWD }}/{{ config.fio_compare.output_root }}/{{ config.devices[0].pci_addr }}/benchmark-results.html"
+    template: benchmark-fio-compare

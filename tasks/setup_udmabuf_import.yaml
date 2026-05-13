@@ -53,6 +53,16 @@ steps:
     cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --set-str SYSTEM_TRUSTED_KEYS ""
     cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --set-str SYSTEM_REVOCATION_KEYS ""
     cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --disable MODULE_SIG
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --disable MODULE_SIG
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --enable CPU_FREQ
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --enable X86_AMD_PSTATE
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --enable ACPI_CPPC_LIB
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --enable X86_ACPI_CPUFREQ
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --enable CPU_FREQ_GOV_PERFORMANCE
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --enable CPU_FREQ_GOV_POWERSAVE
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --enable CPU_FREQ_GOV_USERSPACE
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --enable CPU_FREQ_GOV_ONDEMAND
+    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --enable CPU_FREQ_GOV_SCHEDUTIL
 
 - name: prepare
   run: |
