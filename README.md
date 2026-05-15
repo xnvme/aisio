@@ -146,8 +146,12 @@ the dataset volume, rebind the device, and allocate hugepages:
 modprobe uio_pci_generic
 umount /mnt/datasets
 devbind --device '0000:01:00.0' --bind uio_pci_generic  # pci_addr from datasets.toml
-hugepages setup --count 1024
+hugepages setup --count 5120
 ```
+
+The count must be large enough to fit the biggest batch of I/O buffers. The
+`filesize8gib` dataset drives this requirement — 5120 pages (10 GiB) is
+sufficient for the benchmarks in this suite.
 
 `devbind` and `hugepages` are installed on the target as part of `setup_aisio.yaml`.
 

@@ -3,8 +3,7 @@ doc: |
   ============================================
 
   The benchmarks include:
-  - reading 2 datasets: tiktokish, imagenetish (filesize8gib is skipped as
-    individual files exceed the 256MB xNVMe uPCIe HOSTMEM heap limit),
+  - reading 3 datasets: tiktokish, imagenetish, filesize8gib
   - performing synthetic randread benchmarks for: upcie, upcie-cuda
 
   See README.md for device binding and hugepage setup required before running
@@ -21,6 +20,20 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 26
     batches: 1
+    max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
+    repetitions: 1
+
+- name: tiktokish-gpu
+  uses: filperf
+  with:
+    backend: "aisio-gpu"
+    dataset: "tiktokish"
+    device: "{{ config.filesystems.dset.pci_addr }}"
+    batch_size: 26
+    batches: 1
+    max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
+    gpu_nqueues: 4
+    queue_depth: 512
     repetitions: 1
 
 - name: imagenetish
@@ -31,6 +44,44 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 1024
     batches: 300
+    max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
+    repetitions: 1
+
+- name: imagenetish-gpu
+  uses: filperf
+  with:
+    backend: "aisio-gpu"
+    dataset: "imagenetish"
+    device: "{{ config.filesystems.dset.pci_addr }}"
+    batch_size: 1024
+    batches: 300
+    max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
+    gpu_nqueues: 4
+    queue_depth: 512
+    repetitions: 1
+
+- name: filesize8gib
+  uses: filperf
+  with:
+    backend: "aisio-cpu"
+    dataset: "filesize8gib"
+    device: "{{ config.filesystems.dset.pci_addr }}"
+    batch_size: 1
+    batches: 10
+    max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
+    repetitions: 1
+
+- name: filesize8gib-gpu
+  uses: filperf
+  with:
+    backend: "aisio-gpu"
+    dataset: "filesize8gib"
+    device: "{{ config.filesystems.dset.pci_addr }}"
+    batch_size: 1
+    batches: 10
+    max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
+    gpu_nqueues: 4
+    queue_depth: 512
     repetitions: 1
 
 - name: cpu-initiated
