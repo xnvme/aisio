@@ -21,6 +21,8 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--batches", type=int, default=1)
     parser.add_argument("--gpu_nqueues", type=int, default=6)
+    parser.add_argument("--queue_depth", type=int, default=1024)
+    parser.add_argument("--max_file_size", type=int, default=0)
     parser.add_argument("--repetitions", type=int, default=5)
 
 
@@ -31,8 +33,15 @@ def get_opts(args, cijoe, backend):
         if mountpoint:
             out += f"--mnt {mountpoint} "
         out += "--buffered "
-    elif backend == "aisio":
-        out += f"--gpu-nqueues {args.gpu_nqueues} "
+    elif backend == "cufile":
+        if mountpoint:
+            out += f"--mnt {mountpoint} "
+    elif backend in ("aisio-cpu", "aisio-gpu"):
+        if args.max_file_size:
+            out += f"--max-file-size {args.max_file_size} "
+        if backend == "aisio-gpu":
+            out += f"--gpu-nqueues {args.gpu_nqueues} "
+        out += f"--queue-depth {args.queue_depth} "
     return out
 
 
