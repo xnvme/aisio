@@ -36,7 +36,7 @@ def get_opts(args, cijoe, backend):
     elif backend == "cufile":
         if mountpoint:
             out += f"--mnt {mountpoint} "
-    elif backend in ("aisio-cpu", "aisio-gpu"):
+    elif backend in ("aisio-cpu", "aisio-gpu", "aisio-p2p"):
         if args.max_file_size:
             out += f"--max-file-size {args.max_file_size} "
         if backend == "aisio-gpu":

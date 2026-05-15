@@ -36,6 +36,17 @@ steps:
     queue_depth: 512
     repetitions: 1
 
+- name: tiktokish-p2p
+  uses: filperf
+  with:
+    backend: "aisio-p2p"
+    dataset: "tiktokish"
+    device: "{{ config.filesystems.dset.pci_addr }}"
+    batch_size: 26
+    batches: 1
+    max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
+    repetitions: 1
+
 - name: imagenetish
   uses: filperf
   with:
@@ -60,6 +71,17 @@ steps:
     queue_depth: 512
     repetitions: 1
 
+- name: imagenetish-p2p
+  uses: filperf
+  with:
+    backend: "aisio-p2p"
+    dataset: "imagenetish"
+    device: "{{ config.filesystems.dset.pci_addr }}"
+    batch_size: 1024
+    batches: 300
+    max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
+    repetitions: 1
+
 - name: filesize8gib
   uses: filperf
   with:
@@ -82,6 +104,17 @@ steps:
     max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
     gpu_nqueues: 4
     queue_depth: 512
+    repetitions: 1
+
+- name: filesize8gib-p2p
+  uses: filperf
+  with:
+    backend: "aisio-p2p"
+    dataset: "filesize8gib"
+    device: "{{ config.filesystems.dset.pci_addr }}"
+    batch_size: 1
+    batches: 10
+    max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
     repetitions: 1
 
 - name: cpu-initiated
