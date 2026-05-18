@@ -20,6 +20,7 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 26
     batches: 1
+    warmup: 1
     max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
     repetitions: 1
 
@@ -31,6 +32,7 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 26
     batches: 1
+    warmup: 1
     max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
     gpu_nqueues: 4
     queue_depth: 512
@@ -44,6 +46,7 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 26
     batches: 1
+    warmup: 1
     max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
     repetitions: 1
 
@@ -55,6 +58,7 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 1024
     batches: 300
+    warmup: 1
     max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
     repetitions: 1
 
@@ -66,6 +70,7 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 1024
     batches: 300
+    warmup: 1
     max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
     gpu_nqueues: 4
     queue_depth: 512
@@ -79,6 +84,7 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 1024
     batches: 300
+    warmup: 1
     max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
     repetitions: 1
 
@@ -90,6 +96,7 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 1
     batches: 10
+    warmup: 1
     max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
     repetitions: 1
 
@@ -101,6 +108,7 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 1
     batches: 10
+    warmup: 1
     max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
     gpu_nqueues: 4
     queue_depth: 512
@@ -114,6 +122,7 @@ steps:
     device: "{{ config.filesystems.dset.pci_addr }}"
     batch_size: 1
     batches: 10
+    warmup: 1
     max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
     repetitions: 1
 

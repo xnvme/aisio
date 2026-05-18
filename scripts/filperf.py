@@ -20,6 +20,7 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--bin", type=str, default="filperf")
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--batches", type=int, default=1)
+    parser.add_argument("--warmup", type=int, default=0)
     parser.add_argument("--gpu_nqueues", type=int, default=6)
     parser.add_argument("--queue_depth", type=int, default=1024)
     parser.add_argument("--max_file_size", type=int, default=0)
@@ -49,7 +50,8 @@ def main(args, cijoe):
     prefix = "echo 3 > /proc/sys/vm/drop_caches;"
 
     opts = get_opts(args, cijoe, args.backend)
-    cmd = f"{prefix} {args.bin} {args.device} --data-dir {args.dataset} --batches {args.batches} --batch-size {args.batch_size} --backend {args.backend} {opts}"
+    warmup_opt = f"--warmup {args.warmup} " if args.warmup else ""
+    cmd = f"{prefix} {args.bin} {args.device} --data-dir {args.dataset} --batches {args.batches} --batch-size {args.batch_size} --backend {args.backend} {opts}{warmup_opt}--summary"
     for _ in range(args.repetitions):
         err, _ = cijoe.run(cmd)
     if err:
