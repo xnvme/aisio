@@ -9,12 +9,7 @@
 #define HOMID_DEVURI_MAXLEN 256
 
 enum homi_msg_type {
-	HOMI_MSG_TYPE_HELLOWORLD = 0, ///< Test type, as an example of what is needed
 	HOMI_MSG_TYPE_XAL_CONNECT = 1, ///< Request xal pool info for a device
-};
-
-struct homi_req_helloworld {
-	int32_t value;
 };
 
 struct homi_req_xal_connect {

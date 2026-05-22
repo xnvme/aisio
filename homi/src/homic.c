@@ -116,55 +116,6 @@ homic_disconnect()
 	g_homic_client = NULL;
 }
 
-int
-homic_helloworld(int32_t value, char **out)
-{
-	struct homi_msg_header hdr = {0};
-	struct homi_req_helloworld req = {0};
-	enum homi_msg_type msg_type = HOMI_MSG_TYPE_HELLOWORLD;
-	void *response = NULL;
-	int sock_fd = -1, err;
-
-	if (!g_homic_client) {
-		err = -ENOTCONN;
-		fprintf(stderr, "Failed: No connection, please call homic_client_connect(); err(%d)\n", err);
-		return err;
-	}
-
-	sock_fd = _connect(g_homic_client->socket_path);
-	if (sock_fd < 0) {
-		err = sock_fd;
-		fprintf(stderr, "Failed: _connect(%s); err(%d)\n", g_homic_client->socket_path, err);
-		goto failed;
-	}
-
-	req.value = value;
-	hdr.type = msg_type;
-	hdr.payload_len = sizeof(req);
-
-	err = homi_proto_socket_write(sock_fd, &hdr, &req, sizeof(req));
-	if (err) {
-		fprintf(stderr, "Failed: homi_proto_socket_write(hdr); err(%d)\n", err);
-		goto failed;
-	}
-
-	err = homi_proto_socket_read(sock_fd, &hdr, &response);
-	if (err) {
-		fprintf(stderr, "Failed: homi_proto_socket_read(hdr); err(%d)\n", err);
-		goto failed;
-	}
-
-	close(sock_fd);
-	*out = response;
-	return 0;
-
-failed:
-	if (sock_fd >= 0) {
-		close(sock_fd);
-	}
-	return err;
-}
-
 static int
 retrieve_mountpoint(const char *dev_uri, char *mountpoint)
 {

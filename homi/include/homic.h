@@ -25,19 +25,6 @@ void
 homic_disconnect();
 
 /**
- * Send a helloworld request to the daemon.
- *
- * Sends value to the daemon and receives the response string in *out.
- * Requires an active connection established with homic_connect().
- *
- * @param value  Integer to send (ignored by the daemon).
- * @param out    Output: heap-allocated response string. Caller must free.
- * @return       0 on success, negative errno on failure.
- */
-int
-homic_helloworld(int value, char **out);
-
-/**
  * Connect to xal for a specific device.
  *
  * Sends an XAL_CONNECT request to the daemon, maps the inode and extent pools

@@ -116,28 +116,6 @@ worker(void *arg)
 	}
 
 	switch ((enum homi_msg_type)hdr.type) {
-	case HOMI_MSG_TYPE_HELLOWORLD:
-		struct homi_req_helloworld *request = (struct homi_req_helloworld *)payload;
-		char *response;
-
-		if (!request) {
-			homid_log(LOG_ERR, "Error: Payload required for HELLOWORLD request");
-			goto exit;
-		}
-
-		homid_log(LOG_INFO, "Helloworld: received %d", request->value);
-
-		response = "hello world!";
-		hdr.payload_len = strlen(response) + 1;
-
-		err = homi_proto_socket_write(sock_fd, &hdr, response, strlen(response) + 1);
-		if (err) {
-			homid_log(LOG_ERR, "Failed: homi_proto_socket_write(); err(%d)", err);
-			goto exit;
-		}
-
-		break;
-
 	case HOMI_MSG_TYPE_XAL_CONNECT:
 		struct homi_req_xal_connect *req = (struct homi_req_xal_connect *)payload;
 		struct homi_res_xal_connect res = {0};
