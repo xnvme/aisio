@@ -16,7 +16,6 @@ class CpuFrequencyHelper():
         self._smt = None
         self._turbo = None
         self.cpu_control_supported = True
-        self.cpu_control_supported = True
 
     def get_cpu_frequency_steps(self) -> Tuple[int, List[float]]:
         """
@@ -29,7 +28,6 @@ class CpuFrequencyHelper():
         err, state = self.cijoe.run('cpupower frequency-info | grep "available frequency steps"')
         if err or not state.output():
             log.error("Failed: cpupower")
-            self.cpu_control_supported = False
             return 1, None
 
         line_regex = r"\s*available frequency steps:\s+(([\d.]+ GHz,? ?)+)"
@@ -188,9 +186,20 @@ class CpuFrequencyHelper():
             log.error(f"Failed: cat {self._output}")
             return 1, None
 
-        lines = state.output().split("\n")
+        lines = [line for line in state.output().split("\n") if line.strip()]
+        if not lines:
+            self.cpu_control_supported = False
+            return 0, []
+
+        if lines[0] == "UNSUPPORTED":
+            self.cpu_control_supported = False
+            return 0, []
+
         lo, hi = int(len(lines)*0.1), int(len(lines)*0.9)
         data = [[int(f) for f in line.split()[1:]] for line in lines[lo:hi]]
+        if not data:
+            self.cpu_control_supported = False
+            return 0, []
 
         avgs = []
         for col in zip(*data):
