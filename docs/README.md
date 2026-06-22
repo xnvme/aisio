@@ -14,6 +14,19 @@ systems:
 
 * texlive, texlive-full, texlive-extra, or latexmk on macOS
 
+* git-lfs
+
+The benchmark archives under ``artifacts/`` are stored with Git LFS and are
+required by the plot-generation step that runs before Sphinx. After cloning,
+fetch them with:
+
+```bash
+git lfs pull
+```
+
+Without this, ``artifacts/*.tar.gz`` remain pointer stubs and the build fails
+in plot generation with a "not in gzip format" error.
+
 With the above in place do, from within ``aisio/docs`` run:
 
 ```bash
