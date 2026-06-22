@@ -247,7 +247,7 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         [key for key in bars[0].keys() if key != "label" and "_std" not in key]
     )
     if colormap:
-        cmap = plt.cm.get_cmap(colormap)
+        cmap = plt.get_cmap(colormap)
         n = len(groups)
         colors = [cmap(0.1 + 0.8 * i / (n - 1)) for i in range(n)]
     else:
