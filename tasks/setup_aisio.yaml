@@ -45,7 +45,7 @@ steps:
 
 - name: xal
   run: |
-    apt-get install -fy xfslibs-dev
+    apt-get install -fy xfslibs-dev clang libbpf-dev libelf-dev zlib1g-dev
     rm -r "{{ config.xal.repository.path }}/builddir" || true
     mkdir -p "{{ config.xal.repository.path }}/builddir"
     cd "{{ config.xal.repository.path }}"; meson setup builddir
