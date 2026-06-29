@@ -37,7 +37,7 @@ steps:
 - name: install_dependencies
   run: |
     apt-get -qy update
-    DEBIAN_FRONTEND=noninteractive apt-get -qy install {{ config.linux.source.pkg }} build-essential fakeroot debhelper bison flex libssl-dev libelf-dev libdw-dev libncurses-dev libpci-dev bc dwarves rsync kmod cpio
+    DEBIAN_FRONTEND=noninteractive apt-get -qy install {{ config.linux.source.pkg }} build-essential fakeroot debhelper bison flex libssl-dev libelf-dev libdw-dev libncurses-dev libpci-dev bc dwarves rsync kmod cpio clang llvm
 
 - name: extract
   run: |
@@ -57,7 +57,7 @@ steps:
 - name: configure
   run: |
     cp /boot/config-$(uname -r) /usr/src/ksrc/.config
-    cd /usr/src/ksrc && scripts/config --disable DEBUG_INFO --disable MODULE_SIG --disable LOCALVERSION_AUTO --set-str LOCALVERSION "-dmabuf" --set-str SYSTEM_TRUSTED_KEYS "" --set-str SYSTEM_REVOCATION_KEYS ""
+    cd /usr/src/ksrc && scripts/config --disable DEBUG_INFO_NONE --enable DEBUG_INFO_DWARF4 --disable DEBUG_INFO_REDUCED --enable DEBUG_INFO_BTF --disable MODULE_SIG --disable LOCALVERSION_AUTO --set-str LOCALVERSION "-dmabuf" --set-str SYSTEM_TRUSTED_KEYS "" --set-str SYSTEM_REVOCATION_KEYS ""
     make -C /usr/src/ksrc olddefconfig
 
 - name: package
@@ -73,12 +73,12 @@ steps:
     # compile out-of-tree modules against (e.g. the NVIDIA driver); then the
     # image. linux-libc-dev carries the patched userspace UAPI, so
     # /usr/include/linux/udmabuf.h gains the importer ioctls (UDMABUF_ATTACH /
-    # UDMABUF_GET_MAP) that user-space DMA-buf importers build against. Tolerate
-    # a kernel-incompatible DKMS module; guarantee a bootable image and grub
-    # entry regardless.
+    # UDMABUF_GET_MAP) that user-space DMA-buf importers build against. Skip the
+    # -dbg package emitted by DEBUG_INFO/BTF. Tolerate a kernel-incompatible DKMS
+    # module; guarantee a bootable image and grub entry regardless.
     dpkg -i /usr/src/linux-headers-*dmabuf*.deb || true
     dpkg -i /usr/src/linux-libc-dev_*.deb || true
-    dpkg -i /usr/src/linux-image-*dmabuf*.deb || true
+    dpkg -i $(ls /usr/src/linux-image-*dmabuf*.deb | grep -v -- '-dbg') || true
     kver=$(make -C /usr/src/ksrc -s kernelrelease) && { update-initramfs -c -k "$kver" 2>/dev/null || update-initramfs -u -k "$kver"; }
     update-grub
 
@@ -100,3 +100,7 @@ steps:
 - name: install_cpupower
   run: |
     make -C /usr/src/ksrc tools/cpupower_install prefix=/usr libdir=/usr/lib
+
+- name: install_bpftool
+  run: |
+    make -C /usr/src/ksrc tools/bpftool_install prefix=/usr
