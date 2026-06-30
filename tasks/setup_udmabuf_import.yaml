@@ -5,9 +5,12 @@ doc: |
   This adds dma-buf importer functionality to UDMABUF and the ability to share
   physical addresses, from the dma-buf, with userspace.
 
-  The patch is added untop of the source of the kernel included with Ubuntu.
-  This ensures compatibility with the other parts of the AiSIO stack that
-  depends on the Linux kernel.
+  CONFIG_UDMABUF=y on Ubuntu, so the importer ioctls (UDMABUF_ATTACH /
+  UDMABUF_GET_MAP) cannot live in a module; the in-tree udmabuf is patched and
+  the kernel rebuilt on top of the linux-source matching the running kernel.
+  Headers are installed before the image so an out-of-tree DKMS module (e.g. the
+  NVIDIA driver) rebuilds for the new kernel. It builds a removable .deb
+  (dpkg -r) and reboots into the patched kernel.
 
   This can be run with::
 
@@ -19,52 +22,59 @@ doc: |
   Adjust transport.toml with the hostname and ssh-login info of the root user.
   Adjust udmabuf_import.toml with the path to your aisio github repository on the host.
 
+  Verified on Ubuntu 26.04 / kernel 7.0 (the 6.8-era patch applies with
+  offsets); the prior 6.8 build is preserved at the ``pit-30-06-2026`` tag.
+
+  NOTE: cijoe runs each 'run:' line in a fresh shell, so 'cd' does not persist;
+  use -C / absolute paths / single-line '&&' chains.
+
 steps:
 - name: fetch_sources
   uses: core.repository_prep
 
 - name: install_dependencies
   run: |
-    apt-get -fy install bison build-essential debhelper-compat flex libelf-dev libncurses-dev libpci-dev libssl-dev
+    apt-get -qy update
+    DEBIAN_FRONTEND=noninteractive apt-get -qy install {{ config.linux.source.pkg }} build-essential fakeroot debhelper bison flex libssl-dev libelf-dev libdw-dev libncurses-dev libpci-dev bc dwarves rsync kmod cpio
 
-- name: fetch_kernel_source
+- name: extract
   run: |
-    apt-get -fy install {{ config.linux.source.pkg }}
-
-- name: decompress_source
-  run: |
-    cd /usr/src/{{ config.linux.source.pkg }}; tar -jxf {{ config.linux.source.pkg }}.tar.bz2  --strip-components=1
-
-- name: copy_patch
-  run: |
-    cp {{ config.udmabuf.repository.path }}/patches/{{ config.udmabuf.patch.name }} /usr/src/{{ config.linux.source.pkg }}
+    # The meta 'linux-source' pkg drops the tarball in /usr/src/ as
+    # linux-source-<ver>.tar.* (the pkg name is not a versioned dir), so glob it
+    # and extract to a neutral build dir instead of unpacking in place.
+    rm -rf /usr/src/ksrc && mkdir -p /usr/src/ksrc
+    tar -C /usr/src/ksrc --strip-components=1 -xaf /usr/src/{{ config.linux.source.pkg }}-*.tar.*
+    test -f /usr/src/ksrc/drivers/dma-buf/udmabuf.c && echo "source extracted"
 
 - name: apply_patch
   run: |
-    cd /usr/src/{{ config.linux.source.pkg }}; git apply --reject {{ config.udmabuf.patch.name }}
-
-- name: get_config
-  run: |
-    cp /boot/config-$(uname -r) /usr/src/{{ config.linux.source.pkg }}/.config
+    git -C /usr/src/ksrc apply --check -v {{ config.udmabuf.repository.path }}/patches/{{ config.udmabuf.patch.name }}
+    git -C /usr/src/ksrc apply {{ config.udmabuf.repository.path }}/patches/{{ config.udmabuf.patch.name }}
+    grep -q UDMABUF_ATTACH /usr/src/ksrc/include/uapi/linux/udmabuf.h && echo "patch applied"
 
 - name: configure
   run: |
-    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --disable DEBUG_INFO
-    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --set-str SYSTEM_TRUSTED_KEYS ""
-    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --set-str SYSTEM_REVOCATION_KEYS ""
-    cd /usr/src/{{ config.linux.source.pkg }}; scripts/config --disable MODULE_SIG
+    cp /boot/config-$(uname -r) /usr/src/ksrc/.config
+    cd /usr/src/ksrc && scripts/config --disable DEBUG_INFO --disable MODULE_SIG --disable LOCALVERSION_AUTO --set-str LOCALVERSION "-dmabuf" --set-str SYSTEM_TRUSTED_KEYS "" --set-str SYSTEM_REVOCATION_KEYS ""
+    make -C /usr/src/ksrc olddefconfig
 
-- name: prepare
+- name: package
   run: |
-    cd /usr/src/{{ config.linux.source.pkg }}; make olddefconfig scripts prepare modules_prepare
-
-- name: build
-  run: |
-    cd /usr/src/{{ config.linux.source.pkg }}; make -j $(nproc) bindeb-pkg LOCALVERSION=-dmabuf
+    # resolute's debhelper provides no compat-12 (the kernel tree's hardcoded
+    # default); bump the generated control to a level it does provide.
+    sed -i "s/debhelper-compat (= 12)/debhelper-compat (= 13)/" /usr/src/ksrc/scripts/package/mkdebian
+    make -C /usr/src/ksrc -j"$(nproc)" bindeb-pkg
 
 - name: install
   run: |
-    cd /usr/src/{{ config.linux.source.pkg }}; dpkg -i ../*.deb
+    # Headers first so the image postinst's DKMS autoinstall has a build tree to
+    # compile out-of-tree modules against (e.g. the NVIDIA driver); then the
+    # image. Tolerate a kernel-incompatible DKMS module; guarantee a bootable
+    # image and grub entry regardless.
+    dpkg -i /usr/src/linux-headers-*dmabuf*.deb || true
+    dpkg -i /usr/src/linux-image-*dmabuf*.deb || true
+    kver=$(make -C /usr/src/ksrc -s kernelrelease) && { update-initramfs -c -k "$kver" 2>/dev/null || update-initramfs -u -k "$kver"; }
+    update-grub
 
 - name: reboot
   run: shutdown -r now
@@ -73,7 +83,7 @@ steps:
   uses: core.wait_for_transport
   with:
     state: down
-    timeout: 60
+    timeout: 90
 
 - name: wait_up
   uses: core.wait_for_transport
@@ -83,4 +93,4 @@ steps:
 
 - name: install_cpupower
   run: |
-    cd /usr/src/{{ config.linux.source.pkg }}; make tools/cpupower_install prefix=/usr libdir=/usr/lib
+    make -C /usr/src/ksrc tools/cpupower_install prefix=/usr libdir=/usr/lib

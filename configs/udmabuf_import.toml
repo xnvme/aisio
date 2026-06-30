@@ -1,5 +1,6 @@
 [linux.source]
-pkg = "linux-source-6.8.0"
+# meta package; pulls the linux-source matching the running kernel (26.04 -> 7.0)
+pkg = "linux-source"
 
 [udmabuf.repository]
 remote = "https://github.com/xnvme/udmabuf-import"
