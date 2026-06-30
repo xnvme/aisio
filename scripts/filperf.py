@@ -31,9 +31,6 @@ def get_opts(args, cijoe, backend):
         if mountpoint:
             out += f"--mnt {mountpoint} "
         out += "--buffered "
-    elif backend == "gds":
-        if mountpoint:
-            out += f"--mnt {mountpoint} "
     elif backend == "aisio":
         out += f"--gpu-nqueues {args.gpu_nqueues} "
     return out
