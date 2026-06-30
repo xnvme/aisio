@@ -233,9 +233,8 @@ devbind --device '<pci_addr>' --bind uio_pci_generic
 hugepages setup --count 1024
 ```
 
-GDS, POSIX, and GDS transfer mode benchmarks operate through the kernel
-NVMe driver and require the device bound to ``nvme`` with the filesystem
-mounted:
+The POSIX benchmark operates through the kernel NVMe driver and requires
+the device bound to ``nvme`` with the filesystem mounted:
 
 ```
 devbind --device '<pci_addr>' --bind nvme
@@ -261,25 +260,11 @@ cijoe --monitor \
     tasks/bench_aisio.yaml
 ```
 
-#### NVIDIA GPUDirect Storage (``bench_gds.yaml``)
-
-This benchmark evaluates NVIDIA GPUDirect Storage using the FIL
-interface. It loads all three datasets (imagenetish, tiktokish,
-filesize8gib) through the ``gds`` backend, and runs synthetic sequential
-and random-read benchmarks using gdsio.
-
-```
-cijoe --monitor \
-    -c configs/transport.toml \
-    -c configs/datasets.toml \
-    tasks/bench_gds.yaml
-```
-
 #### POSIX (``bench_posix.yaml``)
 
 This benchmark provides a POSIX I/O baseline by loading all three
 datasets through the ``posix`` backend of FIL. It serves as a
-baseline comparison against the GDS and AiSIO paths.
+baseline comparison against the AiSIO path.
 
 ```
 cijoe --monitor \
@@ -288,16 +273,18 @@ cijoe --monitor \
     tasks/bench_posix.yaml
 ```
 
+#### NVIDIA GPUDirect Storage (``bench_gds.yaml``)
+
+This proof-of-concept benchmark evaluated NVIDIA GPUDirect Storage through
+the FIL interface, loading all three datasets (imagenetish, tiktokish,
+filesize8gib) through the ``gds`` backend and running synthetic sequential
+and random-read benchmarks with gdsio. It belongs to the proprietary GDS
+path and is reproducible only from the ``poc`` tag, where ``bench_gds.yaml``
+and its gdsio wrapper live; the current open stack does not include it.
+
 #### GDS Transfer Mode Comparison (``compare_gds_xfermodes.yaml``)
 
-This workflow uses gdsio to evaluate different GDS transfer types for
-small 4 KiB I/O. The GDS API exposes multiple transfer modes (XferType)
-that differ in how data is moved between storage and GPU memory, and this
-benchmark identifies which is most suitable for small-I/O workloads.
-
-```
-cijoe --monitor \
-    -c configs/transport.toml \
-    -c configs/datasets.toml \
-    tasks/compare_gds_xfermodes.yaml
-```
+This proof-of-concept workflow used gdsio to compare GDS transfer types
+(XferType) for small 4 KiB I/O, identifying which transfer mode best suited
+small-I/O workloads. Like the GDS benchmark above, it is reproducible only
+from the ``poc`` tag.
