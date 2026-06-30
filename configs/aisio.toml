@@ -1,6 +1,6 @@
 [os]
 distro = "ubuntu"
-version = "noble"
+version = "resolute"
 
 [xnvme.repository]
 remote = "https://github.com/xnvme/xnvme"
