@@ -1,8 +1,11 @@
 """
-Run I/O benchmarks
-==================
+CUDA P2P bandwidth reference
+============================
 
-Run many benchmarks using SPDK's I/O benchmarking tool, bdevperf.
+Run cuda-samples' p2pBandwidthLatencyTest and record the bidirectional P2P
+bandwidth (GB/s) as the PCIe peak-bandwidth reference for the bench_pcie /
+bench_cuda_iosize experiments. The binary is built by setup_nvstack.yaml to a
+fixed path; no config knob is required.
 
 Retargetable: True
 ------------------
@@ -20,10 +23,9 @@ def main(args, cijoe: Cijoe):
 
   artifacts = Path(args.output) / "artifacts"
 
-  sample_path = cijoe.getconf("nvidia.cuda.samples.path", None)
-  if not sample_path:
-    log.error("Failed: Missing path to cuda-samples")
-    return -1
+  # Fixed install path, built by setup_nvstack.yaml; overridable but no config
+  # knob is required (the old nvstack.toml key is gone).
+  sample_path = cijoe.getconf("nvidia.cuda.samples.path", "/root/git/cuda-samples")
 
   bin = Path(sample_path) / "build" / "Samples" / "5_Domain_Specific" / "p2pBandwidthLatencyTest" / "p2pBandwidthLatencyTest"
 
