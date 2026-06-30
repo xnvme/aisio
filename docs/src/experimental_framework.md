@@ -22,6 +22,10 @@ documentation, collected artifacts, and a workflow summary.
 Step-by-step instructions for running the CIJOE setup tasks are provided
 in the ``README.md`` of the AiSIO repository. The table below lists all
 software components installed on each system, in installation order.
+It covers both the proof-of-concept stack (proprietary NVIDIA
+GPUDirect-Storage / BaM, reproducible at the ``poc`` tag) and the
+current 26.04 open stack (NVIDIA and AMD over the udmabuf-import path);
+rows specific to the latter are tagged "26.04 stack" in the description.
 
 | Category | Component                  | Version              | Install       | Description                                                                                                                         |
 | -------- | -------------------------- | -------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
@@ -31,6 +35,11 @@ software components installed on each system, in installation order.
 | NVIDIA   | Open Kernel Modules        | {{ ver_nokm }}       | APT           | NVIDIA open-source GPU kernel driver                                                                                                |
 | NVIDIA   | CUDA Toolkit               | {{ ver_cuda }}       | APT           | CUDA compiler, runtime, and libraries                                                                                               |
 | NVIDIA   | nvidia-fs                  | {{ ver_cuda }}       | APT           | GPUDirect Storage kernel module                                                                                                     |
+| OS       | Ubuntu Server              | 26.04                | ISO           | 26.04 stack: current base OS (GA 7.0 kernel)                                                                                        |
+| Kernel   | Linux + udmabuf-import     | 7.0 GA + patch       | Source        | 26.04 stack: GA 7.0 kernel patched with the UDMABUF importer                                                                        |
+| NVIDIA   | nvidia-driver-580-open     | 580 (open)           | APT           | 26.04 stack: open-kernel-module driver from the distro 'restricted' repo                                                            |
+| NVIDIA   | CUDA Toolkit               | 13                   | APT           | 26.04 stack: CUDA from NVIDIA's ubuntu2604 repo                                                                                     |
+| AMD      | ROCm (HIP + HSA)           | 7.1                  | APT           | 26.04 stack: ROCm userspace from 26.04 'universe'; in-tree amdgpu, no DKMS                                                          |
 | AiSIO    | fio                        | {{ ver_fio }}        | Source        | I/O benchmark tool; built from source for SPDK plugin integration                                                                   |
 | AiSIO    | SPDK                       | {{ ver_spdk }}       | Source        | Storage Performance Development Kit; provides the user space NVMe driver and bdevperf                                              |
 | AiSIO    | xNVMe                      | {{ ver_xnvme }}      | Source        | Unified NVMe command interface with uPCIe backend support                                                                           |
