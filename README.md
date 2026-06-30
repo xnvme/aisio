@@ -96,12 +96,11 @@ GRUB_CMDLINE_LINUX_DEFAULT="... amd_iommu=off"
 
 ## Step 5: Install the NVIDIA Software Stack
 
-Install the **NVIDIA** drivers, CUDA toolkit, and GDS (GPUDirect Storage):
+Install the **NVIDIA** driver and CUDA toolkit:
 
 ```
 cijoe --monitor \
     -c configs/transport.toml \
-    -c configs/nvstack.toml \
     tasks/setup_nvstack.yaml
 ```
 
