@@ -1,13 +1,13 @@
 doc: |
-  Ubuntu 24.04 Preparation for AiSIO Software Stack
+  Ubuntu 26.04 Preparation for AiSIO Software Stack
   =================================================
 
-  This workflow prepares a clean Ubuntu Server 24.04.4 installation with the
+  This workflow prepares a clean Ubuntu Server 26.04 installation with the
   packages and kernel configuration required before running any vendor-specific
   setup. It targets the following components and versions:
 
-  * Ubuntu Server 24.04.4
-  * Linux 6.8 GA kernel (HWE must be disabled)
+  * Ubuntu Server 26.04
+  * Linux 7.0 GA kernel (HWE must be disabled)
 
   See README.md for Ubuntu installation instructions and the manual steps
   required before running this workflow.
