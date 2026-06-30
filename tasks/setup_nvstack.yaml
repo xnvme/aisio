@@ -1,62 +1,40 @@
+---
 doc: |
-  Ubuntu 24.04 Setup of the NVIDIA Software Stack
-  ================================================
+  Install the NVIDIA driver + CUDA toolkit on Ubuntu 26.04 (no GDS/DOCA)
 
-  This workflow provisions a system with the NVIDIA software stack required for
-  NVMe <-> GPU development, testing, and experimentation. It targets the following
-  components and versions:
+  The NVIDIA mirror of setup_amdstack: the minimal driver + CUDA toolkit for
+  NVMe<->GPU P2P, the open-kernel-module driver and the toolkit straight from
+  apt. Deliberately NOT installed: MLNX_OFED, nvidia-gds / nvidia-peermem,
+  nvidia-fs, the BAM kernel-source build, and cuda-samples; AiSIO drives
+  GPU-initiated NVMe I/O over the open udmabuf-import path, not the proprietary
+  GPUDirect-Storage / DOCA / BaM stack.
 
-  * Ubuntu Server 24.04.4
-  * Linux 6.8 GA kernel (HWE must be disabled)
-  * NVIDIA Open Kernel Modules (NOKM) v570 (via apt)
-  * CUDA Toolkit v12.8 (via apt)
-  * CUDA Samples v12.8 (from source)
-  * MLNX_OFED 24.10-3.2.5.0 (via .run installer)
-      - DOCA_OFED does not include NVMe or GDS support
-  * nvidia-fs (via apt)
+  Unlike setup_amdstack (amdgpu is in-tree), the NVIDIA driver is a DKMS module, so
+  this reboots once to load it. On Ubuntu 26.04 the driver is 580-open from the
+  distro 'restricted' repo; CUDA comes from NVIDIA's ubuntu2604 repo, which
+  publishes only CUDA 13 (no 12.x) -- CUDA 13 satisfies xNVMe's '>=12.8'. CUDA
+  installs under /usr/local/cuda-13.x; a /usr/local/cuda symlink and a
+  /etc/profile.d/cuda.sh are wired up (non-interactive SSH still needs PATH set
+  explicitly, as the build does).
 
-  This workflow assumes that the base Ubuntu preparation has already been
-  completed using ``setup_ubuntu.yaml``.
+  Run against a target whose default transport has root (e.g. via root_unlock):
 
-  Running the Workflow
-  --------------------
-  After running ``setup_ubuntu.yaml``, run:
-
-      cijoe --monitor \
-        -c configs/transport.toml \
-        -c configs/nvstack.toml \
-        tasks/setup_nvstack.yaml
-
-  Make sure ``transport.toml`` contains the correct hostname and login
-  credentials for the root user.
-
-  Caveat: CUDA Environment
-  ------------------------
-  CUDA is not installed in standard system locations. The workflow installs a
-  helper script in ``/etc/profile.d/cuda.sh`` that sets the CUDA environment for
-  interactive shells.
-
-  However, non-interactive shells (including many CIJOE operations) do *not*
-  automatically source ``/etc/profile.d/``. The workflow therefore explicitly
-  updates ``/root/.bashrc`` so that CUDA tools (e.g., ``nvcc``) work when
-  executing over SSH.
+    cijoe tasks/setup_nvstack.yaml --config configs/<target>.toml
 
 steps:
-- name: ofed
+- name: driver
   run: |
-    wget -O workdir/ofed.tgz {{ config.nvidia.ofed.url }}
-    cd workdir; tar xzf ofed.tgz
-    cd workdir/MLNX*; ./mlnxofedinstall --with-nvmf --with-nfsrdma --enable-gds --add-kernel-support --dkms
-    update-initramfs -u -k $(uname -r)
+    apt-get -qy update
+    DEBIAN_FRONTEND=noninteractive apt-get -qy install nvidia-driver-580-open
 
 - name: reboot
-  run: shutdown -r now
+  run: reboot
 
 - name: wait_down
   uses: core.wait_for_transport
   with:
     state: down
-    timeout: 60
+    timeout: 90
 
 - name: wait_up
   uses: core.wait_for_transport
@@ -64,77 +42,36 @@ steps:
     state: up
     timeout: 300
 
-- name: gpu_driver
+- name: cuda_repo
   run: |
-    apt-get install -y nvidia-driver-{{ config.nvidia.nokm.version }}-server-open
-
-# Build NVIDIA kernel source tree to generate symbols/headers required by libnvm / BAM (not done
-# automatically by DKMS)
-- name: gpu_driver_kernel_source
-  run: |
-    cd /usr/src/nvidia-*{{ config.nvidia.nokm.version }}*/ && make -j
-
-- name: reboot_driver
-  run: shutdown -r now
-
-- name: wait_down_driver
-  uses: core.wait_for_transport
-  with:
-    state: down
-    timeout: 60
-
-- name: wait_up_driver
-  uses: core.wait_for_transport
-  with:
-    state: up
-    timeout: 300
-
-- name: apt_repos
-  run: |
-    wget -O workdir/cuda_keyring.deb {{ config.nvidia.keyring.url }}
-    dpkg -i workdir/cuda_keyring.deb
-    wget -O /etc/apt/preferences.d/cuda-repository-pin-600 {{ config.nvidia.pin.url }}
-    apt-get update
+    wget -qO /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/cuda-keyring_1.1-1_all.deb
+    dpkg -i /tmp/cuda-keyring.deb
+    apt-get -qy update
 
 - name: cuda
   run: |
-    apt-get install -y cuda-toolkit-{{ config.nvidia.cuda.apt_version }}
+    DEBIAN_FRONTEND=noninteractive apt-get -qy install cuda-toolkit-13
+    ln -sfn "$(ls -d /usr/local/cuda-13* | sort -V | tail -1)" /usr/local/cuda
 
-# Setup CUDA for all interactive shells via '/etc/profile.d' and source this it explicitly for
-# 'root' via /root/.bashrc for non-interactive use of CUDA via e.g. ssh
 - name: cuda_profile
   run: |
-    echo '# CUDA environment variables (set by setup script)' | tee /etc/profile.d/cuda.sh
-    echo 'export PATH=/usr/local/cuda/bin:$PATH' | tee -a /etc/profile.d/cuda.sh
+    echo 'export PATH=/usr/local/cuda/bin:$PATH' | tee /etc/profile.d/cuda.sh
     echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' | tee -a /etc/profile.d/cuda.sh
     chmod +x /etc/profile.d/cuda.sh
-    grep -qF 'SSH_CONNECTION' /root/.bashrc || sed -i '1i if [ -n "$SSH_CONNECTION" ] && [ -f /etc/profile.d/cuda.sh ]; then\n    . /etc/profile.d/cuda.sh\nfi\n' /root/.bashrc
 
-- name: cuda_check
+- name: check_gpu
   run: |
-    nvcc --version || true
-    nvidia-smi || true
+    nvidia-smi --query-gpu=name,compute_cap,driver_version,memory.total --format=csv,noheader
 
-# Grabbing these from source as to make them writable
-- name: cuda_samples
+- name: check_toolkit
   run: |
-    git clone https://github.com/NVIDIA/cuda-samples.git git/cuda-samples
-    cd git/cuda-samples; git checkout {{ config.nvidia.cuda.samples.tag }}
-    mkdir git/cuda-samples/build
+    /usr/local/cuda/bin/nvcc --version | grep release
 
-- name: nvidia_gds
+- name: check_libs
   run: |
-    apt-get install -y nvidia-gds-{{ config.nvidia.cuda.apt_version }}
+    ldconfig -p | grep -iE "libcudart|libcuda\.so"
 
-- name: checkup
+# the CUDA driver-api header the host stack builds against
+- name: check_cuda_header
   run: |
-    lsmod | grep nvidia
-    nvidia-smi || true
-    dmesg | grep -i nvidia
-
-# Quick way to verify thermals on the GPU
-- name: gpu_burn
-  run: |
-    git clone https://github.com/wilicc/gpu-burn.git git/gpu-burn
-    cd git/gpu-burn; make
-    cd git/gpu-burn; ./gpu_burn -d 60
+    ls -l /usr/local/cuda/include/cuda.h
