@@ -12,9 +12,9 @@ Install `cijoe` on the host with `pipx`:
 pipx install cijoe
 ```
 
-## Step 1: Install Ubuntu 24.04
+## Step 1: Install Ubuntu 26.04
 
-Install **Ubuntu Server 24.04.4** on the target machine. During installation,
+Install **Ubuntu Server 26.04** on the target machine. During installation,
 make the following selections:
 
 - Kernel:
