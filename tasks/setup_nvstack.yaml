@@ -5,9 +5,12 @@ doc: |
   The NVIDIA mirror of setup_amdstack: the minimal driver + CUDA toolkit for
   NVMe<->GPU P2P, the open-kernel-module driver and the toolkit straight from
   apt. Deliberately NOT installed: MLNX_OFED, nvidia-gds / nvidia-peermem,
-  nvidia-fs, the BAM kernel-source build, and cuda-samples; AiSIO drives
-  GPU-initiated NVMe I/O over the open udmabuf-import path, not the proprietary
-  GPUDirect-Storage / DOCA / BaM stack.
+  nvidia-fs, and the BAM kernel-source build; AiSIO drives GPU-initiated NVMe
+  I/O over the open udmabuf-import path, not the proprietary GPUDirect-Storage
+  / DOCA / BaM stack. cuda-samples is built (only p2pBandwidthLatencyTest) to
+  /root/git/cuda-samples to provide the PCIe peak-bandwidth reference used by
+  the bench_pcie / bench_cuda_iosize experiments; no config knob, the path is
+  fixed and matched in scripts/cuda_p2p_sample.py.
 
   Unlike setup_amdstack (amdgpu is in-tree), the NVIDIA driver is a DKMS module, so
   this reboots once to load it. On Ubuntu 26.04 the driver is 580-open from the
@@ -75,3 +78,17 @@ steps:
 - name: check_cuda_header
   run: |
     ls -l /usr/local/cuda/include/cuda.h
+
+# p2pBandwidthLatencyTest: the PCIe peak-bandwidth reference for the bench_pcie /
+# bench_cuda_iosize experiments. Fixed path, no config knob; only this one target
+# is built, not the whole cuda-samples tree.
+- name: cuda_samples
+  run: |
+    DEBIAN_FRONTEND=noninteractive apt-get -qy install git cmake build-essential
+    rm -rf /root/git/cuda-samples
+    mkdir -p /root/git
+    git clone --depth 1 https://github.com/NVIDIA/cuda-samples.git /root/git/cuda-samples
+    export PATH=/usr/local/cuda/bin:$PATH
+    cmake -S /root/git/cuda-samples -B /root/git/cuda-samples/build
+    cmake --build /root/git/cuda-samples/build --target p2pBandwidthLatencyTest -j "$(nproc)"
+    ls -l /root/git/cuda-samples/build/Samples/5_Domain_Specific/p2pBandwidthLatencyTest/p2pBandwidthLatencyTest

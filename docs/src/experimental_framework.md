@@ -145,15 +145,15 @@ counters via DCGM and a reference P2P bandwidth measurement from
 ``p2pBandwidthLatencyTest``. Described in detail in
 {ref}`sec-experiments-pcie-bandwidth`.
 
-``nvstack.toml`` is required to supply the CUDA samples path and DCGM
-field configuration used during the run.
+The ``p2pBandwidthLatencyTest`` reference binary is built by
+``setup_nvstack.yaml`` at a fixed path, and DCGM fields default in the
+collector, so no extra config is required.
 
 ```
 cijoe --monitor \
     -c configs/transport.toml \
     -c configs/aisio.toml \
     -c configs/devices_16.toml \
-    -c configs/nvstack.toml \
     tasks/bench_pcie.yaml
 ```
 
@@ -164,15 +164,14 @@ under device-initiated I/O, using **xnvmeperf** with the ``cuda-run`` subcommand
 and the **upcie-cuda** backend, with queue depth as the secondary variable.
 Described in detail in {ref}`sec-experiments-cuda-iosize`.
 
-``nvstack.toml`` is required to supply the CUDA samples path used during the
-run.
+The ``p2pBandwidthLatencyTest`` reference binary is built by
+``setup_nvstack.yaml`` at a fixed path, so no extra config is required.
 
 ```
 cijoe --monitor \
     -c configs/transport.toml \
     -c configs/aisio.toml \
     -c configs/devices_16.toml \
-    -c configs/nvstack.toml \
     tasks/bench_cuda_iosize.yaml
 ```
 
