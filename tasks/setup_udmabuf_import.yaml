@@ -9,7 +9,9 @@ doc: |
   UDMABUF_GET_MAP) cannot live in a module; the in-tree udmabuf is patched and
   the kernel rebuilt on top of the linux-source matching the running kernel.
   Headers are installed before the image so an out-of-tree DKMS module (e.g. the
-  NVIDIA driver) rebuilds for the new kernel. It builds a removable .deb
+  NVIDIA driver) rebuilds for the new kernel. The matching linux-libc-dev is
+  installed too, so /usr/include/linux/udmabuf.h gains the importer ioctls that
+  user-space DMA-buf importers build against. It builds a removable .deb
   (dpkg -r) and reboots into the patched kernel.
 
   This can be run with::
@@ -69,9 +71,13 @@ steps:
   run: |
     # Headers first so the image postinst's DKMS autoinstall has a build tree to
     # compile out-of-tree modules against (e.g. the NVIDIA driver); then the
-    # image. Tolerate a kernel-incompatible DKMS module; guarantee a bootable
-    # image and grub entry regardless.
+    # image. linux-libc-dev carries the patched userspace UAPI, so
+    # /usr/include/linux/udmabuf.h gains the importer ioctls (UDMABUF_ATTACH /
+    # UDMABUF_GET_MAP) that user-space DMA-buf importers build against. Tolerate
+    # a kernel-incompatible DKMS module; guarantee a bootable image and grub
+    # entry regardless.
     dpkg -i /usr/src/linux-headers-*dmabuf*.deb || true
+    dpkg -i /usr/src/linux-libc-dev_*.deb || true
     dpkg -i /usr/src/linux-image-*dmabuf*.deb || true
     kver=$(make -C /usr/src/ksrc -s kernelrelease) && { update-initramfs -c -k "$kver" 2>/dev/null || update-initramfs -u -k "$kver"; }
     update-grub
