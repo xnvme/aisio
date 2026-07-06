@@ -103,4 +103,4 @@ steps:
 
 - name: install_bpftool
   run: |
-    make -C /usr/src/ksrc tools/bpftool_install prefix=/usr
+    make -C /usr/src/ksrc/tools/bpf/bpftool install prefix=/usr
