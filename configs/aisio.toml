@@ -9,7 +9,7 @@ path = "/root/git/xnvme"
 
 [xal.repository]
 remote = "https://github.com/xnvme/xal"
-tag = "v0.3.0"
+tag = "v0.3.1"
 path = "/root/git/xal"
 
 [fil.repository]
