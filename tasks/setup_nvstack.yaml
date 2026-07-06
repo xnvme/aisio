@@ -91,4 +91,4 @@ steps:
     export PATH=/usr/local/cuda/bin:$PATH
     cmake -S /root/git/cuda-samples -B /root/git/cuda-samples/build
     cmake --build /root/git/cuda-samples/build --target p2pBandwidthLatencyTest -j "$(nproc)"
-    ls -l /root/git/cuda-samples/build/Samples/5_Domain_Specific/p2pBandwidthLatencyTest/p2pBandwidthLatencyTest
+    ls -l /root/git/cuda-samples/build/cpp/5_Domain_Specific/p2pBandwidthLatencyTest/p2pBandwidthLatencyTest

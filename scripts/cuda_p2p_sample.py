@@ -27,7 +27,7 @@ def main(args, cijoe: Cijoe):
   # knob is required (the old nvstack.toml key is gone).
   sample_path = cijoe.getconf("nvidia.cuda.samples.path", "/root/git/cuda-samples")
 
-  bin = Path(sample_path) / "build" / "Samples" / "5_Domain_Specific" / "p2pBandwidthLatencyTest" / "p2pBandwidthLatencyTest"
+  bin = Path(sample_path) / "build" / "cpp" / "5_Domain_Specific" / "p2pBandwidthLatencyTest" / "p2pBandwidthLatencyTest"
 
   err, state = cijoe.run(f"{bin}")
   if err:
