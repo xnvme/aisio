@@ -20,11 +20,11 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--bin", type=str, default="filperf")
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--batches", type=int, default=1)
-    parser.add_argument("--warmup", type=int, default=0)
-    parser.add_argument("--gpu_nqueues", type=int, default=6)
-    parser.add_argument("--queue_depth", type=int, default=1024)
+    parser.add_argument("--warmup", type=int, default=1)
+    parser.add_argument("--gpu_nqueues", type=int, default=4)
+    parser.add_argument("--queue_depth", type=int, default=128)
     parser.add_argument("--max_file_size", type=int, default=0)
-    parser.add_argument("--repetitions", type=int, default=5)
+    parser.add_argument("--repetitions", type=int, default=1)
 
 
 def get_opts(args, cijoe, backend):
