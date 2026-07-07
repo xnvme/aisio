@@ -223,22 +223,13 @@ files.
 All datasets are generated with a fixed random seed to ensure
 reproducibility across systems.
 
-The required driver binding depends on the benchmark: the AiSIO benchmark
-uses the xNVMe uPCIe path and requires the device bound to
-``uio_pci_generic`` with hugepages allocated:
+The AiSIO benchmark uses the xNVMe uPCIe path and requires the device bound
+to ``uio_pci_generic`` with hugepages allocated:
 
 ```
 umount /mnt/datasets
 devbind --device '<pci_addr>' --bind uio_pci_generic
 hugepages setup --count 1024
-```
-
-The POSIX benchmark operates through the kernel NVMe driver and requires
-the device bound to ``nvme`` with the filesystem mounted:
-
-```
-devbind --device '<pci_addr>' --bind nvme
-mount /dev/<nvme_dev> /mnt/datasets
 ```
 
 #### AiSIO / uPCIe (``bench_aisio.yaml``)
@@ -262,16 +253,11 @@ cijoe --monitor \
 
 #### POSIX (``bench_posix.yaml``)
 
-This benchmark provides a POSIX I/O baseline by loading all three
-datasets through the ``posix`` backend of FIL. It serves as a
-baseline comparison against the AiSIO path.
-
-```
-cijoe --monitor \
-    -c configs/transport.toml \
-    -c configs/datasets.toml \
-    tasks/bench_posix.yaml
-```
+This proof-of-concept benchmark provided a POSIX I/O baseline by loading all
+three datasets (imagenetish, tiktokish, filesize8gib) through the ``posix``
+backend of FIL, for comparison against the AiSIO path. It is reproducible
+only from the ``poc`` tag, where ``bench_posix.yaml`` lives; the current open
+stack does not include it.
 
 #### NVIDIA GPUDirect Storage (``bench_gds.yaml``)
 
