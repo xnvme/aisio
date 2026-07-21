@@ -30,9 +30,18 @@ first reaches device saturation.
 
 ## Metrics Collected
 
-| Metric            | Reported by  |
-| ----------------- | ------------ |
-| Completed IOPS    | xnvmeperf    |
+| Metric                                   | Reported by                              |
+| ---------------------------------------- | ---------------------------------------- |
+| Completed IOPS                           | xnvmeperf                                |
+| SM activity (fraction of SMs occupied)   | DCGM field 1002 (SM_ACTIVE)              |
+| Warp slot occupancy                      | DCGM field 1003 (SM_OCCUPANCY)           |
+| GPU memory bandwidth utilization         | DCGM field 1005 (DRAM_ACTIVE)            |
+
+The DCGM fields are sampled every 100 ms by ``dcgmi dmon`` during the benchmark
+run and reported as mean/p95/min/max per field. Since the total CUDA thread
+count grows with queue depth (``qdepth × nqueues × ndevs``), fields 1002/1003
+show how the compute footprint of the persistent polling kernel scales along
+the sweep.
 
 ## Environment
 
@@ -92,6 +101,26 @@ respectively for no throughput gain, making them suboptimal.
 it saturates the device at 4096 total threads, matching ``nqueues=2`` at
 ``qdepth=128``, while requiring only half the per-queue depth, halving the
 number of commands in flight per queue.
+
+### GPU Compute Cost of the Polling Kernel
+
+```{figure} /lineplot-cuda-qdepth-sm.png
+:alt: GPU engine activity vs. queue depth for xnvmeperf (cuda-run) at nqueues=1
+:width: 700px
+:align: center
+
+GPU engine activity vs. queue depth for xnvmeperf (cuda-run), 16 NVMe devices,
+512 B I/O, nqueues fixed at 1. SM active and SM occupancy (DCGM fields
+1002/1003) measure the compute footprint of the persistent polling kernel;
+DRAM active (1005) tracks the GPU memory bandwidth consumed by the incoming
+P2P writes.
+```
+
+The activity plot holds ``nqueues`` at 1 so queue depth is the only variable:
+the total thread count (``qdepth × nqueues × ndevs``) grows from 16 threads at
+``qdepth=1`` to 8192 at ``qdepth=512`` along the x-axis, and fields 1002/1003
+show how much GPU compute capacity that polling footprint costs — the second
+result axis to weigh against the IOPS gained by deeper queues.
 
 ## Summary
 

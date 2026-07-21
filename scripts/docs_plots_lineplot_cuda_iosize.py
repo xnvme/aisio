@@ -24,6 +24,15 @@ REQ = {
     "backend": "upcie-cuda",
 }
 
+# The GPU-activity plot holds queue depth fixed at the saturation point of
+# the bandwidth sweep.
+SM_QDEPTH = 128
+SM_FIELDS = {
+    "1002": "SM_active",
+    "1003": "SM_occupancy",
+    "1005": "DRAM_active",
+}
+
 
 def add_args(parser: ArgumentParser):
     parser.add_argument("--path", type=str, help="Path to the results data")
@@ -50,12 +59,25 @@ def collect(args, cijoe: Cijoe):
     results = json_load(state.output())
     results.sort(key=lambda res: res["iosize"])
     data = defaultdict(lambda: defaultdict(list))
+    sm_data = defaultdict(lambda: defaultdict(list))
 
     for res in results:
         nbytes = res["mibs"] * 1024 * 1024  # bytes/s
         data[res["iosize"]][res["qdepth"]].append(nbytes)
 
-    return 0, data
+        # GPU engine activity at the fixed queue depth. "dcgm" is a
+        # per-field stats dict in new result files; None or a scalar in
+        # older ones, which then simply yield an empty activity plot.
+        dcgm = res.get("dcgm")
+        if res["qdepth"] != SM_QDEPTH or not isinstance(dcgm, dict):
+            continue
+        for field, key in SM_FIELDS.items():
+            stats = dcgm.get(field)
+            value = stats.get("mean") if isinstance(stats, dict) else None
+            if value is not None:
+                sm_data[res["iosize"]][key].append(value * 100)  # ratio -> %
+
+    return 0, data, sm_data
 
 
 def avg_stddev(values):
@@ -87,7 +109,7 @@ def main(args, cijoe):
     with open(bandwidth_path, "r") as f:
         cuda_bandwidth = float(f.read())
 
-    err, results = collect(args, cijoe)
+    err, results, sm_results = collect(args, cijoe)
     if err:
         log.error("Failed: collect()")
         return err
@@ -102,5 +124,15 @@ def main(args, cijoe):
             "results": results,
             "cuda_bandwidth": cuda_bandwidth,
         }))
+
+    for iosize, metrics in sm_results.items():
+        for key, values in metrics.items():
+            sm_results[iosize][key] = [round(v, 2) for v in avg_stddev(values)]
+
+    sm_template_name = "lineplot-cuda-iosize-sm.yaml"
+    sm_template = template_env.get_template(f"{sm_template_name}.jinja2")
+    out_path = artifacts / sm_template_name
+    with out_path.open("w") as body:
+        body.write(sm_template.render({"results": sm_results}))
 
     return 0

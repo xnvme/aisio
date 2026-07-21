@@ -96,8 +96,10 @@ PCIe RX bandwidth by NVMe command data payload size, measured with 4 PCIe Gen5
 NVMe SSDs transferring data P2P to a PCIe Gen5 GPU via the upcie-cuda backend.
 Each bar is stacked: the lower segment is the payload bandwidth reported by
 xnvmeperf; the upper segment is the remainder observed by DCGM. The dashed lines
-mark the PCIe Gen5 x16 line rate (64.0 GB/s) and the reference P2P bandwidth from
-``p2pBandwidthLatencyTest`` (56.1 GB/s).
+mark the PCIe line rate (64.0 GB/s for the Gen5 x16 link derived from the
+measured DCGM link fields 237/238) and the reference P2P bandwidth from
+``p2pBandwidthLatencyTest`` (56.1 GB/s). Result files that predate the link
+fields fall back to an assumed Gen5 x16 link, labelled ``(assumed)``.
 ```
 
 ### Small I/O: Link Underutilized

@@ -16,6 +16,8 @@ from pathlib import Path
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
+from dcgm_helper import pcie_link_from_dcgm
+
 
 REQ = {
     "qdepth": 128,
@@ -47,10 +49,11 @@ def collect(args, cijoe: Cijoe):
     err, state = cijoe.run(" ".join(cmd))
     if err:
         log.error(f"Failed: jq")
-        return err, None
+        return err, None, None
 
     results = json_load(state.output())
     data = { iosize: defaultdict(list) for iosize in [512, 4096, 8192] }
+    pcie_link = None
 
     for res in results:
         ndevs = res["ndevs"]
@@ -58,6 +61,9 @@ def collect(args, cijoe: Cijoe):
             continue
 
         iosize, mibs, dcgm = res["iosize"], res["mibs"], res["dcgm"]
+        # Keep the first run that reports a link; the link spec is a static
+        # property of the slot, so any run that observed it is authoritative.
+        pcie_link = pcie_link or pcie_link_from_dcgm(dcgm)
         if isinstance(dcgm, dict):
             # current schema: per-field stats; legacy files hold the
             # field 1010 p95 scalar directly
@@ -67,7 +73,7 @@ def collect(args, cijoe: Cijoe):
         data[iosize]["payload_nbytes"].append(nbytes)
         data[iosize]["total_nbytes"].append(dcgm)
 
-    return 0, data
+    return 0, data, pcie_link
 
 
 def avg_stddev(values):
@@ -88,7 +94,7 @@ def main(args, cijoe):
 
     out_path = artifacts / "barplot-sat.yaml"
 
-    err, results = collect(args, cijoe)
+    err, results, pcie_link = collect(args, cijoe)
     if err:
         log.error("Failed: collect()")
         return err
@@ -112,12 +118,19 @@ def main(args, cijoe):
     template_loader = jinja2.FileSystemLoader(template_path)
     template_env = jinja2.Environment(loader=template_loader)
 
+    # Link spec measured via DCGM fields 237/238; fall back to the
+    # historical Gen5 x16 assumption for results without the link fields.
+    gen, width, line_rate = pcie_link if pcie_link else (5, 16, 64.0)
+    link_desc = f"Gen{gen} x{width}" + ("" if pcie_link else " (assumed)")
+
     template = template_env.get_template(f"{template_name}.jinja2")
     with out_path.open("w") as body:
         body.write(template.render({
             "results": results,
             "devices": args.devices,
             "cuda_bandwidth": float(cuda_bandwidth),
+            "line_rate": line_rate,
+            "link_desc": link_desc,
         }))
 
     return 0

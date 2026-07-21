@@ -1,0 +1,22 @@
+title: |
+  GPU engine activity during device-initiated random reads with `xnvmeperf`
+  16 PCIe Gen5 NVMe SSDs (nqueues 1, queue depth 128) via the `upcie-cuda` backend
+
+xlabel: I/O Size (bytes)
+ylabel: GPU engine activity (%)
+footnote: DCGM fields 1002/1003/1005 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU
+
+rooflines:
+- name: Fully active
+  value_pct: 100
+  color: '#fb6a4a'
+  style: ':'
+
+bars:
+{%- for iosize, metrics in results.items() %}
+- label: "{{ iosize }}"
+  {%- for key, result in metrics.items() %}
+  {{ key }}: {{ result[0] }}
+  {{ key }}_std: {{ result[1] }}
+  {%- endfor %}
+{% endfor %}

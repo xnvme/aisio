@@ -135,9 +135,11 @@ def make_plots(build_dir: str) -> None:
 
     with plots.artifacts_from_archive(artifacts / "device-initiated-iosize.tar.gz") as archive:
         plots.lineplot(archive, build_dir, "cuda", "iosize", colormap="plasma")
+        plots.lineplot(archive, build_dir, "cuda", "iosize-sm")
 
     with plots.artifacts_from_archive(artifacts / "device-initiated-qdepth.tar.gz") as archive:
         plots.lineplot(archive, build_dir, "cuda", "qdepth", colormap="plasma")
+        plots.lineplot(archive, build_dir, "cuda", "qdepth-sm")
 
 # ---------------------------------------------------------------------------
 # Extract latex_documents from latex_theme.py

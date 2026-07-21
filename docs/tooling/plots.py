@@ -226,6 +226,10 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     in_file = Path(artifacts) / f"lineplot-{driver}-{xaxis}.yaml"
     out_file = Path(output) / f"lineplot-{driver}-{xaxis}.png"
 
+    # Archives from before a plot was introduced simply lack its YAML.
+    if not in_file.exists():
+        return
+
     with open(in_file) as file:
         cfg = yaml.safe_load(file)
 
@@ -234,7 +238,11 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         return
 
     rooflines = cfg.get("rooflines", [])
-    if rooflines and "value_nbytes" in rooflines[0]:
+    if rooflines and "value_pct" in rooflines[0]:
+        scale = 1
+        roofline_key = "value_pct"
+        roofline_label = lambda val: f"{val:.0f} %"
+    elif rooflines and "value_nbytes" in rooflines[0]:
         scale = 1e9
         roofline_key = "value_nbytes"
         roofline_label = lambda val: f"{val:.1f} GB/s"
