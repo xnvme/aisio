@@ -66,6 +66,10 @@ function separatedNumber(x) {
     return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
+function formatValue(x) {
+    return x > 1000 ? separatedNumber(x) : Number(x).toFixed(2);
+}
+
 const ctx = document.getElementById('chart').getContext('2d');
 let chart;
 
@@ -88,6 +92,11 @@ function updateChart() {
     }
   });
   filtered_results = filtered_results.filter(({data}) => data.length);
+
+  if (!filtered_results.length) {
+    if (chart) { chart.destroy(); chart = null; }
+    return;
+  }
 
   for (let result of filtered_results) {
     let filtered = result.data;
@@ -179,6 +188,15 @@ function updateChart() {
     });
   }
 
+  /* The reference-line datasets span x values outside the axis range, which
+     excludes them from Chart.js' y autoscale — stretch the axis explicitly
+     so the lines are actually visible. */
+  let suggestedMax;
+  [typeof MAX_LINE_VALUE !== 'undefined' ? MAX_LINE_VALUE : null,
+   typeof COMP_LINE_VALUE !== 'undefined' ? COMP_LINE_VALUE : null].forEach(v => {
+    if (v !== null && (suggestedMax === undefined || v > suggestedMax)) suggestedMax = v;
+  });
+
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: BAR_TYPE,
@@ -200,7 +218,7 @@ function updateChart() {
           max: xCategories ? xCategories.length - 1 : logarithmic ? Math.log2(maxXvalue) : maxXvalue,
           ticks: {
             stepSize: 1,
-            callback: (v) => logarithmic ? Math.pow(2, v) : v,
+            callback: (v) => xCategories ? (xCategories[v] ?? "") : logarithmic ? Math.pow(2, v) : v,
           },
           grid: { drawTicks: true, tickLength: 10 },
         },
@@ -208,6 +226,7 @@ function updateChart() {
           title: { display: true, text: `${y_axis.prettyName} (${y_axis.unit})` },
           stacked,
           min: 0,
+          ...(suggestedMax !== undefined ? { suggestedMax } : {}),
           grace: BAR_TYPE === "bar" ? "20%" : 0,
           ticks: { callback: (v) => y_axis.key === "iops" ? v / 1e6 : v },
         }
@@ -232,14 +251,14 @@ function updateChart() {
                 return `Peak IOPS: ${separatedNumber(d.y)}`;
               } else if (d.data.thr_sib) {
                 return [
-                  `${y_axis.prettyName}: ${separatedNumber(displayY)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
-                  `Standard Deviation: ${separatedNumber(d.v)}`,
+                  `${y_axis.prettyName}: ${formatValue(displayY)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
+                  `Standard Deviation: ${formatValue(d.v)}`,
                   `Hyper threads: ${d.data.hyperthreads}`
                 ];
               } else {
                 return [
-                  `${y_axis.prettyName}: ${separatedNumber(displayY)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
-                  `Standard Deviation: ${separatedNumber(d.v)}`
+                  `${y_axis.prettyName}: ${formatValue(displayY)} ${y_axis.key ==="iops" ? "" : y_axis.unit}`,
+                  `Standard Deviation: ${formatValue(d.v)}`
                 ];
               }
             }

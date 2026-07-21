@@ -24,7 +24,7 @@ REQ = {
     "stress": 0,
     "turbo": 1,
     "smt": 1,
-    "thr_sib": 0,
+    "thr_sib": False,
     "backend": "upcie-cuda",
 }
 

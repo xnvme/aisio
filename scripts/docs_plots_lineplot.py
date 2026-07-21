@@ -23,7 +23,7 @@ REQ = {
     "ndevs": 16,
     "cpu_governor": "performance",
     "stress": 0,
-    "thr_sib": 0,
+    "thr_sib": False,
     "ncpus": 8,
 }
 

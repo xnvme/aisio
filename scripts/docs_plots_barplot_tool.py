@@ -25,7 +25,7 @@ REQ = {
     "cpu_governor": "performance",
     "turbo": 1,
     "smt": 1,
-    "thr_sib": 1,
+    "thr_sib": True,
 }
 
 def add_args(parser: ArgumentParser):
