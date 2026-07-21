@@ -278,7 +278,13 @@ class BenchHelper():
             "backend": self.backend,
             "iops": bench_result["total"]["iops"],
             "mibs": bench_result["total"]["mibs"],
-            "dcgm": dcgm_stats["1010"]["p95"] if self.dcgm else None,
+            # Per-field stats without the raw samples: {"1010": {"mean": ..,
+            # "p95": .., "min": .., "max": ..}, ..}. Older result files hold a
+            # scalar (field 1010 p95) here instead.
+            "dcgm": {
+                field: {k: v for k, v in stats.items() if k != "samples"}
+                for field, stats in dcgm_stats.items()
+            } if self.dcgm else None,
         }
 
         with open(res_path, "x") as file:

@@ -86,7 +86,14 @@ const splitDatasetOnReporter = () => {
     const d = all[i];
     d.mibs = d.mibs.map(n => n * 1024*1024 / 1e9);
     results[0].data.push(d);
-    results[1].data.push({...d, "mibs": d.dcgm ? d.dcgm.map((n, idx) => n / 1e9 - d.mibs[idx]) : [0,0], "mibs_display": d.dcgm ? d.dcgm[0] / 1e9 : 0});
+    /* "dcgm" is a per-field stats dict; legacy result files hold the
+       field-1010 p95 [avg, stddev] pair directly. Either way, plot the
+       PCIe RX (1010) p95 pair. */
+    const pcie = !d.dcgm ? null
+      : Array.isArray(d.dcgm) ? d.dcgm
+      : (d.dcgm["1010"] && Array.isArray(d.dcgm["1010"]["p95"])) ? d.dcgm["1010"]["p95"]
+      : null;
+    results[1].data.push({...d, "mibs": pcie ? pcie.map((n, idx) => n / 1e9 - d.mibs[idx]) : [0,0], "mibs_display": pcie ? pcie[0] / 1e9 : 0});
   }
 
   return results;

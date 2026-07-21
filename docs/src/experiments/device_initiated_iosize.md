@@ -37,11 +37,25 @@ ceiling.
 
 ## Metrics Collected
 
-| Metric                                  | Reported by                        |
-| --------------------------------------- | ---------------------------------- |
-| Payload bandwidth (GB/s)                | xnvmeperf                          |
-| Total PCIe RX bandwidth (p95, bytes/s)  | DCGM field 1010 via ``dcgmi dmon`` |
-| Peak P2P bidirectional bandwidth (GB/s) | ``p2pBandwidthLatencyTest``        |
+| Metric                                   | Reported by                              |
+| ---------------------------------------- | ---------------------------------------- |
+| Payload bandwidth (GB/s)                 | xnvmeperf                                |
+| Total PCIe TX/RX bandwidth (bytes/s)     | DCGM fields 1009/1010 via ``dcgmi dmon`` |
+| SM activity (fraction of SMs occupied)   | DCGM field 1002 (SM_ACTIVE)              |
+| Warp slot occupancy                      | DCGM field 1003 (SM_OCCUPANCY)           |
+| GPU memory bandwidth utilization         | DCGM field 1005 (DRAM_ACTIVE)            |
+| Graphics engine activity                 | DCGM field 1001 (GR_ENGINE_ACTIVE)       |
+| SM/memory clocks, throttle reason bits   | DCGM fields 100/101/112                  |
+| Peak P2P bidirectional bandwidth (GB/s)  | ``p2pBandwidthLatencyTest``              |
+
+All DCGM fields are sampled every 100 ms by ``dcgmi dmon`` during the benchmark
+run and reported as mean/p95/min/max per field. The SM activity and occupancy
+fields (1002/1003) measure the GPU compute cost of the persistent polling
+kernel — the counterpart to the thread-count sweep. DRAM_ACTIVE (1005)
+discriminates bottlenecks: high PCIe RX with low DRAM_ACTIVE indicates a
+PCIe-bound run, while high DRAM_ACTIVE points to the GPU memory side. Fields
+100/101/112 are validity guards: runs where clocks dropped or throttling
+occurred are not comparable.
 
 ## Environment
 

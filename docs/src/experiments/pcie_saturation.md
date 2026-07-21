@@ -41,17 +41,32 @@ link (64 GB/s line rate) rather than leave it underutilized.
 
 ## Metrics Collected
 
-| Metric                                  | Reported by                        |
-| --------------------------------------- | ---------------------------------- |
-| Payload bandwidth (GB/s)                | xnvmeperf                          |
-| Total PCIe RX bandwidth (p95, bytes/s)  | DCGM field 1010 via ``dcgmi dmon`` |
-| Peak P2P bidirectional bandwidth (GB/s) | ``p2pBandwidthLatencyTest``        |
+| Metric                                   | Reported by                              |
+| ---------------------------------------- | ---------------------------------------- |
+| Payload bandwidth (GB/s)                 | xnvmeperf                                |
+| Total PCIe TX/RX bandwidth (bytes/s)     | DCGM fields 1009/1010 via ``dcgmi dmon`` |
+| GPU memory bandwidth utilization         | DCGM field 1005 (DRAM_ACTIVE)            |
+| SM activity (fraction of SMs occupied)   | DCGM field 1002 (SM_ACTIVE)              |
+| PCIe link generation and width           | DCGM fields 237/238                      |
+| PCIe replay counter                      | DCGM field 202                           |
+| Peak P2P bidirectional bandwidth (GB/s)  | ``p2pBandwidthLatencyTest``              |
 
 DCGM field 1010 counts PCIe receive bytes per second at the GPU endpoint, capturing
 all PCIe traffic directed to the GPU including NVMe payload, NVMe Submission Queue
-Entries, Completion Queue Entries, and PRP list transfers. The p95 is taken over
-100 ms samples collected during the benchmark run. **xnvmeperf** reports payload
-bytes per second based on completed I/O operations and their requested sizes.
+Entries, Completion Queue Entries, and PRP list transfers; field 1009 counts the
+opposite direction (GPU to host: completions and doorbell responses). All DCGM
+fields are sampled every 100 ms during the benchmark run and reported as
+mean/p95/min/max per field. **xnvmeperf** reports payload bytes per second based
+on completed I/O operations and their requested sizes.
+
+Since the CPU submits the I/O in this experiment and no GPU kernel runs,
+SM_ACTIVE (1002) is expected at ~0 and serves as measured evidence that the
+CPU-initiated P2P path consumes no GPU compute resources. DRAM_ACTIVE (1005)
+shows whether HBM write drain has headroom at the saturation point, separating
+"the link is the limit" from "GPU memory is the limit". Fields 237/238 identify
+runs affected by link downtraining (generation drop or lane reduction), and an
+increasing replay counter (202) flags retransmissions that reduce effective
+bandwidth — such runs must be excluded from the comparison.
 
 ``p2pBandwidthLatencyTest`` from the CUDA samples suite runs a sustained
 bidirectional P2P bandwidth test between two GPUs. The value recorded is the mean

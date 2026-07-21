@@ -74,7 +74,7 @@ def main(args, cijoe: Cijoe):
         result["iops"] = avg_stddev(result["iops"])
         result["mibs"] = avg_stddev(result["mibs"])
         result["cpu_usage"] = avg_stddev(result["cpu_usage"])
-        result["dcgm"] = avg_stddev(result["dcgm"]) if "dcgm" in result else 0
+        result["dcgm"] = combine_dcgm(result["dcgm"]) if "dcgm" in result else 0
 
         all_results[label].append(result)
 
@@ -82,6 +82,45 @@ def main(args, cijoe: Cijoe):
         json_dump(all_results, file, indent=2)
 
     return 0
+
+
+def combine_dcgm(ns: List[Union[None, int, float, dict]]):
+    """
+    Aggregate the "dcgm" values of repeated runs.
+
+    Runs without DCGM hold None; legacy result files hold a scalar (field
+    1010 p95); current files hold a per-field dict of stats. For the dict
+    schema, each stat is aggregated to (avg, stddev) across the repeats.
+    """
+    if not ns or not ns[0]:
+        # safeguard against [None, None, None, None, None]
+        return 0
+
+    if isinstance(ns[0], dict):
+        # Unlike avg_stddev(), only treat None as missing: guard fields
+        # (112 throttle bits, 202 replay) are legitimately 0.0 in most runs
+        # and a nonzero outlier must survive aggregation.
+        def agg(values):
+            if any(v is None for v in values):
+                # A stat missing from some run: propagate None rather than 0,
+                # so "not measured" stays distinct from a measured 0.0. The
+                # guard fields (112 throttle, 202 replay) are legitimately 0.0,
+                # and callers unpack (avg, stddev) or skip on None.
+                return None
+            avg = sum(values) / len(values)
+            stddev = (sum((x - avg) ** 2 for x in values) / len(values)) ** 0.5
+            return avg, stddev
+
+        return {
+            field: {
+                stat_name: agg([run[field][stat_name] for run in ns])
+                for stat_name in stats
+                if stat_name != "samples"
+            }
+            for field, stats in ns[0].items()
+        }
+
+    return avg_stddev(ns)
 
 
 def avg_stddev(ns: List[Union[int, float]]):

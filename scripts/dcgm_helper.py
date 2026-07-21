@@ -10,9 +10,16 @@ class DcgmHelper:
     Start and stop dcgmi dmon monitoring and parse the collected samples.
 
     Requires dcgmi and screen to be available on the target system. Fields
-    are DCGM profiling field IDs passed to ``dcgmi dmon -e``. The defaults
-    (1009, 1010) correspond to PCIe TX and RX bytes per second, which is the
-    primary metric of interest for P2P transfers in the upcie-cuda path.
+    are DCGM field IDs passed to ``dcgmi dmon -e``; profiling fields
+    (DCGM_FI_PROF_*, 1xxx) and regular device fields can be mixed. The
+    defaults cover:
+
+    - 1009/1010: PCIe TX/RX bytes per second (headers + payload)
+    - 1001/1002/1003: GR_ENGINE_ACTIVE, SM_ACTIVE, SM_OCCUPANCY — GPU
+      compute cost of the persistent polling kernel in the upcie-cuda path
+    - 1005: DRAM_ACTIVE — bottleneck discriminator (PCIe-bound vs HBM-bound)
+    - 100/101: SM/MEM clocks, 112: throttle reason bitmask — run validity
+    - 202: PCIe replay counter, 237/238: link gen/width — link health
 
     Configure via cijoe config:
 
@@ -21,10 +28,17 @@ class DcgmHelper:
         gpu = 0
     """
 
+    DEFAULT_FIELDS = [
+        "1009", "1010",  # PCIe TX/RX bytes/s
+        "1001", "1002", "1003", "1005",  # GRACT, SMACT, SMOCC, DRAMA
+        "100", "101", "112",  # SM clock, MEM clock, throttle reasons
+        "202", "237", "238",  # PCIe replay, link gen, link width
+    ]
+
     def __init__(self, cijoe: Cijoe, gpu: Optional[int] = None, fields: Optional[List[str]] = None):
         self.cijoe = cijoe
         self.gpu = gpu if gpu is not None else cijoe.getconf("dcgm.gpu", 0)
-        self.fields = fields if fields is not None else cijoe.getconf("dcgm.fields", ["1009", "1010"])
+        self.fields = fields if fields is not None else cijoe.getconf("dcgm.fields", self.DEFAULT_FIELDS)
         self._output = Path("/tmp/dcgm_monitor.txt")
         self._is_running = False
 
@@ -54,8 +68,11 @@ class DcgmHelper:
         Stop monitoring and parse collected samples.
 
         Returns ``(err, stats)`` where ``stats`` maps each field ID to a dict
-        with keys ``samples``, ``mean``, and ``p95``. Values are in the native
-        unit reported by dcgmi dmon (bytes/sec for PCIe fields).
+        with keys ``samples``, ``mean``, ``p95``, ``min``, and ``max``. Values
+        are in the native unit reported by dcgmi dmon (bytes/sec for PCIe
+        fields, ratios for profiling activity fields, MHz for clocks). min/max
+        are what matter for guard fields (112 throttle bits, 237/238 link
+        state), where a mean over samples has no physical meaning.
         """
         self.cijoe.run("pkill -f dcgmi; sleep 0.2")
         self._is_running = False
@@ -82,12 +99,14 @@ class DcgmHelper:
         stats = {}
         for field, values in raw.items():
             if not values:
-                stats[field] = {"samples": [], "mean": None, "p95": None}
+                stats[field] = {"samples": [], "mean": None, "p95": None, "min": None, "max": None}
                 continue
             stats[field] = {
                 "samples": values,
                 "mean": mean(values),
                 "p95": quantiles(sorted(values), n=100, method="inclusive")[94],
+                "min": min(values),
+                "max": max(values),
             }
 
         return 0, stats

@@ -58,6 +58,10 @@ def collect(args, cijoe: Cijoe):
             continue
 
         iosize, mibs, dcgm = res["iosize"], res["mibs"], res["dcgm"]
+        if isinstance(dcgm, dict):
+            # current schema: per-field stats; legacy files hold the
+            # field 1010 p95 scalar directly
+            dcgm = dcgm["1010"]["p95"]
         nbytes = mibs * 1024 * 1024
 
         data[iosize]["payload_nbytes"].append(nbytes)
