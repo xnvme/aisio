@@ -1,6 +1,6 @@
 ---
 doc: |
-  Install the NVIDIA driver + CUDA toolkit on Ubuntu 26.04 (no GDS/DOCA)
+  Install the NVIDIA driver + CUDA toolkit + DCGM on Ubuntu 26.04 (no GDS/DOCA)
 
   The NVIDIA mirror of setup_amdstack: the minimal driver + CUDA toolkit for
   NVMe<->GPU P2P, the open-kernel-module driver and the toolkit straight from
@@ -10,7 +10,11 @@ doc: |
   / DOCA / BaM stack. cuda-samples is built (only p2pBandwidthLatencyTest) to
   /root/git/cuda-samples to provide the PCIe peak-bandwidth reference used by
   the bench_pcie / bench_cuda_iosize experiments; no config knob, the path is
-  fixed and matched in scripts/cuda_p2p_sample.py.
+  fixed and matched in scripts/cuda_p2p_sample.py. DCGM (from the same NVIDIA
+  CUDA repo) provides the GPU metric collection backend for the bench
+  workflows; scripts/dcgm_helper.py talks to its nv-hostengine daemon via
+  dcgmi. dcgm_helper additionally needs `screen`, installed by
+  setup_ubuntu.yaml.
 
   Unlike setup_amdstack (amdgpu is in-tree), the NVIDIA driver is a DKMS module, so
   this reboots once to load it. On Ubuntu 26.04 the driver is 580-open from the
@@ -62,6 +66,17 @@ steps:
     echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' | tee -a /etc/profile.d/cuda.sh
     chmod +x /etc/profile.d/cuda.sh
 
+# DCGM: nv-hostengine daemon + dcgmi client, used by scripts/dcgm_helper.py to
+# collect GPU metrics during the bench workflows. The service must run (as
+# root, the systemd default) for the profiling fields (DCGM_FI_PROF_*) to be
+# readable. The -cuda13 variant matches the driver 580 / CUDA 13 stack and
+# bundles dcgmproftester13, the load generator used by
+# scripts/validate_dcgm_helper.py.
+- name: dcgm
+  run: |
+    DEBIAN_FRONTEND=noninteractive apt-get -qy install datacenter-gpu-manager-4-cuda13
+    systemctl enable --now nvidia-dcgm
+
 - name: check_gpu
   run: |
     nvidia-smi --query-gpu=name,compute_cap,driver_version,memory.total --format=csv,noheader
@@ -73,6 +88,12 @@ steps:
 - name: check_libs
   run: |
     ldconfig -p | grep -iE "libcudart|libcuda\.so"
+
+# hostengine reachable and GPU visible to DCGM; profiling-field support can be
+# inspected on the target with `dcgmi profile -l -i 0`
+- name: check_dcgm
+  run: |
+    dcgmi discovery -l
 
 # the CUDA driver-api header the host stack builds against
 - name: check_cuda_header
