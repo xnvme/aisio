@@ -14,7 +14,7 @@ path = "/root/git/xal"
 
 [fil.repository]
 remote = "https://github.com/xnvme/fil"
-tag = "v0.3.2"
+tag = "v0.3.3"
 path = "/root/git/fil"
 
 [spdk.repository]
