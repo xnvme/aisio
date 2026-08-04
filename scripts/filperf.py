@@ -25,6 +25,7 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--queue_depth", type=int, default=128)
     parser.add_argument("--max_file_size", type=int, default=0)
     parser.add_argument("--repetitions", type=int, default=1)
+    parser.add_argument("--copy_to_gpu", action=StringToBoolAction, default=True)
 
 
 def get_opts(args, cijoe, backend):
@@ -42,6 +43,8 @@ def get_opts(args, cijoe, backend):
             out += f"--max-file-size {args.max_file_size} "
         if backend == "aisio-gpu":
             out += f"--gpu-nqueues {args.gpu_nqueues} "
+        if backend == "aisio-cpu" and args.copy_to_gpu:
+            out += "--copy-to-gpu "
         out += f"--queue-depth {args.queue_depth} "
     return out
 
