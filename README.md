@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+
+SPDX-License-Identifier: BSD-3-Clause
+-->
+
 # aisio: Accelerator-integrated Storage I/O
 
 This repository provides documentation, tools, and scripts for setting up and
@@ -164,3 +170,10 @@ cijoe --monitor \
     -c configs/datasets.toml \
     tasks/bench_aisio.yaml
 ```
+
+## License
+
+AiSIO is licensed under the BSD 3-Clause License; see [LICENSE](LICENSE) for the
+full text. Individual files carry an `SPDX-License-Identifier` tag, and the
+repository follows the [REUSE](https://reuse.software/) specification, so
+`reuse lint` reports the licensing of every file.

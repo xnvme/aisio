@@ -1,0 +1,10 @@
+version = 1
+SPDX-PackageName = "AiSIO"
+SPDX-PackageSupplier = "Samsung Electronics Co., Ltd"
+SPDX-PackageDownloadLocation = "https://github.com/xnvme/aisio"
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Samsung Electronics Co., Ltd"
+SPDX-License-Identifier = "BSD-3-Clause"
