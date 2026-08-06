@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 repos:
   # 1. ShellCheck – static analysis for shell scripts
   - repo: https://github.com/shellcheck-py/shellcheck-py
@@ -21,5 +25,14 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      # License texts under LICENSES/ are reproduced verbatim
       - id: end-of-file-fixer
+        exclude: ^LICENSES/
       - id: trailing-whitespace
+        exclude: ^LICENSES/
+
+  # 4. REUSE – licensing and copyright compliance
+  - repo: https://github.com/fsfe/reuse-tool
+    rev: v6.2.0
+    hooks:
+      - id: reuse
