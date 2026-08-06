@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 from pathlib import Path

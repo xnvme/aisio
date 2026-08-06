@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 from cijoe.core.command import Cijoe
 from pathlib import Path
 from statistics import mean, quantiles

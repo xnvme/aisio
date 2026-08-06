@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 ---
 doc: |
   Install the NVIDIA driver + CUDA toolkit + DCGM on Ubuntu 26.04 (no GDS/DOCA)

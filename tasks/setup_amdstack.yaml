@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 ---
 doc: |
   Install the ROCm userspace (HIP + HSA) on Ubuntu 26.04 from the distro repos

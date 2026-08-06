@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 # cpu_freq_logger.sh
 
 OUTFILE=$1

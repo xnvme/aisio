@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 """
 Validate DcgmHelper against a live GPU: start monitoring, generate a GPU load
 with dcgmproftester, stop and parse, and print per-field stats.

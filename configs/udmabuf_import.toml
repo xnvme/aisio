@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 [linux.source]
 # meta package; pulls the linux-source matching the running kernel (26.04 -> 7.0)
 pkg = "linux-source"
