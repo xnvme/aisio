@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+
+SPDX-License-Identifier: BSD-3-Clause
+-->
+
 # Compiling the Documentation
 
 To compile the documentation you need the following tools and packages on your

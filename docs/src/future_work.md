@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+
+SPDX-License-Identifier: BSD-3-Clause
+-->
+
 # Future Work
 
 The work presented here is bounded in two important ways. First, HOMI is a

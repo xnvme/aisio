@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+
+SPDX-License-Identifier: BSD-3-Clause
+-->
+
 # Implementation
 
 This section distinguishes between the existing proof-of-concept (PoC)

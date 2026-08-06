@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+
+SPDX-License-Identifier: BSD-3-Clause
+-->
+
 (sec-experiments-pcie-bandwidth)=
 # CPU-Initiated P2P I/O: PCIe Bandwidth Saturation
 

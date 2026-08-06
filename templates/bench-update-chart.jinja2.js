@@ -1,3 +1,9 @@
+{#
+SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+
+SPDX-License-Identifier: BSD-3-Clause
+#}
+
 function createRadios(containerId, values, name, prettyName, checkedValue) {
   let label_for = document.querySelector(`[label-for="${name}"]`);
   if (!label_for && name == "hyperthreads") {
