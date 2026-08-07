@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: 2025 Simon A. F. Lund <os@safl.dk>
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: BSD-3-Clause
 #
 # Deterministic pseudo dataset generator (ImageFolder layout) using GNU parallel.
 #
