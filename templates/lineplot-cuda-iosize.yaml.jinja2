@@ -10,7 +10,7 @@ title: |
 
 xlabel: I/O Size (bytes)
 ylabel: Bandwidth (GB/s)
-footnote: Device-initiated I/O using the `cuda-run` subcommand; data buffers reside in GPU memory
+footnote: Device-initiated I/O using the `cuda-run` subcommand; data buffers reside in GPU memory{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
 
 rooflines:
 - name: PCIe Gen5 x16 line-rate

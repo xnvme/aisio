@@ -20,6 +20,8 @@ from pathlib import Path
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
+from version_helper import xnvme_version
+
 
 REQ = {
     "nqueues": 1,
@@ -113,6 +115,8 @@ def main(args, cijoe):
     with open(bandwidth_path, "r") as f:
         h2d_bandwidth = float(f.read())
 
+    version = xnvme_version(cijoe)
+
     err, results, sm_results = collect(args, cijoe)
     if err:
         log.error("Failed: collect()")
@@ -127,6 +131,7 @@ def main(args, cijoe):
         body.write(template.render({
             "results": results,
             "h2d_bandwidth": h2d_bandwidth,
+            "xnvme_version": version,
         }))
 
     for iosize, metrics in sm_results.items():
@@ -137,6 +142,9 @@ def main(args, cijoe):
     sm_template = template_env.get_template(f"{sm_template_name}.jinja2")
     out_path = artifacts / sm_template_name
     with out_path.open("w") as body:
-        body.write(sm_template.render({"results": sm_results}))
+        body.write(sm_template.render({
+            "results": sm_results,
+            "xnvme_version": version,
+        }))
 
     return 0

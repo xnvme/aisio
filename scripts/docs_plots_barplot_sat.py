@@ -21,6 +21,7 @@ from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
 from dcgm_helper import pcie_link_from_dcgm
+from version_helper import xnvme_version
 
 
 REQ = {
@@ -133,6 +134,7 @@ def main(args, cijoe):
             "results": results,
             "devices": args.devices,
             "h2d_bandwidth": float(h2d_bandwidth),
+            "xnvme_version": xnvme_version(cijoe),
             "line_rate": line_rate,
             "link_desc": link_desc,
         }))

@@ -10,7 +10,7 @@ title: |
 
 xlabel: I/O Size (bytes)
 ylabel: GPU engine activity (%)
-footnote: DCGM fields 1002/1003/1005 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU
+footnote: DCGM fields 1002/1003/1005 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
 
 rooflines:
 - name: Fully active

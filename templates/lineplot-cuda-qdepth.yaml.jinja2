@@ -10,7 +10,7 @@ title: |
 
 xlabel: Queue Depth
 ylabel: IOPS (Millions)
-footnote: Device-initiated I/O using the `cuda-run` subcommand; data buffers reside in GPU memory
+footnote: Device-initiated I/O using the `cuda-run` subcommand; data buffers reside in GPU memory{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
 
 rooflines:
 - name: Device IOPS Capacity

@@ -11,7 +11,7 @@ title: |
 
 xlabel: "NVMe Command Data Payload (bytes)"
 ylabel: "Bandwidth ({bw_unit})"
-footnote: "PCIe bandwidth observed via `dcgmi dmon`"
+footnote: "PCIe bandwidth observed via `dcgmi dmon`{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}"
 
 # Rooflines (in bytes/s)
 rooflines:

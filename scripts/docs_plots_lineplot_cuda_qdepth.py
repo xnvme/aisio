@@ -20,6 +20,8 @@ from pathlib import Path
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
+from version_helper import xnvme_version
+
 
 REQ = {
     "iosize": 512,
@@ -108,6 +110,8 @@ def main(args, cijoe):
     template_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path))
     template = template_env.get_template(f"{template_name}.jinja2")
 
+    version = xnvme_version(cijoe)
+
     err, results, sm_results = collect(args, cijoe)
     if err:
         log.error("Failed: collect()")
@@ -119,7 +123,10 @@ def main(args, cijoe):
 
     out_path = artifacts / "lineplot-cuda-qdepth.yaml"
     with out_path.open("w") as body:
-        body.write(template.render({"results": results}))
+        body.write(template.render({
+            "results": results,
+            "xnvme_version": version,
+        }))
 
     for qdepth, metrics in sm_results.items():
         for key, values in metrics.items():
@@ -129,6 +136,9 @@ def main(args, cijoe):
     sm_template = template_env.get_template(f"{sm_template_name}.jinja2")
     out_path = artifacts / sm_template_name
     with out_path.open("w") as body:
-        body.write(sm_template.render({"results": sm_results}))
+        body.write(sm_template.render({
+            "results": sm_results,
+            "xnvme_version": version,
+        }))
 
     return 0
