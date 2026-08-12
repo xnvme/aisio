@@ -37,12 +37,16 @@ doc: |
   `PCI_BLACKLIST` in step "bind_to_userspace", since the xnvme-driver script otherwise
   will unbind it, making the machine unusable (until next reboot).
 
+  The script sizes the hugepage pool as it binds. xnvmeperf sizes its host heap at
+  256 MiB per queue, so the largest point of this sweep -- `nqueues` 16 -- needs
+  4 GiB; `HUGEMEM` asks for 8 GiB, in MiB, which covers it with headroom.
+
   It is not necessary to run this step if the workflow is run repeatedly.
 
 steps:
 - name: bind_to_userspace
   run: |
-    {{ config.xnvme.driver.prefix }} xnvme-driver
+    HUGEMEM=8192 {{ config.xnvme.driver.prefix }} xnvme-driver
 
 - name: run
   uses: bench_runall
