@@ -23,9 +23,9 @@ This experiment fixes CPU threads at 1 and devices at 4, then sweeps I/O size
 across three points (512, 4096, and 8192 bytes), measuring both the payload
 bandwidth reported by xnvmeperf and the total PCIe receive traffic observed by
 DCGM at the GPU endpoint. The gap between the two reveals the share of the link
-consumed by NVMe and PCIe protocol traffic rather than payload. A reference peak
-P2P bandwidth from ``p2pBandwidthLatencyTest`` establishes the practical ceiling
-of the link under sustained P2P transfers.
+consumed by NVMe and PCIe protocol traffic rather than payload. A reference
+host-to-device bandwidth from ``nvbandwidth`` establishes the practical ceiling
+of the link under sustained transfers into GPU memory.
 
 ## Independent Variables
 
@@ -55,7 +55,7 @@ link (64 GB/s line rate) rather than leave it underutilized.
 | SM activity (fraction of SMs occupied)   | DCGM field 1002 (SM_ACTIVE)              |
 | PCIe link generation and width           | DCGM fields 237/238                      |
 | PCIe replay counter                      | DCGM field 202                           |
-| Peak P2P bidirectional bandwidth (GB/s)  | ``p2pBandwidthLatencyTest``              |
+| Host-to-device PCIe bandwidth (GB/s)     | ``nvbandwidth``                          |
 
 DCGM field 1010 counts PCIe receive bytes per second at the GPU endpoint, capturing
 all PCIe traffic directed to the GPU including NVMe payload, NVMe Submission Queue
@@ -74,9 +74,10 @@ runs affected by link downtraining (generation drop or lane reduction), and an
 increasing replay counter (202) flags retransmissions that reduce effective
 bandwidth — such runs must be excluded from the comparison.
 
-``p2pBandwidthLatencyTest`` from the CUDA samples suite runs a sustained
-bidirectional P2P bandwidth test between two GPUs. The value recorded is the mean
-of the per-direction bandwidth measured simultaneously in both directions.
+``nvbandwidth`` copies from host memory into GPU memory across the GPU's PCIe
+link, the same link the NVMe devices transfer over under P2P, which measures the
+peak bandwidth that link sustains. The value recorded is its
+``host_to_device_memcpy_ce`` result.
 
 ## Environment
 

@@ -148,11 +148,11 @@ cijoe --monitor \
 
 Characterizes PCIe link utilization on the **upcie-cuda** path by running
 xnvmeperf at varying I/O sizes while collecting hardware-level PCIe bandwidth
-counters via DCGM and a reference P2P bandwidth measurement from
-``p2pBandwidthLatencyTest``. Described in detail in
+counters via DCGM and a reference PCIe bandwidth measurement from
+``nvbandwidth``. Described in detail in
 {ref}`sec-experiments-pcie-bandwidth`.
 
-The ``p2pBandwidthLatencyTest`` reference binary is built by
+The ``nvbandwidth`` reference binary is built by
 ``setup_nvstack.yaml`` at a fixed path, and DCGM fields default in the
 collector, so no extra config is required.
 
@@ -171,7 +171,7 @@ under device-initiated I/O, using **xnvmeperf** with the ``cuda-run`` subcommand
 and the **upcie-cuda** backend, with queue depth as the secondary variable.
 Described in detail in {ref}`sec-experiments-cuda-iosize`.
 
-The ``p2pBandwidthLatencyTest`` reference binary is built by
+The ``nvbandwidth`` reference binary is built by
 ``setup_nvstack.yaml`` at a fixed path, so no extra config is required.
 
 ```

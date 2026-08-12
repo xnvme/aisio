@@ -107,9 +107,9 @@ def main(args, cijoe):
         for type, mibs in result.items():
             results[iosize][type] = round(avg_stddev(mibs)[0])
 
-    bandwidth_path = artifacts / "cuda-sample-p2p-bandwidth"
+    bandwidth_path = artifacts / "nvbandwidth-h2d"
     with open(bandwidth_path, "r") as file:
-        cuda_bandwidth = file.read()
+        h2d_bandwidth = file.read()
 
     template_name = "barplot-sat.yaml"
 
@@ -132,7 +132,7 @@ def main(args, cijoe):
         body.write(template.render({
             "results": results,
             "devices": args.devices,
-            "cuda_bandwidth": float(cuda_bandwidth),
+            "h2d_bandwidth": float(h2d_bandwidth),
             "line_rate": line_rate,
             "link_desc": link_desc,
         }))

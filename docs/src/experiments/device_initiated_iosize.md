@@ -26,9 +26,8 @@ queue depth is therefore expected to decrease as I/O size increases, revealing
 the thread count required at each I/O size.
 
 Hardware-level PCIe receive bandwidth is collected via DCGM alongside the
-application-level payload bandwidth reported by xnvmeperf, and a reference P2P
-bandwidth measurement from ``p2pBandwidthLatencyTest`` provides the practical
-ceiling.
+application-level payload bandwidth reported by xnvmeperf, and a reference PCIe
+bandwidth measurement from ``nvbandwidth`` provides the practical ceiling.
 
 ## Independent Variables
 
@@ -52,7 +51,7 @@ ceiling.
 | GPU memory bandwidth utilization         | DCGM field 1005 (DRAM_ACTIVE)            |
 | Graphics engine activity                 | DCGM field 1001 (GR_ENGINE_ACTIVE)       |
 | SM/memory clocks, throttle reason bits   | DCGM fields 100/101/112                  |
-| Peak P2P bidirectional bandwidth (GB/s)  | ``p2pBandwidthLatencyTest``              |
+| Host-to-device PCIe bandwidth (GB/s)     | ``nvbandwidth``                          |
 
 All DCGM fields are sampled every 100 ms by ``dcgmi dmon`` during the benchmark
 run and reported as mean/p95/min/max per field. The SM activity and occupancy

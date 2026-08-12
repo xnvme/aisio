@@ -110,8 +110,8 @@ const BAR_TYPE = 'bar';
 const STACKED = true;
 const MAX_LINE_VALUE = 64;
 const MAX_LINE_LABEL = `PCIe Gen5 x16 line rate (${MAX_LINE_VALUE.toFixed(1)} GB/s)`;
-const COMP_LINE_VALUE = {{cuda_bandwidth}};
-const COMP_LINE_LABEL = `p2pBandwidthTest (${COMP_LINE_VALUE.toFixed(1)} GB/s)`;
+const COMP_LINE_VALUE = {{h2d_bandwidth}};
+const COMP_LINE_LABEL = `nvbandwidth H2D (${COMP_LINE_VALUE.toFixed(1)} GB/s)`;
 
 {% include "bench-update-chart.jinja2.js" %}
 

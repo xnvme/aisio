@@ -17,8 +17,8 @@ rooflines:
   value_nbytes: 64000000000
   color: '#fb6a4a'
   style: ':'
-- name: p2pBandwidthTest
-  value_nbytes: {{ (cuda_bandwidth * 1000000000) | round | int }}
+- name: nvbandwidth host-to-device
+  value_nbytes: {{ (h2d_bandwidth * 1000000000) | round | int }}
   color: '#cb181d'
   style: '--'
 

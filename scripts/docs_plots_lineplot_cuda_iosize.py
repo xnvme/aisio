@@ -109,9 +109,9 @@ def main(args, cijoe):
     template_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path))
     template = template_env.get_template(f"{template_name}.jinja2")
 
-    bandwidth_path = artifacts / "cuda-sample-p2p-bandwidth"
+    bandwidth_path = artifacts / "nvbandwidth-h2d"
     with open(bandwidth_path, "r") as f:
-        cuda_bandwidth = float(f.read())
+        h2d_bandwidth = float(f.read())
 
     err, results, sm_results = collect(args, cijoe)
     if err:
@@ -126,7 +126,7 @@ def main(args, cijoe):
     with out_path.open("w") as body:
         body.write(template.render({
             "results": results,
-            "cuda_bandwidth": cuda_bandwidth,
+            "h2d_bandwidth": h2d_bandwidth,
         }))
 
     for iosize, metrics in sm_results.items():

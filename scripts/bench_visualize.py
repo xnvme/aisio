@@ -52,12 +52,12 @@ def main(args, cijoe):
         for row in dataset["data"]
     )
 
-    cuda_bandwidth = ""
-    bandwidth_path = artifacts / "cuda-sample-p2p-bandwidth"
+    h2d_bandwidth = ""
+    bandwidth_path = artifacts / "nvbandwidth-h2d"
 
     if args.template == "benchmark-pcie" and bandwidth_path.exists():
-        with open(artifacts / "cuda-sample-p2p-bandwidth", "r") as file:
-            cuda_bandwidth = file.read()
+        with open(bandwidth_path, "r") as file:
+            h2d_bandwidth = file.read()
 
     template_resource = get_resources().get("templates", {}).get(args.template, {})
     if not template_resource:
@@ -76,7 +76,7 @@ def main(args, cijoe):
             template.render(
                 {
                     "datasets": datasets,
-                    "cuda_bandwidth": cuda_bandwidth,
+                    "h2d_bandwidth": h2d_bandwidth,
                     "cpu_control_warning": cpu_control_warning,
                 }
             )

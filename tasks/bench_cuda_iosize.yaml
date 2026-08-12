@@ -66,8 +66,8 @@ steps:
     tool: xnvmeperf-cuda
     backend: upcie-cuda
 
-- name: cuda_bandwidth
-  uses: cuda_p2p_sample
+- name: nvbandwidth
+  uses: nvbandwidth
 
 - name: combine
   uses: bench_combine
