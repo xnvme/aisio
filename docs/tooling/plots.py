@@ -277,10 +277,12 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         except (ValueError, TypeError):
             pass
 
+    data_max = 0
     for group, color in zip(groups, colors):
         data = np.array([b[group] for b in bars], dtype=float) / scale
         std = np.array([b[f"{group}_std"] for b in bars], dtype=float) / scale
         label = group.replace("_", " ")
+        data_max = max(data_max, float((data + std).max()))
 
         ax.fill_between(x, data - std, data + std, alpha=0.15, color=color)
         ax.plot(x, data, color=color, linewidth=2, marker="o", markersize=4,
@@ -295,18 +297,21 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         ymax = max(ymax, val)
     ax.set_ylim(0, ymax * 1.15)
 
-    # Legends
+    # Legends sit on the half of the axes the series leave free: a plot whose
+    # data hugs the bottom gets them on top.
+    vpos = "upper" if data_max < 0.5 * ax.get_ylim()[1] else "lower"
+
     handles, labels_ = ax.get_legend_handles_labels()
     line_labels = [r["name"] for r in cfg.get("rooflines", [])]
     line_idx = [i for i, l in enumerate(labels_) if any(l.startswith(n) for n in line_labels)]
     stack_idx = [i for i in range(len(labels_)) if i not in line_idx]
 
     leg1 = ax.legend([handles[i] for i in line_idx], [labels_[i] for i in line_idx],
-                     loc="lower left", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
+                     loc=f"{vpos} left", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
     ax.add_artist(leg1)
 
     ax.legend([handles[i] for i in reversed(stack_idx)], [labels_[i] for i in reversed(stack_idx)],
-              loc="lower right", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
+              loc=f"{vpos} right", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
 
     plt.tight_layout()
     fig.subplots_adjust(top=0.83)
