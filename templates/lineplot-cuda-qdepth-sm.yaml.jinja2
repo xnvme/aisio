@@ -10,7 +10,11 @@ title: |
 
 xlabel: Queue Depth
 ylabel: GPU engine activity (%)
-footnote: DCGM fields 1002/1003/1005 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
+y2label: SM clock (MHz)
+footnote: DCGM fields 100/1002/1003/1005 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
+
+y2series:
+- SM_clock
 
 rooflines:
 - name: Fully active

@@ -39,6 +39,12 @@ SM_FIELDS = {
     "1005": "DRAM_active",
 }
 
+# The clock shares the sweep but not the unit of the activity fields, so it is
+# charted against a second axis in MHz.
+STATE_FIELDS = {
+    "100": "SM_clock",
+}
+
 
 def add_args(parser: ArgumentParser):
     parser.add_argument("--path", type=str, help="Path to the results data")
@@ -60,12 +66,13 @@ def collect(args, cijoe: Cijoe):
     err, state = cijoe.run(" ".join(cmd))
     if err:
         log.error("Failed: jq")
-        return err, None
+        return err, None, None, None
 
     results = json_load(state.output())
     results.sort(key=lambda res: res["qdepth"])
     data = defaultdict(lambda: defaultdict(list))
     sm_data = defaultdict(lambda: defaultdict(list))
+    state_data = defaultdict(lambda: defaultdict(list))
 
     for res in results:
         data[res["qdepth"]][res["nqueues"]].append(res["iops"])
@@ -82,7 +89,13 @@ def collect(args, cijoe: Cijoe):
             if value is not None:
                 sm_data[res["qdepth"]][key].append(value * 100)  # ratio -> %
 
-    return 0, data, sm_data
+        for field, key in STATE_FIELDS.items():
+            stats = dcgm.get(field)
+            value = stats.get("mean") if isinstance(stats, dict) else None
+            if value is not None:
+                state_data[res["qdepth"]][key].append(value)  # MHz
+
+    return 0, data, sm_data, state_data
 
 
 def avg_stddev(values):
@@ -112,7 +125,7 @@ def main(args, cijoe):
 
     version = xnvme_version(cijoe)
 
-    err, results, sm_results = collect(args, cijoe)
+    err, results, sm_results, state_results = collect(args, cijoe)
     if err:
         log.error("Failed: collect()")
         return err
@@ -130,6 +143,8 @@ def main(args, cijoe):
 
     for qdepth, metrics in sm_results.items():
         for key, values in metrics.items():
+            sm_results[qdepth][key] = [round(v, 2) for v in avg_stddev(values)]
+        for key, values in state_results.get(qdepth, {}).items():
             sm_results[qdepth][key] = [round(v, 2) for v in avg_stddev(values)]
 
     sm_template_name = "lineplot-cuda-qdepth-sm.yaml"

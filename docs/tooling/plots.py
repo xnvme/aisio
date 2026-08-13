@@ -258,6 +258,10 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     groups = _sort_groups_numeric(
         [key for key in bars[0].keys() if key != "label" and "_std" not in key]
     )
+    # Series named here are drawn against a second axis on the right, for a
+    # quantity that shares the sweep but not the unit of the first.
+    y2groups = [group for group in cfg.get("y2series", []) if group in groups]
+    groups = [group for group in groups if group not in y2groups]
     if colormap:
         cmap = plt.get_cmap(colormap)
         n = len(groups)
@@ -288,6 +292,29 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         ax.plot(x, data, color=color, linewidth=2, marker="o", markersize=4,
                 label=label)
 
+    ax2 = None
+    if y2groups:
+        ax2 = ax.twinx()
+        ax2.set_ylabel(cfg.get("y2label", ""))
+        ax2.spines["top"].set_visible(False)
+        # Draw from the far end of the palette, past the colours the first axis
+        # and the rooflines occupy, so no two lines in the figure share one. A
+        # palette too short for that falls back to continuing it.
+        taken = {r.get("color") for r in rooflines} | set(colors)
+        y2colors = [color for color in reversed(COLOR_SCHEME) if color not in taken]
+        y2colors += _line_colors(len(groups) + len(y2groups))[len(groups):]
+        for group, color in zip(y2groups, y2colors):
+            data = np.array([b[group] for b in bars], dtype=float)
+            std = np.array([b[f"{group}_std"] for b in bars], dtype=float)
+
+            ax2.fill_between(x, data - std, data + std, alpha=0.15, color=color)
+            ax2.plot(x, data, color=color, linewidth=2, marker="s", markersize=4,
+                     linestyle="--", label=group.replace("_", " "))
+        # The headroom keeps the series clear of the legends, which sit at the
+        # top of the axes whenever the first axis leaves that half free.
+        ax2.set_ylim(0, float(max(np.array([b[g] for b in bars], dtype=float).max()
+                                  for g in y2groups)) * 1.35)
+
     # Rooflines
     ymax = 0
     for r in rooflines:
@@ -302,6 +329,9 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     vpos = "upper" if data_max < 0.5 * ax.get_ylim()[1] else "lower"
 
     handles, labels_ = ax.get_legend_handles_labels()
+    if ax2 is not None:
+        handles_2, labels_2 = ax2.get_legend_handles_labels()
+        handles, labels_ = handles + handles_2, labels_ + labels_2
     line_labels = [r["name"] for r in cfg.get("rooflines", [])]
     line_idx = [i for i, l in enumerate(labels_) if any(l.startswith(n) for n in line_labels)]
     stack_idx = [i for i in range(len(labels_)) if i not in line_idx]
