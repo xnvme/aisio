@@ -60,6 +60,12 @@ class DcgmHelper:
     - 100/101: SM/MEM clocks, 112: throttle reason bitmask — run validity
     - 202: PCIe replay counter, 237/238: link gen/width — link health
 
+    Statistics cover the samples in which the benchmark was transferring rather
+    than the whole monitoring window. The window also spans process startup and
+    teardown, whose duration varies with the configuration under test, so a mean
+    taken across that idle time describes the length of the setup as much as the
+    behaviour of the workload.
+
     Configure via cijoe config:
 
         [dcgm]
@@ -73,6 +79,14 @@ class DcgmHelper:
         "100", "101", "112",  # SM clock, MEM clock, throttle reasons
         "202", "237", "238",  # PCIe replay, link gen, link width
     ]
+
+    # A sample counts as active when the GPU either runs a kernel or receives
+    # payload. Both matter: the device-initiated path keeps a kernel resident,
+    # whereas the CPU-initiated P2P path runs none at all and shows up solely as
+    # PCIe traffic. The receive floor sits well above the idle background of a
+    # few hundred KB/s and well below any transfer under test.
+    ACTIVE_GRACT = 0.01
+    ACTIVE_RX_BYTES = 100e6
 
     def __init__(self, cijoe: Cijoe, gpu: Optional[int] = None, fields: Optional[List[str]] = None):
         self.cijoe = cijoe
@@ -102,6 +116,25 @@ class DcgmHelper:
         self._is_running = True
         return 0
 
+    def _active_indices(self, raw: Dict[str, List[float]], count: int) -> List[int]:
+        """
+        Select the samples taken while the benchmark was transferring, by GPU
+        kernel residency or by PCIe receive traffic. Without either field to
+        judge by, every sample is kept.
+        """
+
+        gract = raw.get("1001") or []
+        rx = raw.get("1010") or []
+        if not gract and not rx:
+            return list(range(count))
+
+        def active(idx: int) -> bool:
+            busy = idx < len(gract) and gract[idx] > self.ACTIVE_GRACT
+            moving = idx < len(rx) and rx[idx] > self.ACTIVE_RX_BYTES
+            return busy or moving
+
+        return [idx for idx in range(count) if active(idx)]
+
     def stop_and_parse(self) -> Tuple[int, Dict[str, dict]]:
         """
         Stop monitoring and parse collected samples.
@@ -110,8 +143,13 @@ class DcgmHelper:
         with keys ``samples``, ``mean``, ``p95``, ``min``, and ``max``. Values
         are in the native unit reported by dcgmi dmon (bytes/sec for PCIe
         fields, ratios for profiling activity fields, MHz for clocks). min/max
-        are what matter for guard fields (112 throttle bits, 237/238 link
-        state), where a mean over samples has no physical meaning.
+        are what matter for guard fields (112 throttle bits,
+        237/238 link state), where a mean over samples has no physical meaning.
+
+        Only the transferring samples are described. ``active_fraction`` records
+        the share of the window they made up, so a run whose setup dominated the
+        window remains recognisable after the fact. A window holding no transfer
+        at all is described whole, with ``active_fraction`` at zero.
         """
         self.cijoe.run("pkill -f dcgmi; sleep 0.2")
         self._is_running = False
@@ -135,17 +173,41 @@ class DcgmHelper:
                     except ValueError:
                         pass  # skip N/A entries
 
+        count = max((len(values) for values in raw.values()), default=0)
+        active = self._active_indices(raw, count)
+        active_fraction = len(active) / count if count else 0.0
+        if not active:
+            # The guard fields describe the link and the clocks whether or not
+            # anything transferred, so the window is described whole rather
+            # than left empty. active_fraction stays at zero, which is what
+            # marks the statistics as covering an idle window.
+            log.warning("No active samples in the dcgm window; describing all of it")
+            active = list(range(count))
+
         stats = {}
         for field, values in raw.items():
-            if not values:
+            selected = [values[idx] for idx in active if idx < len(values)]
+            if not selected:
                 stats[field] = {"samples": [], "mean": None, "p95": None, "min": None, "max": None}
                 continue
+            ordered = sorted(selected)
             stats[field] = {
-                "samples": values,
-                "mean": mean(values),
-                "p95": quantiles(sorted(values), n=100, method="inclusive")[94],
-                "min": min(values),
-                "max": max(values),
+                "samples": selected,
+                "mean": mean(selected),
+                # quantiles() wants at least two points to interpolate between
+                "p95": quantiles(ordered, n=100, method="inclusive")[94]
+                if len(ordered) > 1
+                else ordered[0],
+                "min": ordered[0],
+                "max": ordered[-1],
             }
+
+        stats["active_fraction"] = {
+            "samples": [],
+            "mean": active_fraction,
+            "p95": active_fraction,
+            "min": active_fraction,
+            "max": active_fraction,
+        }
 
         return 0, stats

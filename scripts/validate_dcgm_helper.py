@@ -38,6 +38,7 @@ NAMES = {
     "202": "PCIE_REPLAY",
     "237": "PCIE_LINK_GEN",
     "238": "PCIE_LINK_WIDTH",
+    "active_fraction": "ACTIVE_FRACTION",
 }
 
 
