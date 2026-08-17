@@ -77,6 +77,11 @@ Instructions for running ``bench_cuda_iosize.yaml`` are provided in
 (sec-experiments-cuda-iosize-results)=
 ## Results
 
+The results below were collected before the reference measurement moved to
+``nvbandwidth`` and therefore quote the earlier ``p2pBandwidthLatencyTest``
+reference of 56.1 GB/s. They are restated against the ``nvbandwidth`` reference
+once the experiment has been re-run.
+
 Results are presented as PCIe RX bandwidth vs. I/O size, with one line per
 queue depth (``qdepth`` ∈ { 1, 2, 4, 8, 16, 32, 64, 128 }). All configurations
 use **xnvmeperf** with the ``cuda-run`` subcommand and the **upcie-cuda**

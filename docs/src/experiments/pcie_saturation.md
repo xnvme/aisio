@@ -94,6 +94,11 @@ Instructions for running ``bench_pcie.yaml`` are provided in
 (sec-experiments-pcie-bandwidth-results)=
 ## Results
 
+The results below were collected before the reference measurement moved to
+``nvbandwidth`` and therefore quote the earlier ``p2pBandwidthLatencyTest``
+reference of 56.1 GB/s. They are restated against the ``nvbandwidth`` reference
+once the experiment has been re-run.
+
 ```{figure} /barplot-sat.png
 :alt: Stacked bar chart of PCIe bandwidth by I/O size
 :width: 700px
