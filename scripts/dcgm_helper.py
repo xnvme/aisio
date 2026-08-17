@@ -116,22 +116,25 @@ class DcgmHelper:
         self._is_running = True
         return 0
 
-    def _active_indices(self, raw: Dict[str, List[float]], count: int) -> List[int]:
+    def _active_indices(self, raw: Dict[str, List[Optional[float]]], count: int) -> List[int]:
         """
         Select the samples taken while the benchmark was transferring, by GPU
         kernel residency or by PCIe receive traffic. Without either field to
-        judge by, every sample is kept.
+        judge by — neither monitored, or reported as ``N/A`` throughout — every
+        sample is kept.
         """
 
         gract = raw.get("1001") or []
         rx = raw.get("1010") or []
-        if not gract and not rx:
+        if not any(value is not None for value in gract + rx):
             return list(range(count))
 
+        def above(values: List[Optional[float]], idx: int, floor: float) -> bool:
+            value = values[idx] if idx < len(values) else None
+            return value is not None and value > floor
+
         def active(idx: int) -> bool:
-            busy = idx < len(gract) and gract[idx] > self.ACTIVE_GRACT
-            moving = idx < len(rx) and rx[idx] > self.ACTIVE_RX_BYTES
-            return busy or moving
+            return above(gract, idx, self.ACTIVE_GRACT) or above(rx, idx, self.ACTIVE_RX_BYTES)
 
         return [idx for idx in range(count) if active(idx)]
 
@@ -149,7 +152,9 @@ class DcgmHelper:
         Only the transferring samples are described. ``active_fraction`` records
         the share of the window they made up, so a run whose setup dominated the
         window remains recognisable after the fact. A window holding no transfer
-        at all is described whole, with ``active_fraction`` at zero.
+        at all is described whole, with ``active_fraction`` at zero. A sample a
+        field reports as ``N/A`` holds its place in that field and is left out
+        of its statistics, keeping the selection aligned across fields.
         """
         self.cijoe.run("pkill -f dcgmi; sleep 0.2")
         self._is_running = False
@@ -159,7 +164,7 @@ class DcgmHelper:
             log.error(f"Failed: cat {self._output}")
             return 1, None
 
-        raw: Dict[str, List[float]] = {f: [] for f in self.fields}
+        raw: Dict[str, List[Optional[float]]] = {f: [] for f in self.fields}
         for line in state.output().splitlines():
             stripped = line.strip()
             if not stripped.startswith("GPU"):
@@ -167,11 +172,14 @@ class DcgmHelper:
             # dmon line format: "GPU <id>   <val1>   <val2>   ..."
             parts = stripped.removeprefix(f"GPU {self.gpu}").split()
             for i, field in enumerate(self.fields):
-                if i < len(parts):
-                    try:
-                        raw[field].append(float(parts[i]))
-                    except ValueError:
-                        pass  # skip N/A entries
+                try:
+                    raw[field].append(float(parts[i]))
+                except (IndexError, ValueError):
+                    # dcgmi reports "N/A" until a profiling field has produced
+                    # its first sample. Recording the gap keeps every field the
+                    # same length, so index i denotes the same sample instant
+                    # in all of them, which is what the selection below reads.
+                    raw[field].append(None)
 
         count = max((len(values) for values in raw.values()), default=0)
         active = self._active_indices(raw, count)
@@ -186,7 +194,11 @@ class DcgmHelper:
 
         stats = {}
         for field, values in raw.items():
-            selected = [values[idx] for idx in active if idx < len(values)]
+            selected = [
+                values[idx]
+                for idx in active
+                if idx < len(values) and values[idx] is not None
+            ]
             if not selected:
                 stats[field] = {"samples": [], "mean": None, "p95": None, "min": None, "max": None}
                 continue
