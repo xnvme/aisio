@@ -99,8 +99,8 @@ inclusive tuples defining the range of values tested, not complete
 lists. An optional ``results_dir`` key enables continuation of a
 previous run, and ``repetitions`` controls the number of runs per
 configuration (default: 5). When re-running benchmarks without changing
-system state, the hugepage allocation and driver binding steps can be
-skipped by specifying only the steps to execute:
+system state, the driver binding step can be skipped by specifying only
+the steps to execute:
 
 ```
 cijoe \

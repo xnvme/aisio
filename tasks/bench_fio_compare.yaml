@@ -35,12 +35,6 @@ steps:
 - name: validate_device_config
   run: bash -lc 'test {{ config.devices | length }} -eq 1 || { echo "bench_fio_compare requires exactly one benchmark device"; exit 1; }'
 
-- name: allocate_hugepages
-  run: |
-    sysctl -w vm.nr_hugepages=1024
-    mkdir -p /dev/hugepages
-    mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
-
 - name: prepare_spdk
   run: |
     {{ config.xnvme.driver.prefix }} xnvme-driver reset || true

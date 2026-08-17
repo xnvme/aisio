@@ -24,10 +24,6 @@ doc: |
 
   If the boot device is an NVMe device, see "Binding to userspace" below.
 
-  Allocating hugepages
-  --------------------
-  It is not necessary to run this step if the workflow is run repeatedly.
-
   Binding to userspace
   --------------------
   This scripts assumes if the boot device is an NVMe device, then the `xnvme.driver.prefix`
@@ -44,12 +40,6 @@ doc: |
   It is not necessary to run this step if the workflow is run repeatedly.
 
 steps:
-- name: allocate_hugepages
-  run: |
-    sysctl -w vm.nr_hugepages=1024
-    mkdir -p /dev/hugepages
-    mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
-
 - name: bind_to_userspace
   run: |
     {{ config.xnvme.driver.prefix }} xnvme-driver
