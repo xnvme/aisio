@@ -20,7 +20,7 @@ from pathlib import Path
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
-from version_helper import xnvme_version
+from version_helper import version_of
 
 
 REQ = {
@@ -66,10 +66,11 @@ def collect(args, cijoe: Cijoe):
     err, state = cijoe.run(" ".join(cmd))
     if err:
         log.error("Failed: jq")
-        return err, None, None, None
+        return err, None, None, None, ""
 
     results = json_load(state.output())
     results.sort(key=lambda res: res["iosize"])
+    version = version_of(results)
     data = defaultdict(lambda: defaultdict(list))
     sm_data = defaultdict(lambda: defaultdict(list))
     state_data = defaultdict(lambda: defaultdict(list))
@@ -96,7 +97,7 @@ def collect(args, cijoe: Cijoe):
             if value is not None:
                 state_data[res["iosize"]][key].append(value)  # MHz
 
-    return 0, data, sm_data, state_data
+    return 0, data, sm_data, state_data, version
 
 
 def avg_stddev(values):
@@ -128,9 +129,7 @@ def main(args, cijoe):
     with open(bandwidth_path, "r") as f:
         h2d_bandwidth = float(f.read())
 
-    version = xnvme_version(cijoe)
-
-    err, results, sm_results, state_results = collect(args, cijoe)
+    err, results, sm_results, state_results, version = collect(args, cijoe)
     if err:
         log.error("Failed: collect()")
         return err

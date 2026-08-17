@@ -22,6 +22,8 @@ import logging as log
 
 from cijoe.core.command import Cijoe
 
+from version_helper import merge_versions
+
 
 def add_args(parser: ArgumentParser):
     parser.add_argument("--results_dir", type=Path, default=None, help="Path to existing directory in which the results should be saved. Note: Already existing results will not be benchmarked again")
@@ -63,10 +65,12 @@ def main(args, cijoe: Cijoe):
 
         for run in bdev_results.glob(f"{path.stem[:-1]}*"):
             with open(run) as file:
-                repeated_results.append(json_load(file))
+                # Files written before the runs recorded a build stamp hold no
+                # "versions" key, and the merge below wants one key set.
+                repeated_results.append({"versions": {}, **json_load(file)})
 
         # err, result = get_average(repeated_results)
-        err, result = merge_dicts(repeated_results, ["cpu_freqs", "iops", "mibs", "cpu_usage", "dcgm"])
+        err, result = merge_dicts(repeated_results, ["cpu_freqs", "iops", "mibs", "cpu_usage", "dcgm", "versions"])
         if err:
             log.error("Failed: merge_dicts()")
             return err
@@ -79,6 +83,8 @@ def main(args, cijoe: Cijoe):
         result["mibs"] = avg_stddev(result["mibs"])
         result["cpu_usage"] = avg_stddev(result["cpu_usage"])
         result["dcgm"] = combine_dcgm(result["dcgm"]) if "dcgm" in result else 0
+        # The repeats carry a stamp each; the combined record keeps one mapping.
+        result["versions"] = merge_versions(result.get("versions", []))
 
         all_results[label].append(result)
 

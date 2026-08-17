@@ -6,14 +6,18 @@
 """
 Identify the software stack a benchmark ran against.
 
-The plot collectors stamp this onto the figures they emit, so a generated
-graph names the xNVMe build that produced it. The configured branch or tag
-does not pin that: a checkout sits at some commit on it, and the target may
-carry a feature branch. Reading the checkout with ``git rev-parse`` resolves
-the commit itself.
+The benchmark reads the target as it runs and records the result in its ``.out``
+file; the plot collectors read the stamp back out of the results they select and
+put it on the figures they emit, so a generated graph names the xNVMe build that
+produced its data rather than whatever the target holds at plot time. The
+configured branch or tag does not pin that build: a checkout sits at some commit
+on it, and the target may carry a feature branch. Reading the checkout with
+``git rev-parse`` resolves the commit itself.
 """
 
 import logging as log
+from collections import defaultdict
+from typing import Dict, List
 
 from cijoe.core.command import Cijoe
 
@@ -33,7 +37,7 @@ def origin_of(url: str) -> str:
 
 def xnvme_version(cijoe: Cijoe) -> str:
     """
-    Identify the xNVMe checkout the target's binaries were built from, as
+    Identify the xNVMe checkout on the target as it stands now, as
     ``<owner>/<repo>:<branch>@<sha>``. ``-dirty`` marks uncommitted changes,
     and a checkout without a tracked upstream falls back to the bare commit.
     Returns an empty string when the checkout cannot be read, leaving the
@@ -65,3 +69,45 @@ def xnvme_version(cijoe: Cijoe) -> str:
         stamp = f"{stamp}-dirty"
 
     return stamp
+
+
+def target_versions(cijoe: Cijoe) -> Dict[str, str]:
+    """
+    Identify the software the target runs a benchmark with, as a mapping from
+    component to stamp. Recorded in each result file under ``versions``, so the
+    build travels with the data it produced.
+    """
+
+    return {"xnvme": xnvme_version(cijoe)}
+
+
+def merge_versions(versions: List[Dict[str, str]]) -> Dict[str, str]:
+    """
+    Reduce the ``versions`` of several runs to one mapping. Runs span builds when
+    a benchmark continues into an existing results directory, and a component
+    built differently across them is named by every stamp it carried rather than
+    by one of them.
+    """
+
+    merged = defaultdict(set)
+    for entry in versions:
+        for component, stamp in (entry or {}).items():
+            if stamp:
+                merged[component].add(stamp)
+
+    for component, stamps in merged.items():
+        if len(stamps) > 1:
+            log.warning(f"Runs span multiple {component} builds: {sorted(stamps)}")
+
+    return {component: ", ".join(sorted(stamps)) for component, stamps in merged.items()}
+
+
+def version_of(results: List[dict], component: str = "xnvme") -> str:
+    """
+    Read a component's stamp back out of a set of result files. Returns an empty
+    string when none of them recorded one, which is the case for files written
+    before the benchmark did so; the figure then carries no stamp instead of one
+    read at plot time, which need not describe the build behind the data.
+    """
+
+    return merge_versions([res.get("versions") for res in results]).get(component, "")

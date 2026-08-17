@@ -17,6 +17,9 @@ from pathlib import Path
 from re import match
 import logging as log
 
+from version_helper import merge_versions
+
+
 def add_args(parser: ArgumentParser):
     parser.add_argument(
         "--results_dirs",
@@ -40,7 +43,7 @@ def main(args, cijoe):
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     all_results = defaultdict(list)
-    include_all = ["cpu_freqs", "iops", "mibs", "cpu_usage"]
+    include_all = ["cpu_freqs", "iops", "mibs", "cpu_usage", "versions"]
 
     for results_dir in args.results_dirs:
         if not results_dir.exists():
@@ -75,7 +78,9 @@ def collect_results(results_dir: Path, all_results: dict, include_all: list[str]
         repeated_results = []
         for run in sorted(results_dir.glob(f"{path.stem[:-1]}*")):
             with run.open("r") as handle:
-                repeated_results.append(json_load(handle))
+                # Files written before the runs recorded a build stamp hold no
+                # "versions" key, and the merge below wants one key set.
+                repeated_results.append({"versions": {}, **json_load(handle)})
 
         err, result = merge_dicts(repeated_results, include_all)
         if err:
@@ -85,6 +90,8 @@ def collect_results(results_dir: Path, all_results: dict, include_all: list[str]
         result["iops"] = avg_stddev(result["iops"])
         result["mibs"] = avg_stddev(result["mibs"])
         result["cpu_usage"] = avg_stddev(result["cpu_usage"])
+        # The repeats carry a stamp each; the collected record keeps one mapping.
+        result["versions"] = merge_versions(result.get("versions", []))
         all_results[label].append(result)
 
     return 0

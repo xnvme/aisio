@@ -38,6 +38,7 @@ from bdevperf import bdevperf_cmd, create_config as bdevperf_config
 from dcgm_helper import DcgmHelper
 from fio_xnvme import fio_xnvme_cmd
 from spdk_nvme_perf import spdk_nvme_perf_cmd
+from version_helper import target_versions
 from xnvmeperf import xnvmeperf_cmd, xnvmeperf_cuda_cmd
 
 
@@ -63,6 +64,10 @@ class BenchHelper():
         self.tool = tool
         self.fio_size = fio_size
         self.dcgm = DcgmHelper(cijoe) if backend == "upcie-cuda" else None
+
+        # The software the runs measure, read once here and written to every
+        # result file, so the figures name the build their data came from.
+        self.versions = target_versions(cijoe)
 
         self.use_thrsib = False
         err = self._create_cpumasks(self.use_thrsib)
@@ -280,6 +285,9 @@ class BenchHelper():
             "stress": self.stress,
             "tool": self.tool,
             "backend": self.backend,
+            # Component to build stamp, e.g. {"xnvme": "xnvme/xnvme:main@0ff5eab"}.
+            # Absent in result files written before the runs recorded it.
+            "versions": self.versions,
             "iops": bench_result["total"]["iops"],
             "mibs": bench_result["total"]["mibs"],
             # Per-field stats without the raw samples: {"1010": {"mean": ..,

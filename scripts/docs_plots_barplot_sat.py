@@ -21,7 +21,7 @@ from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
 from dcgm_helper import pcie_link_from_dcgm
-from version_helper import xnvme_version
+from version_helper import version_of
 
 
 REQ = {
@@ -54,17 +54,13 @@ def collect(args, cijoe: Cijoe):
     err, state = cijoe.run(" ".join(cmd))
     if err:
         log.error(f"Failed: jq")
-        return err, None, None
+        return err, None, None, ""
 
-    results = json_load(state.output())
+    results = [res for res in json_load(state.output()) if res["ndevs"] == args.devices]
     data = { iosize: defaultdict(list) for iosize in [512, 4096, 8192] }
     pcie_link = None
 
     for res in results:
-        ndevs = res["ndevs"]
-        if ndevs != args.devices:
-            continue
-
         iosize, mibs, dcgm = res["iosize"], res["mibs"], res["dcgm"]
         # Keep the first run that reports a link; the link spec is a static
         # property of the slot, so any run that observed it is authoritative.
@@ -78,7 +74,7 @@ def collect(args, cijoe: Cijoe):
         data[iosize]["payload_nbytes"].append(nbytes)
         data[iosize]["total_nbytes"].append(dcgm)
 
-    return 0, data, pcie_link
+    return 0, data, pcie_link, version_of(results)
 
 
 def avg_stddev(values):
@@ -99,7 +95,7 @@ def main(args, cijoe):
 
     out_path = artifacts / "barplot-sat.yaml"
 
-    err, results, pcie_link = collect(args, cijoe)
+    err, results, pcie_link, version = collect(args, cijoe)
     if err:
         log.error("Failed: collect()")
         return err
@@ -134,7 +130,7 @@ def main(args, cijoe):
             "results": results,
             "devices": args.devices,
             "h2d_bandwidth": float(h2d_bandwidth),
-            "xnvme_version": xnvme_version(cijoe),
+            "xnvme_version": version,
             "line_rate": line_rate,
             "link_desc": link_desc,
         }))
