@@ -10,8 +10,8 @@ PCIe peak-bandwidth reference
 Run NVIDIA nvbandwidth's host_to_device_memcpy_ce test and record the achieved
 bandwidth (GB/s) as the PCIe peak-bandwidth reference for the bench_pcie /
 bench_cuda_iosize experiments. The copy runs from host memory into GPU memory
-across the GPU's PCIe link, the same link the NVMe devices transfer over under
-P2P. The binary is built by setup_nvstack.yaml.
+across the PCIe link of the GPU given by ``dcgm.gpu``, the same link the NVMe
+devices transfer over under P2P. The binary is built by setup_nvstack.yaml.
 
 Retargetable: True
 ------------------
@@ -32,12 +32,17 @@ def main(args, cijoe: Cijoe):
     install_path = cijoe.getconf("nvidia.nvbandwidth.path", "/root/git/nvbandwidth")
     bin = Path(install_path) / "build" / "nvbandwidth"
 
-    err, state = cijoe.run(f"{bin} -t host_to_device_memcpy_ce")
+    # The reference describes one link, so the run is pinned to the GPU the
+    # benchmarks monitor: with a single device enumerated, nvbandwidth's matrix
+    # holds that device alone.
+    gpu = cijoe.getconf("dcgm.gpu", 0)
+
+    err, state = cijoe.run(f"CUDA_VISIBLE_DEVICES={gpu} {bin} -t host_to_device_memcpy_ce")
     if err:
         log.error(f"Failed: run(nvbandwidth); err({err})")
         return err
 
-    # nvbandwidth totals the per-GPU matrix in a "SUM <testcase> <value>" line
+    # nvbandwidth totals its per-GPU matrix in a "SUM <testcase> <value>" line
     m = search(
         r"^SUM host_to_device_memcpy_ce\s+([0-9.]+)", state.output(), flags=MULTILINE
     )
