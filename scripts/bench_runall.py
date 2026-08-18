@@ -16,6 +16,7 @@ from argparse import ArgumentParser
 from itertools import product
 from math import floor
 from pathlib import Path
+from shutil import copytree
 from sys import stderr
 from time import time
 from typing import Optional
@@ -47,6 +48,21 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--rws", type=str, default=["randread"], nargs="+", help="List of I/O patterns to test")
     parser.add_argument("--tool", choices=["bdevperf", "xnvmeperf", "spdk_nvme_perf", "xnvmeperf-cuda", "fio_xnvme"], default="xnvmeperf")
     parser.add_argument("--backend", type=str, default="upcie")
+
+
+def collect_results(results: Path, out_path: Path):
+    """
+    Copy the results into the run's own artifacts, so a tarball of the run's
+    output directory carries the files the figures were computed from.
+    ``results_dir`` holds the results outside that directory, where they
+    persist from one run to the next.
+    """
+
+    artifacts = out_path / "artifacts" / "bench-results"
+    if results.resolve() == artifacts.resolve():
+        return
+
+    copytree(results, artifacts, dirs_exist_ok=True)
 
 
 def main(args, cijoe: Cijoe):
@@ -115,6 +131,8 @@ def main(args, cijoe: Cijoe):
         if not args.monitor:
             print_progress(finished, total, time()-now)
 
+        collect_results(bdev_results, out_path)
+
         return 0
 
     test_cpus = args.numcpus_specific
@@ -179,6 +197,8 @@ def main(args, cijoe: Cijoe):
 
     if not args.monitor:
         print_progress(finished, total, time()-now)
+
+    collect_results(bdev_results, out_path)
 
     return 0
 
