@@ -34,10 +34,13 @@ def main(args, cijoe: Cijoe):
 
     # The reference describes one link, so the run is pinned to the GPU the
     # benchmarks monitor: with a single device enumerated, nvbandwidth's matrix
-    # holds that device alone.
+    # holds that device alone. ``dcgm.gpu`` is a DCGM index, which follows PCI
+    # bus order, so CUDA is told to enumerate the same way and the two agree on
+    # which device the number names.
     gpu = cijoe.getconf("dcgm.gpu", 0)
+    pin = f"CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES={gpu}"
 
-    err, state = cijoe.run(f"CUDA_VISIBLE_DEVICES={gpu} {bin} -t host_to_device_memcpy_ce")
+    err, state = cijoe.run(f"{pin} {bin} -t host_to_device_memcpy_ce")
     if err:
         log.error(f"Failed: run(nvbandwidth); err({err})")
         return err

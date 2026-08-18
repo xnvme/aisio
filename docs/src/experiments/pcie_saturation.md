@@ -74,10 +74,10 @@ runs affected by link downtraining (generation drop or lane reduction), and an
 increasing replay counter (202) flags retransmissions that reduce effective
 bandwidth — such runs must be excluded from the comparison.
 
-``nvbandwidth`` copies from host memory into GPU memory across the GPU's PCIe
-link, the same link the NVMe devices transfer over under P2P, which measures the
-peak bandwidth that link sustains. The value recorded is its
-``host_to_device_memcpy_ce`` result.
+``nvbandwidth`` copies from host memory into GPU memory across the PCIe link of
+the GPU given by ``dcgm.gpu``, the same link the NVMe devices transfer over under
+P2P, which measures the peak bandwidth that link sustains. The value recorded is
+its ``host_to_device_memcpy_ce`` result.
 
 ## Environment
 
