@@ -121,13 +121,15 @@ def combine_dcgm(ns: List[Union[None, int, float, dict]]):
             stddev = (sum((x - avg) ** 2 for x in values) / len(values)) ** 0.5
             return avg, stddev
 
+        fields = {field: stats for run in ns for field, stats in run.items()}
+
         return {
             field: {
-                stat_name: agg([run[field][stat_name] for run in ns])
+                stat_name: agg([run.get(field, {}).get(stat_name) for run in ns])
                 for stat_name in stats
                 if stat_name != "samples"
             }
-            for field, stats in ns[0].items()
+            for field, stats in fields.items()
         }
 
     return avg_stddev(ns)
