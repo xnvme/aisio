@@ -296,7 +296,7 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     if y2groups:
         ax2 = ax.twinx()
         ax2.set_ylabel(cfg.get("y2label", ""))
-        ax2.spines["top"].set_visible(False)
+        ax2.spines["right"].set_visible(True)
         # Draw from the far end of the palette, past the colours the first axis
         # and the rooflines occupy, so no two lines in the figure share one. A
         # palette too short for that falls back to continuing it.
