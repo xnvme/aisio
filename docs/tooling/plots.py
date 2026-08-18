@@ -255,8 +255,9 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         roofline_key = "value_iops"
         roofline_label = lambda val: f"{val:.0f}M"
 
+    keys = dict.fromkeys(key for bar in bars for key in bar)
     groups = _sort_groups_numeric(
-        [key for key in bars[0].keys() if key != "label" and "_std" not in key]
+        [key for key in keys if key != "label" and "_std" not in key]
     )
     # Series named here are drawn against a second axis on the right, for a
     # quantity that shares the sweep but not the unit of the first.
@@ -283,10 +284,10 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
 
     data_max = 0
     for group, color in zip(groups, colors):
-        data = np.array([b[group] for b in bars], dtype=float) / scale
-        std = np.array([b[f"{group}_std"] for b in bars], dtype=float) / scale
+        data = np.array([b.get(group, np.nan) for b in bars], dtype=float) / scale
+        std = np.array([b.get(f"{group}_std", np.nan) for b in bars], dtype=float) / scale
         label = group.replace("_", " ")
-        data_max = max(data_max, float((data + std).max()))
+        data_max = max(data_max, float(np.nanmax(data + std)))
 
         ax.fill_between(x, data - std, data + std, alpha=0.15, color=color)
         ax.plot(x, data, color=color, linewidth=2, marker="o", markersize=4,
@@ -304,16 +305,17 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         y2colors = [color for color in reversed(COLOR_SCHEME) if color not in taken]
         y2colors += _line_colors(len(groups) + len(y2groups))[len(groups):]
         for group, color in zip(y2groups, y2colors):
-            data = np.array([b[group] for b in bars], dtype=float)
-            std = np.array([b[f"{group}_std"] for b in bars], dtype=float)
+            data = np.array([b.get(group, np.nan) for b in bars], dtype=float)
+            std = np.array([b.get(f"{group}_std", np.nan) for b in bars], dtype=float)
 
             ax2.fill_between(x, data - std, data + std, alpha=0.15, color=color)
             ax2.plot(x, data, color=color, linewidth=2, marker="s", markersize=4,
                      linestyle="--", label=group.replace("_", " "))
         # The headroom keeps the series clear of the legends, which sit at the
         # top of the axes whenever the first axis leaves that half free.
-        ax2.set_ylim(0, float(max(np.array([b[g] for b in bars], dtype=float).max()
-                                  for g in y2groups)) * 1.35)
+        y2max = max(np.nanmax(np.array([b.get(g, np.nan) for b in bars], dtype=float))
+                    for g in y2groups)
+        ax2.set_ylim(0, float(y2max) * 1.35)
 
     # Rooflines
     ymax = 0

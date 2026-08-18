@@ -146,18 +146,18 @@ def main(args, cijoe):
             "xnvme_version": version,
         }))
 
-    for iosize, metrics in sm_results.items():
-        for key, values in metrics.items():
-            sm_results[iosize][key] = [round(v, 2) for v in avg_stddev(values)]
-        for key, values in state_results.get(iosize, {}).items():
-            sm_results[iosize][key] = [round(v, 2) for v in avg_stddev(values)]
+    charted = defaultdict(dict)
+    for iosize in sorted(set(sm_results) | set(state_results)):
+        for metrics in (sm_results.get(iosize, {}), state_results.get(iosize, {})):
+            for key, values in metrics.items():
+                charted[iosize][key] = [round(v, 2) for v in avg_stddev(values)]
 
     sm_template_name = "lineplot-cuda-iosize-sm.yaml"
     sm_template = template_env.get_template(f"{sm_template_name}.jinja2")
     out_path = artifacts / sm_template_name
     with out_path.open("w") as body:
         body.write(sm_template.render({
-            "results": sm_results,
+            "results": charted,
             "xnvme_version": version,
         }))
 
