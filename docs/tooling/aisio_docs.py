@@ -153,7 +153,10 @@ def make_plots(build_dir: str) -> None:
         artifacts / "device-initiated-qdepth.tar.gz"
     ) as archive:
         plots.lineplot(archive, build_dir, "cuda", "qdepth", colormap="plasma")
-        plots.lineplot(archive, build_dir, "cuda", "qdepth-sm")
+        plots.lineplot(archive, build_dir, "cuda", "qdepth-sm", colormap="plasma")
+        plots.lineplot(
+            archive, build_dir, "cuda", "qdepth-occupancy", colormap="plasma"
+        )
 
 
 # ---------------------------------------------------------------------------

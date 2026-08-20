@@ -20,6 +20,7 @@ import jinja2
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
+from dcgm_helper import dcgm_stat
 from version_helper import version_of
 
 REQ = {
@@ -91,14 +92,12 @@ def collect(args, cijoe: Cijoe):
         if res["qdepth"] != SM_QDEPTH or not isinstance(dcgm, dict):
             continue
         for field, key in SM_FIELDS.items():
-            stats = dcgm.get(field)
-            value = stats.get("mean") if isinstance(stats, dict) else None
+            value = dcgm_stat(dcgm, field)
             if value is not None:
                 sm_data[res["iosize"]][key].append(value * 100)  # ratio -> %
 
         for field, key in STATE_FIELDS.items():
-            stats = dcgm.get(field)
-            value = stats.get("mean") if isinstance(stats, dict) else None
+            value = dcgm_stat(dcgm, field)
             if value is not None:
                 state_data[res["iosize"]][key].append(value)  # MHz
 
