@@ -31,12 +31,12 @@ REQ = {
 }
 
 # The GPU-activity plot holds queue depth fixed at the saturation point of
-# the bandwidth sweep.
+# the bandwidth sweep. It charts the two fields the polling kernel is paid for
+# in.
 SM_QDEPTH = 128
 SM_FIELDS = {
     "1002": "SM_active",
     "1003": "SM_occupancy",
-    "1005": "DRAM_active",
 }
 
 # The clock shares the sweep but not the unit of the activity fields, so it is
