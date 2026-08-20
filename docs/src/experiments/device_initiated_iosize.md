@@ -80,17 +80,12 @@ Instructions for running ``bench_cuda_iosize.yaml`` are provided in
 (sec-experiments-cuda-iosize-results)=
 ## Results
 
-The results below were collected before the reference measurement moved to
-``nvbandwidth`` and therefore quote the earlier ``p2pBandwidthLatencyTest``
-reference of 56.1 GB/s. They are restated against the ``nvbandwidth`` reference
-once the experiment has been re-run.
-
 Results are presented as PCIe RX bandwidth vs. I/O size, with one line per
 queue depth (``qdepth`` ∈ { 1, 2, 4, 8, 16, 32, 64, 128 }). All configurations
 use **xnvmeperf** with the ``cuda-run`` subcommand and the **upcie-cuda**
 backend, ``nqueues=1``, and 16 NVMe devices. Total CUDA thread count equals
-queue depth × 16. The dashed reference line marks the peak P2P bandwidth from
-``p2pBandwidthLatencyTest``.
+queue depth × 16. The dashed reference line marks the host-to-device PCIe
+bandwidth from ``nvbandwidth``.
 
 ```{figure} /lineplot-cuda-iosize.png
 :alt: PCIe RX bandwidth vs. I/O size for xnvmeperf (cuda-run) with varying queue depth
@@ -110,9 +105,9 @@ size increases, each command carries more payload, and the saturation threshold
 drops accordingly.
 
 All lines converge at a practical ceiling of approximately 44–45 GB/s, which
-falls roughly 80% of the way to the 56.1 GB/s ``p2pBandwidthLatencyTest``
-reference. This gap is consistent with the overhead of NVMe command processing
-and PCIe protocol framing on top of raw DMA throughput, as characterized in
+falls roughly 84% of the way to the 53.7 GB/s ``nvbandwidth`` reference. This
+gap is consistent with the overhead of NVMe command processing and PCIe
+protocol framing on top of raw DMA throughput, as characterized in
 {ref}`sec-experiments-pcie-bandwidth-results`.
 
 The saturation queue depths are:
