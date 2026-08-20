@@ -113,7 +113,7 @@ The saturation queue depths are:
 
 At 64 KiB, a single queue depth of 2, 32 CUDA threads across 16 devices, is
 sufficient to sustain ~45 GB/s of storage bandwidth with no CPU involvement
-in the command path. ``qdepth=1`` still achieves 41.7 GB/s at this I/O size,
+in the command path. ``qdepth=1`` still achieves 41.9 GB/s at this I/O size,
 demonstrating that device-initiated I/O can approach the practical link ceiling
 with minimal thread-count overhead.
 
@@ -126,18 +126,37 @@ with minimal thread-count overhead.
 
 GPU engine activity vs. I/O size for xnvmeperf (cuda-run), 16 NVMe devices,
 nqueues=1, queue depth fixed at 128 (qdepth 128 × 16 devices = 2048 CUDA
-threads in total). SM active and SM
-occupancy (DCGM fields 1002/1003) measure the compute footprint of the
-persistent polling kernel; DRAM active (1005) tracks how much GPU memory
-bandwidth the P2P transfers consume.
+threads in total). SM active and SM occupancy are charted with each point
+carrying its reading; the SM clock (field 100) is on the right axis.
 ```
 
 The activity plot holds the queue depth at the largest configuration of the
-sweep and shows the GPU-side cost of driving the I/O across I/O sizes: unlike
-the CPU-initiated P2P path, the device-initiated path keeps a persistent kernel
-resident, so 1002/1003 quantify how much of the GPU's compute capacity the
-polling loop occupies while 1005 shows the memory-bandwidth share consumed by
-the incoming P2P writes.
+sweep, so what it charts across I/O sizes is the GPU-side cost of driving the
+I/O. Unlike the CPU-initiated P2P path, the device-initiated path keeps a
+persistent kernel resident.
+
+SM activity is flat at approximately 13.3% from 512 bytes to 64 KiB, and warp
+slot occupancy holds near 0.87%. Neither follows the work being done, since
+achieved bandwidth doubles across the sweep while the compute footprint moves by
+about two tenths of a percentage point. The cost follows the launch geometry
+instead. One resident block per queue per device is 16 blocks for the single
+queue per device this sweep uses, a footprint that stays flat however large the
+I/O. The queue-depth sweep confirms the reading by varying the queue count,
+which scales the footprint in proportion, as reported in
+{ref}`sec-experiments-cuda-qdepth-results`.
+
+DRAM activity stays at 0% up to 8 KiB and reaches only approximately 2.1% at the
+largest I/O sizes, so the data the SSDs read into GPU memory consumes a
+negligible share of HBM bandwidth and the constraint stays on the PCIe link
+rather than on GPU memory, as the CPU-initiated measurements in
+{ref}`sec-experiments-pcie-bandwidth-results` also found.
+
+Saturating the link through device-initiated I/O therefore costs roughly an
+eighth of the GPU's streaming multiprocessors and almost none of its memory
+bandwidth, leaving the remainder for the compute the data was fetched for. That
+eighth is the price of the single queue per device used throughout this sweep,
+and it is the queue count that moves it. The price of each further queue is
+reported in {ref}`sec-experiments-cuda-qdepth-results`.
 
 ### Run Validity
 
