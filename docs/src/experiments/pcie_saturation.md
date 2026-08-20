@@ -74,11 +74,6 @@ runs affected by link downtraining (generation drop or lane reduction), and an
 increasing replay counter (202) flags retransmissions that reduce effective
 bandwidth — such runs must be excluded from the comparison.
 
-``nvbandwidth`` copies from host memory into GPU memory across the PCIe link of
-the GPU given by ``dcgm.gpu``, the same link the NVMe devices transfer over under
-P2P, which measures the peak bandwidth that link sustains. The value recorded is
-its ``host_to_device_memcpy_ce`` result.
-
 ## Environment
 
 The benchmarks were run on the {ref}`sec-env-hpc-server`. NVMe devices are bound to
@@ -97,11 +92,6 @@ Instructions for running ``bench_pcie.yaml`` are provided in
 (sec-experiments-pcie-bandwidth-results)=
 ## Results
 
-The results below were collected before the reference measurement moved to
-``nvbandwidth`` and therefore quote the earlier ``p2pBandwidthLatencyTest``
-reference of 56.1 GB/s. They are restated against the ``nvbandwidth`` reference
-once the experiment has been re-run.
-
 ```{figure} /barplot-sat.png
 :alt: Stacked bar chart of PCIe bandwidth by I/O size
 :width: 700px
@@ -112,8 +102,8 @@ NVMe SSDs transferring data P2P to a PCIe Gen5 GPU via the upcie-cuda backend.
 Each bar is stacked: the lower segment is the payload bandwidth reported by
 xnvmeperf; the upper segment is the remainder observed by DCGM. The dashed lines
 mark the PCIe line rate (64.0 GB/s for the Gen5 x16 link derived from the
-measured DCGM link fields 237/238) and the reference P2P bandwidth from
-``p2pBandwidthLatencyTest`` (56.1 GB/s). Result files that predate the link
+measured DCGM link fields 237/238) and the reference host-to-device bandwidth
+from ``nvbandwidth`` (53.3 GB/s). Result files that predate the link
 fields fall back to an assumed Gen5 x16 link, labelled ``(assumed)``.
 ```
 
@@ -129,7 +119,7 @@ NVMe command throughput, not PCIe link capacity.
 ### Large I/O: Link Approaches Saturation
 
 With 4096- and 8192-byte payloads, DCGM measures approximately 57.8 GB/s in both
-cases, exceeding the ``p2pBandwidthLatencyTest`` reference of 56.1 GB/s and
+cases, exceeding the ``nvbandwidth`` reference of 53.3 GB/s and
 reaching approximately 90% of the 64.0 GB/s line rate. The identical result at
 both I/O sizes indicates that the PCIe link, rather than NVMe command throughput,
 is the binding constraint at these I/O sizes. xnvmeperf reports approximately
@@ -152,7 +142,8 @@ characterization of the P2P data path regardless of operating regime.
 
 At small I/O sizes the P2P link operates far below capacity. At 4 KiB and above,
 a single CPU thread driving four NVMe devices is sufficient to push total PCIe
-traffic to approximately 57.8 GB/s, exceeding the practical P2P ceiling of
-56.1 GB/s and reaching approximately 90% of the Gen5 x16 line rate. Protocol
-overhead accounts for a consistent 28% above payload bandwidth across all tested
-I/O sizes, indicating it scales with bytes transferred rather than operation count.
+traffic to approximately 57.8 GB/s, exceeding the practical host-to-device
+ceiling of 53.3 GB/s and reaching approximately 90% of the Gen5 x16 line rate.
+Protocol overhead accounts for a consistent 28% above payload bandwidth across
+all tested I/O sizes, indicating it scales with bytes transferred rather than
+operation count.

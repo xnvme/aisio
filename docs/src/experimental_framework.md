@@ -178,9 +178,15 @@ counters via DCGM and a reference PCIe bandwidth measurement from
 ``nvbandwidth``. Described in detail in
 {ref}`sec-experiments-pcie-bandwidth`.
 
-The ``nvbandwidth`` reference binary is built by
-``setup_nvstack.yaml`` at a fixed path, and DCGM fields default in the
-collector, so no extra config is required.
+``nvbandwidth`` copies from host memory into GPU memory across the PCIe link of
+the GPU given by ``dcgm.gpu``, the same link the NVMe devices transfer over under
+P2P, which measures the peak bandwidth that link sustains. The value recorded is
+its ``host_to_device_memcpy_ce`` result.
+
+This and ``bench_cuda_iosize.yaml``, measure the PCIe bandwidth with
+``nvbandwidth`` as a step of their own run rather than carrying a fixed value
+across experiments. As such, the experiments can quote figures that differ
+slightly in the last digit.
 
 ```
 cijoe --monitor \
@@ -196,9 +202,6 @@ Characterizes the minimum CUDA thread count needed to saturate the PCIe link
 under device-initiated I/O, using **xnvmeperf** with the ``cuda-run`` subcommand
 and the **upcie-cuda** backend, with queue depth as the secondary variable.
 Described in detail in {ref}`sec-experiments-cuda-iosize`.
-
-The ``nvbandwidth`` reference binary is built by
-``setup_nvstack.yaml`` at a fixed path, so no extra config is required.
 
 ```
 cijoe --monitor \
