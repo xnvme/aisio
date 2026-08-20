@@ -86,6 +86,9 @@ user space drivers. The CPU governor is set to ``performance`` with turbo boost 
 SMT enabled. Each configuration is run five times and results are reported as
 arithmetic means.
 
+The namespaces are formatted before the run, as described in
+{ref}`sec-device-fill-state`.
+
 ## Execution of the Experiment
 
 Instructions for running ``bench_pcie.yaml`` are provided in

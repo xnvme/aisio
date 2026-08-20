@@ -92,6 +92,32 @@ devbind --device '<pci_addr>' --bind uio_pci_generic
 hugepages setup --count 1024
 ```
 
+(sec-device-fill-state)=
+#### Device Fill State
+
+Every namespace is formatted before synthetic benchmarks are run, which leaves all
+logical blocks deallocated. Reads of deallocated blocks are served by the
+controller without media access resulting in a synthetically low latency.
+The figures this produces may therefore exceed those seen in real-world,
+data-bearing workloads. They are an upper bound on what the I/O path can drive,
+and are to be read as a measure of system overhead and scalability rather than
+as an indicator of application-level storage performance.
+
+The format is a manual step rather than a workflow step, because it only has to
+be done once: every synthetic benchmark issues ``randread`` exclusively, so none
+of them write to the devices and the state established by the format survives
+across runs. Formatting goes through the kernel NVMe driver, so it precedes the
+binding to ``uio_pci_generic`` above and each device is rebound afterwards:
+
+```
+devbind --device '<pci_addr>' --bind nvme
+nvme format /dev/<ns> --force
+devbind --device '<pci_addr>' --bind uio_pci_generic
+```
+
+
+#### Running the Workflows
+
 The benchmark workflows are parameterised by editing the ``run`` step in
 the respective task file. The keys under ``with`` correspond to
 independent variables. ``numcpus_range`` and ``numdevs_range`` are

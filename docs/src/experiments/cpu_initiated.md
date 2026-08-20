@@ -115,30 +115,15 @@ not, the first and last 10% of the reported cpu frequencies are discarded.
 ## Environment
 
 The benchmarks were run on the {ref}`sec-env-hpc-server`. All block devices were
-empty and bound to the uio-pci-generic user space driver. The CPU used the
-intel_cpufreq driver.
+in the empty state described in {ref}`sec-device-fill-state` and bound to the
+uio-pci-generic user space driver. The CPU used the intel_cpufreq driver.
 
-### Empty vs. Populated Block Devices
-
-In this work, the goal is to measure the maximum IOPS the CPU and I/O stack are
-capable of driving. For this reason, benchmarks are executed against empty block
-devices. Using empty devices minimizes variability introduced by data layout,
-garbage collection, and background maintenance operations, allowing results to
-more directly reflect CPU scheduling, interrupt handling, and I/O submission and
-completion paths.
-
-While this methodology may produce IOPS figures that exceed those seen in real-
-world, data-bearing workloads, it provides a clearer upper bound on CPU-driven I/O
-capability. These results should therefore be interpreted as a measure of system
-overhead and scalability rather than as an indicator of application-level storage
-performance.
-
-Because of this, the theoretical device capacity for random reads of 3.2 million
-IOPS of the Samsung PM1753 is not applicable in these experiments. To determine a
-relevant cap, we use the maximum IOPS reached from any experiment using only one
-device. The determined capacity was only used in the analysis of the results to
-evaluate whether the benchmark was capped by the device, CPU, or the
-parameterization.
+Because the devices are empty, the theoretical device capacity for random reads
+of 3.2 million IOPS of the Samsung PM1753 is not applicable in these
+experiments. To determine a relevant cap, we use the maximum IOPS reached from
+any experiment using only one device. The determined capacity was only used in
+the analysis of the results to evaluate whether the benchmark was capped by the
+device, CPU, or the parameterization.
 
 ### Stressing Unused CPUs
 
