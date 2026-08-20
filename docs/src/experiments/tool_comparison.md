@@ -125,6 +125,9 @@ drivers. The CPU governor is set to ``performance`` with turbo boost and SMT
 enabled. Each benchmark configuration is run five times and results are reported
 as arithmetic means.
 
+The namespaces are formatted before the run, as described in
+{ref}`sec-device-fill-state`.
+
 The independent variables are:
 
 | Variable              | Parameter Set                                                             |
