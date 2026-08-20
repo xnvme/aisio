@@ -14,6 +14,7 @@ import numpy as np
 import yaml
 from matplotlib.colors import to_rgb
 from matplotlib.lines import Line2D
+from matplotlib.patches import Rectangle
 from matplotlib.ticker import LogLocator, ScalarFormatter
 
 
@@ -309,12 +310,20 @@ def _sort_groups_numeric(groups):
     return groups
 
 
+def _colormap_colors(cmap, n):
+    """Return n colors spread across the readable span of a colormap."""
+    # A lone series has no span to spread across, so it takes the middle of the
+    # ramp rather than either extreme.
+    if n < 2:
+        return [cmap(0.5)] * n
+    return [cmap(0.1 + 0.8 * i / (n - 1)) for i in range(n)]
+
+
 def _line_colors(n):
     """Return n colors: use COLOR_SCHEME for small n, plasma for larger sets."""
     if n <= len(COLOR_SCHEME):
         return COLOR_SCHEME[:n]
-    cmap = plt.cm.plasma
-    return [cmap(0.1 + 0.8 * i / (n - 1)) for i in range(n)]
+    return _colormap_colors(plt.cm.plasma, n)
 
 
 def _fmt_bytes(val):
@@ -364,9 +373,7 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     y2groups = [group for group in cfg.get("y2series", []) if group in groups]
     groups = [group for group in groups if group not in y2groups]
     if colormap:
-        cmap = plt.get_cmap(colormap)
-        n = len(groups)
-        colors = [cmap(0.1 + 0.8 * i / (n - 1)) for i in range(n)]
+        colors = _colormap_colors(plt.get_cmap(colormap), len(groups))
     else:
         colors = _line_colors(len(groups))
 
@@ -382,7 +389,6 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         except (ValueError, TypeError):
             pass
 
-    data_max = 0
     # The scaled readings each series draws, kept for the mark and the point
     # labels below so the figure reads one set of values in one unit.
     plotted = {}
@@ -392,7 +398,6 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
             np.array([b.get(f"{group}_std", np.nan) for b in bars], dtype=float) / scale
         )
         label = group.replace("_", " ")
-        data_max = max(data_max, float(np.nanmax(data + std)))
         plotted[group] = data
 
         ax.fill_between(x, data - std, data + std, alpha=0.15, color=color)
@@ -514,8 +519,8 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
                 linestyle="--",
                 label=group.replace("_", " "),
             )
-        # The headroom keeps the series clear of the legends, which sit at the
-        # top of the axes whenever the first axis leaves that half free.
+        # The headroom keeps the second axis's series clear of the legends,
+        # which sit wherever they cover least of what the figure draws.
         y2max = max(
             np.nanmax(np.array([b.get(g, np.nan) for b in bars], dtype=float))
             for g in y2groups
@@ -550,12 +555,11 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     else:
         ax.set_ylim(0, ymax * 1.15)
 
-    # Legends sit on the half of the axes the series leave free: a plot whose
-    # data hugs the bottom gets them on top. A figure whose free space is a
-    # corner rather than a half names the placement itself.
-    vpos = "upper" if data_max < 0.5 * ax.get_ylim()[1] else "lower"
-    rooflines_loc = cfg.get("legend_rooflines", f"{vpos} left")
-    series_loc = cfg.get("legend_series", f"{vpos} right")
+    # Legends land where they cover the least of what is drawn, which matplotlib
+    # weighs against the series themselves. A figure that reads better with them
+    # somewhere particular names the placement itself.
+    rooflines_loc = cfg.get("legend_rooflines", "best")
+    series_loc = cfg.get("legend_series", "best")
 
     handles, labels_ = ax.get_legend_handles_labels()
     if ax2 is not None:
@@ -575,20 +579,49 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         ref_handles.append(mark_handle)
         ref_labels.append(mark_handle.get_label())
 
-    leg1 = ax.legend(
-        ref_handles,
-        ref_labels,
-        loc=rooflines_loc,
+    # Series that all run flat across the full width leave no box-shaped gap
+    # anywhere in the axes, so such a figure lays its legend out in a single row
+    # and puts it in the headroom above the topmost series.
+    ncol = cfg.get("legend_series_ncol", 1)
+    if ncol == "row":
+        ncol = len(stack_idx)
+    series_leg = ax.legend(
+        [handles[i] for i in reversed(stack_idx)],
+        [labels_[i] for i in reversed(stack_idx)],
+        loc=series_loc,
+        ncol=ncol,
         fontsize=8,
         framealpha=0.9,
         edgecolor="#cccccc",
     )
-    ax.add_artist(leg1)
+    ax.add_artist(series_leg)
+
+    # Matplotlib weighs a legend against the series but not against a legend
+    # already placed, so left to itself each one picks the same free corner and
+    # the two stack. Asking the series legend for its extent resolves where it
+    # chose to sit, which is then pinned so that fencing off the ground it took
+    # cannot move it again. The fence is an invisible patch, which the rooflines
+    # legend reads as occupied like any other drawn thing and so routes around,
+    # as it does the series.
+    if rooflines_loc == "best":
+        taken = series_leg.get_window_extent(fig.canvas.get_renderer())
+        fenced = taken.transformed(ax.transAxes.inverted())
+        series_leg.set_loc("lower left")
+        series_leg.set_bbox_to_anchor(fenced, transform=ax.transAxes)
+        ax.add_patch(
+            Rectangle(
+                (fenced.x0, fenced.y0),
+                fenced.width,
+                fenced.height,
+                alpha=0,
+                transform=ax.transAxes,
+            )
+        )
 
     ax.legend(
-        [handles[i] for i in reversed(stack_idx)],
-        [labels_[i] for i in reversed(stack_idx)],
-        loc=series_loc,
+        ref_handles,
+        ref_labels,
+        loc=rooflines_loc,
         fontsize=8,
         framealpha=0.9,
         edgecolor="#cccccc",
