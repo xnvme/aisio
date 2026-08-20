@@ -5,12 +5,14 @@
 import re
 import tarfile
 import tempfile
+from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
+from matplotlib.colors import to_rgb
 from matplotlib.ticker import LogLocator, ScalarFormatter
 
 
@@ -25,6 +27,9 @@ def artifacts_from_archive(archive: Path):
 
 
 COLOR_SCHEME = ["#2171b5", "#6baed6", "#9ecae1", "#fb6a4a", "#fcae91", "#ba381a"]
+# A point carries its value when it stands this far clear of the last one
+# labelled, as a share of that reading.
+POINT_LABEL_STEP = 0.15
 LABEL_PP = {
     "spdk_bdevperf": "bdevperf (SPDK)",
     "spdk_nvme_perf": "nvmeperf (SPDK)",
@@ -377,6 +382,9 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
             pass
 
     data_max = 0
+    # The scaled readings each series draws, kept for the point labels below so
+    # the figure reads one set of values in one unit.
+    plotted = {}
     for group, color in zip(groups, colors):
         data = np.array([b.get(group, np.nan) for b in bars], dtype=float) / scale
         std = (
@@ -384,11 +392,56 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         )
         label = group.replace("_", " ")
         data_max = max(data_max, float(np.nanmax(data + std)))
+        plotted[group] = data
 
         ax.fill_between(x, data - std, data + std, alpha=0.15, color=color)
         ax.plot(
             x, data, color=color, linewidth=2, marker="o", markersize=4, label=label
         )
+
+    # Values written onto the points, for a figure whose exact readings matter
+    # as much as the shape it draws. A point is labelled when it says something
+    # the last labelled one did not, so a flat line carries a single number and
+    # a climbing one is labelled at every step it takes.
+    if cfg.get("point_labels"):
+        placed = defaultdict(list)
+        for group, color in zip(groups, colors):
+            # A number is written in a darkened cast of its series colour, which
+            # keeps it readable at the light end of a palette while still
+            # belonging to its line.
+            text_color = [channel * 0.62 for channel in to_rgb(color)]
+            last = None
+            for idx, value in enumerate(plotted[group]):
+                if np.isnan(value):
+                    continue
+                if last is not None and abs(value - last) <= POINT_LABEL_STEP * abs(
+                    last
+                ):
+                    continue
+                # Series lying on top of one another would stack their numbers
+                # illegibly, so the first one placed speaks for them. The
+                # series it speaks for keeps looking for a step of its own,
+                # since nothing of it has been written down yet.
+                if any(
+                    abs(value - was) <= POINT_LABEL_STEP * abs(was)
+                    for was in placed[idx]
+                ):
+                    continue
+                last = value
+                placed[idx].append(value)
+                # Every number sits above its own point: a series labelled below
+                # would meet the number belonging to the series beneath it.
+                ax.annotate(
+                    f"{value:.2f}" if value < 1 else f"{value:.1f}",
+                    (idx, value),
+                    textcoords="offset points",
+                    xytext=(0, 7),
+                    ha="center",
+                    fontsize=7.5,
+                    fontweight="bold",
+                    zorder=6,
+                    color=text_color,
+                )
 
     ax2 = None
     if y2groups:
