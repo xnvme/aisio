@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 from matplotlib.colors import to_rgb
+from matplotlib.lines import Line2D
 from matplotlib.ticker import LogLocator, ScalarFormatter
 
 
@@ -382,8 +383,8 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
             pass
 
     data_max = 0
-    # The scaled readings each series draws, kept for the point labels below so
-    # the figure reads one set of values in one unit.
+    # The scaled readings each series draws, kept for the mark and the point
+    # labels below so the figure reads one set of values in one unit.
     plotted = {}
     for group, color in zip(groups, colors):
         data = np.array([b.get(group, np.nan) for b in bars], dtype=float) / scale
@@ -397,6 +398,50 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         ax.fill_between(x, data - std, data + std, alpha=0.15, color=color)
         ax.plot(
             x, data, color=color, linewidth=2, marker="o", markersize=4, label=label
+        )
+
+    # A marked point on a series, named by the x label it sits at, so a figure
+    # can carry a threshold its own y-axis does not show. A ring around the
+    # point leaves the series reading as one line. A series without a mark is
+    # simply left unmarked.
+    marks = cfg.get("marks") or {}
+    mark_points = marks.get("points") or {}
+    positions = {str(b["label"]): idx for idx, b in enumerate(bars)}
+    marked = False
+    for group, color in zip(groups, colors):
+        at = mark_points.get(group)
+        if at is None:
+            continue
+        idx = positions.get(str(at))
+        if idx is None or np.isnan(plotted[group][idx]):
+            continue
+        ax.plot(
+            idx,
+            plotted[group][idx],
+            linestyle="none",
+            marker="o",
+            markersize=11,
+            markerfacecolor="none",
+            markeredgecolor=color,
+            markeredgewidth=2.6,
+            zorder=5,
+        )
+        marked = True
+
+    # The legend names the mark once a series carries one, so a figure where no
+    # series reached the reference says nothing about it.
+    mark_handle = None
+    if marked:
+        mark_handle = Line2D(
+            [],
+            [],
+            linestyle="none",
+            marker="o",
+            markersize=9,
+            markerfacecolor="none",
+            markeredgecolor="#666666",
+            markeredgewidth=2.6,
+            label=marks.get("name", "marked"),
         )
 
     # Values written onto the points, for a figure whose exact readings matter
@@ -522,9 +567,17 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     ]
     stack_idx = [i for i in range(len(labels_)) if i not in line_idx]
 
+    # The rooflines legend also carries the mark, since both name a reference
+    # the series are read against rather than a series of their own.
+    ref_handles = [handles[i] for i in line_idx]
+    ref_labels = [labels_[i] for i in line_idx]
+    if mark_handle is not None:
+        ref_handles.append(mark_handle)
+        ref_labels.append(mark_handle.get_label())
+
     leg1 = ax.legend(
-        [handles[i] for i in line_idx],
-        [labels_[i] for i in line_idx],
+        ref_handles,
+        ref_labels,
         loc=rooflines_loc,
         fontsize=8,
         framealpha=0.9,
