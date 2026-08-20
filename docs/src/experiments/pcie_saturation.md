@@ -91,8 +91,7 @@ of field 1010 rather than the mean, since the transferring samples include the
 ramp up. The dashed lines
 mark the PCIe line rate (64.0 GB/s for the Gen5 x16 link derived from the
 measured DCGM link fields 237/238) and the reference host-to-device bandwidth
-from ``nvbandwidth`` (53.3 GB/s). Result files that predate the link
-fields fall back to an assumed Gen5 x16 link, labelled ``(assumed)``.
+from ``nvbandwidth`` (53.3 GB/s).
 ```
 
 ### Small I/O: Link Underutilized
@@ -111,7 +110,7 @@ cases, exceeding the ``nvbandwidth`` reference of 53.3 GB/s and
 reaching approximately 90% of the 64.0 GB/s line rate. The identical result at
 both I/O sizes indicates that the PCIe link, rather than NVMe command throughput,
 is the binding constraint at these I/O sizes. xnvmeperf reports approximately
-45.2 GB/s of payload bandwidth for both sizes. This saturation is achieved
+45 GB/s of payload bandwidth at both sizes. This saturation is achieved
 with a single CPU thread and only four NVMe devices, demonstrating that the
 uPCIe-cuda path requires minimal CPU and device resources to fully utilize the
 PCIe link at larger I/O sizes.
@@ -134,4 +133,5 @@ traffic to approximately 57.8 GB/s, exceeding the practical host-to-device
 ceiling of 53.3 GB/s and reaching approximately 90% of the Gen5 x16 line rate.
 Protocol overhead accounts for a consistent 28% above payload bandwidth across
 all tested I/O sizes, indicating it scales with bytes transferred rather than
-operation count.
+operation count. Throughout, SM activity remains at zero, so the path reaches
+this bandwidth without consuming any GPU compute.
