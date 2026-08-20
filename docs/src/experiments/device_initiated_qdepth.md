@@ -62,6 +62,7 @@ The namespaces are formatted before the run, as described in
 Instructions for running ``bench_cuda_qdepth.yaml`` are provided in
 {ref}`sec-experimental-framework`.
 
+(sec-experiments-cuda-qdepth-results)=
 ## Results
 
 Results are presented as IOPS vs. queue depth, with one line per number of
@@ -76,19 +77,19 @@ devices, and 512-byte I/O.
 
 IOPS vs. queue depth for xnvmeperf (cuda-run), 16 NVMe devices, 512 B I/O.
 All nqueues ≥ 2 configurations reach the 61.7 M IOPS roofline at qdepth=128;
-nqueues=1 reaches only 86.6% (53.5 M IOPS) at qdepth=512.
+nqueues=1 reaches only 86.7% (53.5 M IOPS) at qdepth=512.
 ```
 
 The results reveal a sharp divide between single-queue and multi-queue
 operation. With ``nqueues=1``, IOPS scales sub-linearly with queue depth and
-fails to saturate the device even at ``qdepth=512`` (53.5 M IOPS, 86.6% of the
+fails to saturate the devices even at ``qdepth=512`` (53.5 M IOPS, 86.7% of the
 61.7 M roofline). All multi-queue configurations (``nqueues`` ≥ 2) saturate the
-device completely, converging to ~61.5 M IOPS with very low variance once the
+devices completely, converging to ~61.5 M IOPS with very low variance once the
 threshold queue depth is reached. At ``qdepth=128``, ``nqueues=2`` delivers 61.5
-M IOPS. This is a 47% gain over the 41.9 M achieved by ``nqueues=1`` at the same
+M IOPS. This is a 45% gain over the 42.4 M achieved by ``nqueues=1`` at the same
 depth. Further queue doublings yield no measurable improvement.
 
-The minimum queue depth required to saturate the device varies by ``nqueues``:
+The minimum queue depth required to saturate the devices varies by ``nqueues``:
 
 | ``nqueues`` | Min. ``qdepth`` to saturate | Total CUDA threads |
 | ----------- | --------------------------- | ------------------ |
@@ -100,34 +101,120 @@ The minimum queue depth required to saturate the device varies by ``nqueues``:
 
 Total CUDA thread count is ``qdepth × nqueues × ndevs`` (16 devices).
 ``nqueues=2`` and ``nqueues=4`` are equally thread-efficient, both saturating
-the device at 4096 total threads. ``nqueues=8`` and ``nqueues=16`` reach
+the devices at 4096 total threads. ``nqueues=8`` and ``nqueues=16`` reach
 the roofline at the same ``qdepth=64`` but require 2× and 4× as many threads
 respectively for no throughput gain, making them suboptimal.
 
-``nqueues=4`` with ``qdepth=64`` represents the most practical configuration:
-it saturates the device at 4096 total threads, matching ``nqueues=2`` at
-``qdepth=128``, while requiring only half the per-queue depth, halving the
-number of commands in flight per queue.
+On thread count alone, ``nqueues=4`` with ``qdepth=64`` is as economical as
+``nqueues=2`` with ``qdepth=128``, since both saturate the devices at 4096 total
+threads and the former needs only half the per-queue depth, halving the number
+of commands in flight per queue. Thread count is not the only cost, however, and
+the activity results below separate the two.
 
 ### GPU Compute Cost of the Polling Kernel
 
+Queue depth and queue count both move SM activity and warp slot occupancy, so
+each field is charted across the whole grid, in the shape of the IOPS figure
+above. A ring marks the shallowest depth at which each queue count reaches the
+IOPS roofline, the depths tabulated above, so each figure carries the throughput
+its costs are weighed against. Any depth beyond a ring costs more without adding
+throughput.
+
 ```{figure} /lineplot-cuda-qdepth-sm.png
-:alt: GPU engine activity vs. queue depth for xnvmeperf (cuda-run) at nqueues=1
+:alt: SM activity vs. queue depth for xnvmeperf (cuda-run) with varying nqueues
 :width: 700px
 :align: center
 
-GPU engine activity vs. queue depth for xnvmeperf (cuda-run), 16 NVMe devices,
-512 B I/O, nqueues fixed at 1. SM active and SM occupancy (DCGM fields
-1002/1003) measure the compute footprint of the persistent polling kernel;
-DRAM active (1005) tracks the GPU memory bandwidth consumed by the incoming
-P2P writes.
+SM activity (DCGM field 1002) vs. queue depth for xnvmeperf (cuda-run), 16 NVMe
+devices, 512 B I/O. Each queue count holds a flat line across the depth sweep
+and the lines step up with the queue count, until ``nqueues=8`` and
+``nqueues=16`` come to rest on one another near 96%. ``nqueues=1`` carries no
+ring, since it never reaches the roofline at any depth. The number written on a
+line is a single reading from it; the table below gives the mean across the
+sweep.
 ```
 
-The activity plot holds ``nqueues`` at 1 so queue depth is the only variable:
-the total thread count (``qdepth × nqueues × ndevs``) grows from 16 threads at
-``qdepth=1`` to 8192 at ``qdepth=512`` along the x-axis, and fields 1002/1003
-show how much GPU compute capacity that polling footprint costs — the second
-result axis to weigh against the IOPS gained by deeper queues.
+```{figure} /lineplot-cuda-qdepth-occupancy.png
+:alt: Warp slot occupancy vs. queue depth for xnvmeperf (cuda-run) with varying nqueues
+:width: 700px
+:align: center
+
+Warp slot occupancy (DCGM field 1003) vs. queue depth for the same runs, on a
+log axis. The lines are flat out to ``qdepth=32`` and then climb in step,
+staying parallel. Each queue count that saturates the SSDs does so low on its
+climb, so the depth beyond that point is spent on warp slots alone.
+```
+
+No DRAM activity sample exceeds 1.7%, so at this I/O size the data the SSDs read
+into GPU memory places no meaningful load on it and neither figure is measuring
+one.
+
+Neither field follows the IOPS curve: what the polling kernel costs the GPU is
+set by how it is laid out across the device, not by how much I/O it completes.
+
+#### The Cost of a Queue
+
+Queue depth leaves the multiprocessor footprint untouched, but the queue count
+does not. SM activity holds the same value across the whole depth sweep at any
+given ``nqueues`` and doubles with each doubling of the queue count:
+
+| ``nqueues`` | Blocks (``nqueues × ndevs``) | SM active (depth-sweep mean) | IOPS at ``qdepth=128`` |
+| ----------- | --------------------------- | ---------------------------- | ---------------------- |
+| 1           | 16                          | 13.3%                        | 42.4 M                 |
+| 2           | 32                          | 26.8%                        | 61.5 M                 |
+| 4           | 64                          | 53.2%                        | 61.4 M                 |
+| 8           | 128                         | 95.7%                        | 61.4 M                 |
+| 16          | 256                         | 95.9%                        | 61.4 M                 |
+
+The activity column is the mean of each line over all ten queue depths, and no
+depth departs from its queue count's value by more than 1.7 percentage points.
+The
+IOPS column is quoted at ``qdepth=128``, where every multi-queue configuration
+has reached the roofline.
+
+This is the behaviour expected of one resident block per queue per device. Each
+configuration places ``nqueues × ndevs`` blocks on the GPU, and for as long as
+they fit on the multiprocessors available, each occupies one: the 16 blocks at
+``nqueues=1`` measure just under the 14.0% that 16 of the 114 multiprocessors
+would be, and the proportion holds through ``nqueues=4``. At ``nqueues=8`` the
+128 blocks outnumber the 114 multiprocessors, so activity saturates near 96% and
+the further doubling to 256 blocks adds nothing. The knee therefore falls where
+``nqueues × ndevs`` passes the multiprocessor count, not at any queue count in
+particular. With fewer multiprocessors on the GPU, or with more devices
+attached, fewer queues would reach it.
+
+#### The Cost of Queue Depth
+
+Queue depth is not paid for in multiprocessors but in warp slots, and both the
+flat part of the occupancy curve and the climb that follows come from one thread
+per outstanding command and a warp of 32 threads. While the queue is no deeper
+than a warp is wide, a block's commands fit within a single warp, so each of the
+``nqueues × ndevs`` blocks holds one warp slot however deep its queue, which is
+why the lines are flat out to ``qdepth=32``. Beyond it each doubling of the
+depth doubles the warps a block needs, the constant step the lines rise in.
+
+The lines stay parallel because queue depth and queue count enter the thread
+count as equal factors. Against the 7296 warp slots this GPU holds, 64 on each
+of its 114 multiprocessors, the span runs from 0.19% at a single queue and the
+shallowest depths to 53.9% at ``nqueues=16``, ``qdepth=512``.
+
+The two costs together price the saturating configuration. ``nqueues=2`` at
+``qdepth=128`` drives the SSDs to the 61.7 M IOPS roofline while the polling
+kernel holds **26.8% of the multiprocessors and 1.74% of the warp slots**. It is
+present on a quarter of the device and takes almost none of the capacity of what
+it sits on, so those multiprocessors stay open to another kernel being
+co-resident on them. The polling loop therefore interferes by
+presence rather than by exhaustion. A compute kernel sharing this GPU can still
+be given warp slots almost anywhere, but from ``nqueues=8`` upward it shares
+nearly every multiprocessor with a spinning poller. Depth becomes a
+cost in its own right only at the top right of the occupancy figure, where it
+reaches 26.9% and 53.9%, configurations that buy no throughput over
+``nqueues=2`` to begin with.
+
+This is what separates the two configurations the thread count left equivalent.
+``nqueues=4`` with ``qdepth=64`` and ``nqueues=2`` with ``qdepth=128`` are
+indistinguishable in warp slots, but the former holds half the multiprocessors
+where the latter holds a quarter.
 
 ### Run Validity
 
@@ -146,8 +233,24 @@ counter stays at zero, and the link fields report Gen5 x16 throughout.
 A single queue per device cannot saturate the devices at 512-byte I/O regardless
 of queue depth. Adding a second queue breaks this ceiling: ``nqueues=2`` with
 ``qdepth=128`` reaches the 61.7 M IOPS roofline at 4096 total threads, and
-``nqueues=4`` with ``qdepth=64`` matches this result with half the per-queue
-depth. Beyond ``nqueues=4``, additional queues increase thread count without
-improving throughput. Together with the I/O size scaling results, these findings
-characterize the thread count and queue configuration required to fully utilize
-device-initiated I/O across both the bandwidth-bound and IOPS-bound regimes.
+``nqueues=4`` with ``qdepth=64`` matches it on thread count with half the
+per-queue depth. Beyond ``nqueues=4``, additional queues increase thread count
+without improving throughput.
+
+The GPU-side cost separates the configurations that the IOPS curve leaves
+equivalent. The polling kernel occupies one multiprocessor per queue per device,
+so its footprint is set by the queue count alone and doubles with it, from 13.3%
+of the GPU at ``nqueues=1`` to 26.8% at 2 and 53.2% at 4, and effectively all of
+it from 8 upward, where the queues outnumber the multiprocessors. Queue depth is
+paid for in warp slots instead, which stay below 7% wherever a queue count first
+saturates the devices.
+
+Saturating the devices therefore costs 26.8% of the multiprocessors and 1.74% of
+the warp slots, at ``nqueues=2`` with ``qdepth=128``. That is half the GPU
+``nqueues=4`` costs for the same throughput, which makes ``nqueues=2`` the
+configuration to choose.
+
+Together with the I/O size scaling results, these findings characterize the
+thread count and queue configuration required to fully utilize device-initiated
+I/O across both the bandwidth-bound and IOPS-bound regimes, and what each
+configuration leaves of the GPU for the workload it feeds.
