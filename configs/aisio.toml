@@ -11,6 +11,13 @@ remote = "https://github.com/xnvme/xnvme"
 branch = "main"
 path = "/root/git/xnvme"
 
+[upcie.dkms]
+remote = "https://github.com/safl/upcie"
+release = "v0.6.0"
+
+[upcie.dkms.packages]
+dmabuf_import = "dmabuf-import-dkms_0.2.0_all.deb"
+
 [xal.repository]
 remote = "https://github.com/xnvme/xal"
 tag = "v0.3.2"

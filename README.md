@@ -76,17 +76,18 @@ cijoe --monitor \
     tasks/setup_ubuntu.yaml
 ```
 
-## Step 3: Install the Custom Linux Kernel
+## Step 3: Install the uPCIe Kernel Modules
 
-Install a custom kernel with **UDMABUF import** support. This extends the
-kernel's UDMABUF device to act as a dma-buf importer, enabling the zero-copy
-GPU-to-storage path used by xNVMe uPCIe:
+Install the out-of-tree kernel modules released by uPCIe. The **dma-buf
+importer** resolves the DMA addresses of GPU memory, enabling the zero-copy
+GPU-to-storage path used by xNVMe uPCIe. They are DKMS packages, so they build
+against the stock Ubuntu GA kernel and rebuild themselves on kernel updates:
 
 ```
 cijoe --monitor \
     -c configs/transport.toml \
-    -c configs/udmabuf_import.toml \
-    tasks/setup_udmabuf_import.yaml
+    -c configs/aisio.toml \
+    tasks/setup_upcie_modules.yaml
 ```
 
 ## Step 4: Disable IOMMU

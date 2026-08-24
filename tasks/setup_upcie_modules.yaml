@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Install the uPCIe kernel modules
+  ================================
+
+  uPCIe releases the out-of-tree modules its experimental paths build on as
+  DKMS packages, so they build against the running kernel and rebuild
+  themselves on kernel updates. The stock Ubuntu GA kernel is all that is
+  required.
+
+  * dmabuf-import serves DMABUF_IMPORT_ATTACH / _DETACH / _GET_MAP on
+    '/dev/dmabuf_import'. It resolves the DMA addresses of a dma-buf exported
+    by a GPU runtime, which is what lets xNVMe build NVMe PRP lists pointing
+    into device memory.
+
+  Each package installs its UAPI under '/usr/include/linux/'. uPCIe compiles an
+  experimental path only when its header is present, so run this before
+  'setup_aisio.yaml' builds xNVMe; otherwise those paths are built as stubs
+  returning -ENOTSUP.
+
+  This can be run with::
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/aisio.toml \
+      tasks/setup_upcie_modules.yaml
+
+  Adjust transport.toml with the hostname and ssh-login info of the root user.
+
+steps:
+- name: download
+  run: |
+    wget -qO /tmp/{{ config.upcie.dkms.packages.dmabuf_import }} {{ config.upcie.dkms.remote }}/releases/download/{{ config.upcie.dkms.release }}/{{ config.upcie.dkms.packages.dmabuf_import }}
+
+- name: install
+  run: |
+    apt-get -qy update
+    DEBIAN_FRONTEND=noninteractive apt-get -qy install /tmp/{{ config.upcie.dkms.packages.dmabuf_import }}
+
+# Installing a package registers the module with DKMS but does not load it; the
+# drop-in has systemd-modules-load bring dmabuf_import in on every boot.
+- name: autoload_dmabuf_import
+  run: |
+    echo dmabuf_import | tee /etc/modules-load.d/dmabuf_import.conf
+    modprobe dmabuf_import
+
+- name: check_dmabuf_import
+  run: |
+    dkms status | grep dmabuf-import
+    lsmod | grep dmabuf_import
+    ls -l /dev/dmabuf_import
+    ls -l /usr/include/linux/dmabuf_import.h
