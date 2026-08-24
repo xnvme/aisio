@@ -75,6 +75,17 @@ def mathtt(s: str):
     return "".join(out)
 
 
+def fit_to_width(fig, text, max_frac=0.98, min_size=8):
+    """Shrink a figure-level text until it fits across the canvas."""
+    limit = max_frac * fig.get_size_inches()[0] * fig.dpi
+    renderer = fig.canvas.get_renderer()
+    while (
+        text.get_fontsize() > min_size
+        and text.get_window_extent(renderer).width > limit
+    ):
+        text.set_fontsize(text.get_fontsize() - 0.5)
+
+
 def setup_figure(cfg):
     labels = [LABEL_PP.get(b["label"], b["label"]) for b in cfg["bars"]]
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -95,10 +106,13 @@ def setup_figure(cfg):
     main_title = mathtt(title_lines[0])
     subtitle = mathtt("\n".join(title_lines[1:]))
 
-    fig.suptitle(main_title, fontsize=11, fontweight="bold", y=0.97)
+    fit_to_width(fig, fig.suptitle(main_title, fontsize=11, fontweight="bold", y=0.97))
     if subtitle.strip():
-        fig.text(
-            0.5, 0.92, subtitle, ha="center", va="top", fontsize=9, color="#555555"
+        fit_to_width(
+            fig,
+            fig.text(
+                0.5, 0.92, subtitle, ha="center", va="top", fontsize=9, color="#555555"
+            ),
         )
 
     if cfg.get("footnote"):
