@@ -10,7 +10,7 @@ doc: |
   NVMe<->GPU P2P, the open-kernel-module driver and the toolkit straight from
   apt. Deliberately NOT installed: MLNX_OFED, nvidia-gds / nvidia-peermem,
   nvidia-fs, and the BAM kernel-source build; AiSIO drives GPU-initiated NVMe
-  I/O over the open udmabuf-import path, not the proprietary GPUDirect-Storage
+  I/O over the open dma-buf import path, not the proprietary GPUDirect-Storage
   / DOCA / BaM stack. nvbandwidth is built to /root/git/nvbandwidth to provide
   the PCIe peak-bandwidth reference used by the bench_pcie / bench_cuda_iosize
   experiments. DCGM (from the same NVIDIA CUDA repo) provides the GPU metric

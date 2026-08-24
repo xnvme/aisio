@@ -131,38 +131,40 @@ Both modes rely on the NVMe command's Physical Region Page (PRP) list containing
 the physical addresses of the data buffer. Obtaining these from CUDA device
 memory is nontrivial, and is the subject of the following section.
 
-### Device Memory Physical Address Resolution via udmabuf-import
+### Device Memory Physical Address Resolution via dma-buf Import
 
 The challenge is that device memory resides in device-local DRAM exposed to the
 host through a PCIe Base Address Register (BAR1) aperture, and there is no
 standard Linux kernel interface for retrieving its physical mappings from user
-space. This has been addressed with a patch to the udmabuf Linux kernel driver,
-published as
-[udmabuf-import](https://github.com/xnvme/udmabuf-import). The patch extends
-udmabuf with a dma-buf importer role, adding three new ioctl operations:
-``UDMABUF_ATTACH``, ``UDMABUF_GET_MAP``, and ``UDMABUF_DETACH``. These allow
-any exported dma-buf file descriptor to be imported into udmabuf. The driver
-then performs the DMA mappings internally and returns the resulting physical
-address array to the calling process. The mechanism is not specific to CUDA or
-NVIDIA hardware; it works with any dma-buf exporter.
+space. This has been addressed with an out-of-tree kernel module, the dma-buf
+importer released by [uPCIe](https://github.com/safl/upcie). The module serves
+three ioctl operations on its own ``/dev/dmabuf_import`` character device:
+``DMABUF_IMPORT_ATTACH``, ``DMABUF_IMPORT_GET_MAP``, and
+``DMABUF_IMPORT_DETACH``. These allow any exported dma-buf file descriptor to
+be imported. The driver then performs the DMA mappings internally and returns
+the resulting physical address array to the calling process. The mechanism is
+not specific to CUDA or NVIDIA hardware; it works with any dma-buf exporter.
+Being self-contained, it is delivered as a DKMS package that builds against the
+distribution kernel and rebuilds itself on kernel updates.
 
 For CUDA device memory, the flow is as follows. A CUDA-backed heap is initialized
 by allocating device memory with ``cuMemAlloc``, then exporting it as a
 dma-buf file descriptor via ``cuMemGetHandleForAddressRange`` with the
 ``CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD`` handle type. This file descriptor
-is passed to the ``dmabuf_attach`` wrapper in the uPCIe library, which opens
-``/dev/udmabuf`` and issues ``UDMABUF_ATTACH`` to obtain the page count,
-followed by ``UDMABUF_GET_MAP`` to retrieve an array of ``(dma_addr, len)``
-tuples. These are indexed into a lookup table (LUT) keyed at 64 KiB granularity,
-the native page size for NVIDIA GPU device memory, enabling runtime translation
-from any device memory virtual address to the corresponding physical address.
+is passed to the ``dmabuf_import_attach`` wrapper in the uPCIe library, which
+opens ``/dev/dmabuf_import`` and issues ``DMABUF_IMPORT_ATTACH`` to obtain the
+page count, followed by ``DMABUF_IMPORT_GET_MAP`` to retrieve an array of
+``(dma_addr, len)`` tuples. These are indexed into a lookup table (LUT) keyed at
+64 KiB granularity, the native page size for NVIDIA GPU device memory, enabling
+runtime translation from any device memory virtual address to the corresponding
+physical address.
 
 ### xnvmeperf Device-Initiated Benchmarking
 
 xnvmeperf integrates device-initiated I/O through its ``cuda-run`` subcommand.
 The host allocates GPU-resident NVMe queue pairs and DMA buffers in CUDA device
 memory, builds NVMe commands with PRP lists populated from physical addresses
-resolved via the udmabuf-import mechanism described above, and uploads the
+resolved via the dma-buf import mechanism described above, and uploads the
 commands to the GPU. CUDA kernels then execute in a tight loop: one block per
 queue, one thread per queue slot, submitting and completing I/O continuously
 without returning to the CPU between rounds. A host-mapped flag signals the

@@ -30,7 +30,7 @@ in the ``README.md`` of the AiSIO repository. The table below lists all
 software components installed on each system, in installation order.
 It covers both the proof-of-concept stack (proprietary NVIDIA
 GPUDirect-Storage / BaM, reproducible at the ``poc`` tag) and the
-current 26.04 open stack (NVIDIA and AMD over the udmabuf-import path);
+current 26.04 open stack (NVIDIA and AMD over the dma-buf import path);
 rows specific to the latter are tagged "26.04 stack" in the description.
 
 | Category | Component                  | Version              | Install       | Description                                                                                                                         |
@@ -42,7 +42,7 @@ rows specific to the latter are tagged "26.04 stack" in the description.
 | NVIDIA   | CUDA Toolkit               | 12.8.x               | APT           | CUDA compiler, runtime, and libraries                                                                                               |
 | NVIDIA   | nvidia-fs                  | 12.8.x               | APT           | GPUDirect Storage kernel module                                                                                                     |
 | OS       | Ubuntu Server              | 26.04                | ISO           | 26.04 stack: current base OS (GA 7.0 kernel)                                                                                        |
-| Kernel   | Linux + udmabuf-import     | 7.0 GA + patch       | Source        | 26.04 stack: GA 7.0 kernel patched with the UDMABUF importer                                                                        |
+| Kernel   | dmabuf-import              | {{ ver_upcie }}      | DKMS          | 26.04 stack: out-of-tree dma-buf importer released by uPCIe                                                                          |
 | NVIDIA   | nvidia-driver-580-open     | 580 (open)           | APT           | 26.04 stack: open-kernel-module driver from the distro 'restricted' repo                                                            |
 | NVIDIA   | CUDA Toolkit               | 13                   | APT           | 26.04 stack: CUDA from NVIDIA's ubuntu2604 repo                                                                                     |
 | NVIDIA   | DCGM                       | 4.x (cuda13)         | APT           | 26.04 stack: GPU telemetry (nv-hostengine + dcgmi); collects the GPU metrics reported by the benchmark workflows                    |

@@ -68,7 +68,7 @@ queue by reading phase bits, without involving SPDK at any point.
 submission path as the **upcie** backend, but data buffers reside in GPU device
 memory rather than host memory. Buffer allocation uses CUDA device memory via
 ``cuMemAlloc``, exported as a dma-buf file descriptor and imported through the
-udmabuf-import mechanism to obtain the physical addresses of the GPU memory
+dma-buf import mechanism to obtain the physical addresses of the GPU memory
 pages. These addresses are used to populate the PRP list in the NVMe command,
 causing the NVMe controller to transfer data directly to or from GPU memory over
 the PCIe fabric via peer-to-peer DMA, without passing through host DRAM.

@@ -35,12 +35,12 @@ hardware.
 
 ## Kernel Integration and Upstream Components
 
-The udmabuf-import patch, which extends the udmabuf driver to import arbitrary
-dma-buf file descriptors and expose physical address mappings to user space,
-is currently maintained as an out-of-tree kernel patch. Upstreaming this
-interface, or contributing an equivalent mechanism through a suitable kernel
-subsystem, would remove the requirement for a custom kernel build and allow
-the user space P2P path to be exercised on unmodified production systems.
+The dma-buf importer, which imports arbitrary dma-buf file descriptors and
+exposes physical address mappings to user space, is currently maintained as an
+out-of-tree kernel module. Upstreaming this interface, or contributing an
+equivalent mechanism through a suitable kernel subsystem, would remove the
+requirement to install and maintain it per system, and allow the user space
+P2P path to be exercised on stock production systems.
 
 The Linux kernel's io_uring and dma-buf integration for CPU-initiated P2P I/O
 is under active development in mainline. As this path stabilizes, a direct
