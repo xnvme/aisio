@@ -216,10 +216,11 @@ device-initiated paths to operate concurrently on the same NVMe controller.
 The term *host orchestrated* reflects a deliberate architectural choice. The
 host retains responsibility for global coordination, metadata management, and
 policy enforcement, while enabling accelerators to participate directly in
-data-path execution. HOMI resolves the driver exclusivity constraint through two
-strategies: software-mediated multiplexing via *ublk* {cite}`ublk`, and
-hardware-assisted delegation via SR-IOV. Both are described in the subsections
-below.
+data-path execution. HOMI resolves the driver exclusivity constraint through three
+strategies: software-mediated multiplexing via *ublk* {cite}`ublk`,
+hardware-assisted delegation via SR-IOV, and delegation of device descriptors
+to unrelated processes under `vfio-pci`. All three are described in the
+subsections below.
 
 A foundational component of HOMI is a host-resident daemon that centralizes
 control-plane responsibilities shared across all I/O paths. This daemon is
@@ -327,3 +328,144 @@ runtime coordination costs, but introduces hardware dependencies and limits
 flexibility in queue allocation. As a result, it represents an alternative
 realization of the same architectural principles, rather than a fundamentally
 different design.
+
+### HOMI via Descriptor Delegation (vfio-pci and iommufd)
+
+The software-mediated and hardware-assisted configurations both assume that
+consumers can be given queue resources by a host-resident daemon. Neither
+addresses how a consumer obtains the device access those queues require when
+the controller is driven from user space behind an IOMMU. Under `vfio-pci`,
+the operating system enforces exclusivity at the level of the device file
+itself, and a consumer that arrives after the daemon is already running has
+no route to the controller. Descriptor delegation is the configuration that
+resolves this, and it is the one realized in the reference implementation.
+
+The constraint is absolute rather than a matter of policy. A second process
+can open the character device, which makes an independent path look feasible,
+but binding it with `VFIO_DEVICE_BIND_IOMMUFD` fails because a device cannot
+be bound to more than one `iommufd` context. Since the kernel restricts access
+to the device until binding completes, every subsequent operation fails with
+it, and the consumer obtains neither region information nor a BAR mapping.
+What does succeed in that process is opening `/dev/iommu`, allocating an I/O
+address space, and mapping memory into it, which yields a valid-looking
+address space attached to no device.
+
+Delegation therefore proceeds from the daemon outward. The daemon binds the
+device, establishes the I/O address space, and passes the resulting file
+descriptors to a consumer over a unix domain socket using `SCM_RIGHTS`, which
+is the only mechanism Linux provides for transferring a descriptor between
+unrelated processes. The consumer receives the device descriptor, the
+`iommufd` descriptor, and a descriptor for each memory region backing queues
+and data buffers. It then maps the BAR itself, reaching the doorbells directly,
+and registers memory of its own choosing into the shared address space. A
+consumer running as an ordinary user, holding neither root nor
+`CAP_SYS_ADMIN`, has been shown to read controller registers through its own
+mapping and to map its own buffers through the delegated `iommufd`.
+
+Two properties of this arrangement were established by measurement rather than
+assumed, and both simplify the design. Pinned-page accounting does not bound
+delegation: with `RLIMIT_MEMLOCK` reduced to 64 KiB on either side, mappings
+of two megabytes continued to succeed, so there is no accounting argument for
+routing registration through the privileged daemon. Lifetime is likewise not
+bounded by the daemon: after the daemon exits and closes its descriptors, a
+consumer continues to read controller registers and to map further memory
+through the descriptors it holds, because those descriptors keep both the
+device and the address space alive.
+
+Memory regions are delegated as descriptors rather than as filesystem paths.
+Host memory is already backed by an anonymous file, and accelerator memory is
+exported as a dma-buf, so passing the descriptor makes both kinds of region
+the same shape. It also removes a constraint that path-based sharing imposes
+without anyone choosing it: re-opening another process's descriptor through
+`/proc` requires ptrace-mode access, which obliges consumers to share the
+daemon's user identity, defeating the purpose of delegating to unprivileged
+consumers.
+
+Because the socket is the only rendezvous, it also serves the coordination
+functions that named objects served previously. Binding the socket address
+elects the daemon, which is the function a lock file performed. A closed
+connection is how the death of a consumer is observed, which is more reliable
+than inferring it from a reference count that a terminated process never
+decremented, and it is the signal by which queue resources are reclaimed.
+Peers are authenticated with `SO_PEERCRED`, which the kernel vouches for. The
+socket carries attachment and control-plane requests only, and is never on the
+data path.
+
+The consequence to state plainly is that delegated consumers share a single
+trust domain. A consumer that maps the BAR can write the controller
+configuration register and reset the device, and one holding the device
+descriptor can detach it from the address space by ioctl. Nothing in the
+delegation prevents this, and no variation of it can. Where mutual protection
+between consumers is required, the answer is not a refinement of this
+configuration but a kernel driver, which arbitrates because it owns the
+device.
+
+A second consequence bounds what delegation offers to accelerators
+specifically. Submitting commands from the host is an ordinary store into a
+mapping the consumer already holds, so an unprivileged consumer can drive a
+delegated controller. Submitting from an accelerator kernel additionally
+requires the accelerator runtime to register I/O memory, which is refused to
+unprivileged processes, and the refusal is unrelated to delegation: a process
+that opens the device itself is refused identically. Device-initiated
+submission is therefore privileged whether or not delegation is used, which
+narrows the benefit for those consumers to sharing a controller rather than to
+avoiding privilege.
+
+Compared to the software-mediated configuration, descriptor delegation removes
+the host round trip on the data path, since consumers ring doorbells
+themselves rather than passing requests through the daemon. Compared to
+SR-IOV, it requires no hardware support and no platform virtualization
+features, and it places no limit on the number of consumers beyond available
+queue resources. What it does not provide is isolation. SR-IOV gives each
+initiator an independent function whose failures are contained by hardware,
+whereas delegation gives every consumer full authority over the shared
+controller. The three configurations therefore trade along different axes,
+and descriptor delegation is the one that is realizable on commodity hardware
+while preserving direct data-path access.
+
+#### Alternatives Considered
+
+Several apparently simpler arrangements were examined and eliminated, and they
+are recorded because each is a plausible first proposal.
+
+Routing doorbell writes through the daemon would remove consumer access to
+memory-mapped registers entirely and dispose of the trust question. It is
+disqualified because the doorbell must be reachable from whatever submits, and
+accelerator kernels submit their own commands; returning to the host to ring
+the doorbell reintroduces precisely the round trip that device-initiated paths
+exist to eliminate.
+
+Exporting only the doorbell region as a dma-buf, rather than delegating the
+whole device, would have granted consumers the registers they need without the
+authority to reset the controller. The export mechanism exists, but the
+resulting descriptor carries no CPU mapping, and neither major accelerator
+runtime imports a dma-buf as a device pointer, so the region cannot be reached
+by either the host or the accelerator. This is the one rejected alternative
+that could cease to be rejected: either a runtime gaining dma-buf import, or
+the exporter implementing CPU mapping, would revive it.
+
+Reopening the daemon's descriptors through `/proc` works for memory, where
+re-opening the inode of an anonymous file yields the same memory, but does not
+generalize to the device, because opening a character device that way invokes
+the driver anew and yields a fresh, unbound descriptor. Pulling a descriptor
+with `pidfd_getfd` runs in the wrong direction, since the caller pulls from
+the target under ptrace-mode access, which an unprivileged consumer cannot
+obtain over a privileged daemon, and no counterpart exists that pushes a
+descriptor into another process. Inheriting descriptors across process
+creation avoids the socket entirely but contradicts the usage model, in which
+the daemon is already running when an independently started program decides to
+attach.
+
+Assigning each consumer a distinct address space with PASID is the hardware
+answer to per-process isolation, and the attach operation exists on current
+kernels. It is disqualified because it would require the controller to
+associate queues with process address space identifiers, which is not
+generally how NVMe controllers behave. Transferring an address space with
+`IOMMU_IOAS_CHANGE_PROCESS` addresses a different problem, namely a daemon
+restarting beneath live consumers, rather than concurrent sharing.
+
+Finally, retaining named shared-memory objects and introducing a socket only
+for descriptor passing would preserve two rendezvous mechanisms with two
+lifetime models, including the stale-object detection that the socket was
+introduced to make unnecessary. Where the socket exists at all, it should be
+the only way in.
