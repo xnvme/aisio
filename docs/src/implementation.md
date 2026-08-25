@@ -171,3 +171,66 @@ counts are read back and used to compute throughput. Sequential and random
 access patterns are supported through separate kernel implementations; the
 random kernel uses a per-thread linear congruential generator seeded from the
 host to produce independent LBA sequences without shared-memory coordination.
+
+### Controller Sharing Under an IOMMU
+
+The configurations described above assume a single process owns the NVMe
+controller. Sharing it with unrelated processes under `vfio-pci` is
+implemented by descriptor delegation, as described in Section
+{ref}`sec-architecture`. The implementation is divided between the two layers
+according to what each is suited to hold.
+
+The mechanism and the wire format live in uPCIe, next to the objects they
+move. uPCIe already owns the `iommufd` operations, the dma-buf helpers, the
+BAR mappings, and the `nvme_controller` structure itself, so reconstructing a
+controller from a received descriptor set belongs beside the structure being
+reconstructed. Being header-only, uPCIe suits the encode, decode, export and
+attach operations, and does not suit an accept loop carrying policy and
+configuration. The daemon therefore remains an xNVMe tool, where its tests,
+documentation and service unit already reside.
+
+Delegation is described by an immutable record that the owning process
+publishes into the shared heap. Constructing that record required sorting
+every address reachable from a controller structure into four classes. Some
+values mean the same thing in every process, such as the queue-identifier
+bitmap, the controller capabilities and configuration registers, and a queue's
+depth and phase. Some are addresses into the heap, which are offsets in
+disguise, including the administrative queues and the request pool's page
+lists. Some are addresses into the BAR, which every process must compute from
+its own mapping in any case. The remainder, namely file descriptors, heap
+configuration, and request-pool entries carrying a submitter's private
+pointer, must never be shared at all. The record carries the first two classes
+as data and offsets, and both the owner and each consumer construct a local
+controller structure from it.
+
+Constructing on both sides removes a distinction rather than adding one. The
+owning process previously ran directly on the shared structure while consumers
+built local copies and rebased pointers across it, an asymmetry that required
+pointer surgery in the xNVMe backend, reaching down into uPCIe's structures.
+With one construction path there is nothing to rebase, and the surgery is
+deleted rather than relocated. A consumer is not a distinct kind of
+participant; it is an owner whose descriptors and record arrived over a socket
+instead of being created locally, and a process sharing with nobody is an
+owner with no listener. A practical consequence is that the shared structures
+are exercised by every ordinary single-process run, rather than only when
+sharing is explicitly requested.
+
+What does not unify is the content of the address translation table. Without
+an IOMMU it holds physical addresses, which are meaningful in any process;
+under `vfio-pci` it holds I/O virtual addresses, which are meaningful only in
+the address space that owns them. The memory registry treats the table as
+opaque so that this difference does not leak outward.
+
+The path is written for the kernel this work is heading toward rather than the
+one currently installed. Mapping accelerator memory into an I/O address space
+is refused by both major runtimes today, as described under
+{ref}`sec-future-work`, so the accelerator backends no longer reject
+`vfio-pci` before starting, and instead fail at the point of use with an error
+naming the call that refused. Tests covering the accelerator path under an
+IOMMU skip where the capability is absent rather than asserting it, so that a
+kernel carrying the support turns them green rather than red.
+
+The measurements that established these constraints were made with standalone
+probe programs, which report what the kernel does rather than assert what it
+should do. They reside in the `tools` directory of uPCIe, alongside the other
+probes.
