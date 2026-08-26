@@ -33,12 +33,12 @@ doc: |
 steps:
 - name: download
   run: |
-    wget -qO /tmp/{{ config.upcie.dkms.packages.dmabuf_import }} {{ config.upcie.dkms.remote }}/releases/download/{{ config.upcie.dkms.release }}/{{ config.upcie.dkms.packages.dmabuf_import }}
+    wget -qO /tmp/dmabuf-import-dkms_{{ config.upcie.dkms.packages.dmabuf_import }}_all.deb {{ config.upcie.dkms.remote }}/releases/download/{{ config.upcie.dkms.release }}/dmabuf-import-dkms_{{ config.upcie.dkms.packages.dmabuf_import }}_all.deb
 
 - name: install
   run: |
     apt-get -qy update
-    DEBIAN_FRONTEND=noninteractive apt-get -qy install /tmp/{{ config.upcie.dkms.packages.dmabuf_import }}
+    DEBIAN_FRONTEND=noninteractive apt-get -qy install /tmp/dmabuf-import-dkms_{{ config.upcie.dkms.packages.dmabuf_import }}_all.deb
 
 # Installing a package registers the module with DKMS but does not load it; the
 # drop-in has systemd-modules-load bring dmabuf_import in on every boot.
@@ -49,7 +49,7 @@ steps:
 
 - name: check_dmabuf_import
   run: |
-    dkms status | grep dmabuf-import
+    dkms status | grep dmabuf-import/{{ config.upcie.dkms.packages.dmabuf_import }}
     lsmod | grep dmabuf_import
     ls -l /dev/dmabuf_import
     ls -l /usr/include/linux/dmabuf_import.h

@@ -15,8 +15,10 @@ path = "/root/git/xnvme"
 remote = "https://github.com/safl/upcie"
 release = "v0.6.0"
 
+# Each DKMS package carries its own version, which is unrelated to the uPCIe
+# release above that publishes it as a '.deb' asset.
 [upcie.dkms.packages]
-dmabuf_import = "dmabuf-import-dkms_0.2.0_all.deb"
+dmabuf_import = "0.2.0"
 
 [xal.repository]
 remote = "https://github.com/xnvme/xal"
