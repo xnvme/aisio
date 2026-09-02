@@ -129,6 +129,18 @@ the total thread count (``qdepth × nqueues × ndevs``) grows from 16 threads at
 show how much GPU compute capacity that polling footprint costs — the second
 result axis to weigh against the IOPS gained by deeper queues.
 
+### Run Validity
+
+The transferring share of the monitoring window varies more across this sweep
+than any other, since setting up the queues takes longer the more of them there
+are: at ``qdepth=512`` it falls from 75% at ``nqueues=1`` to 12% at
+``nqueues=16``. Restricting the statistics to those samples is what keeps the
+means from describing the setup instead of the workload.
+
+The guard fields agree that the runs are comparable. The SM and memory clocks
+hold at 1755 MHz and 1593 MHz with the throttle reason bits clear, the replay
+counter stays at zero, and the link fields report Gen5 x16 throughout.
+
 ## Summary
 
 A single queue per device cannot saturate the devices at 512-byte I/O regardless

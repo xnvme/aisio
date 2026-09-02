@@ -139,6 +139,14 @@ resident, so 1002/1003 quantify how much of the GPU's compute capacity the
 polling loop occupies while 1005 shows the memory-bandwidth share consumed by
 the incoming P2P writes.
 
+### Run Validity
+
+Between 73% and 77% of each monitoring window qualified as transferring.
+
+The guard fields agree that the runs are comparable. The SM and memory clocks
+hold at 1755 MHz and 1593 MHz with the throttle reason bits clear, the replay
+counter stays at zero, and the link fields report Gen5 x16 throughout.
+
 ## Summary
 
 The minimum thread count required to saturate the PCIe link decreases
