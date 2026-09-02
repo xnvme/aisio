@@ -115,6 +115,20 @@ with a single CPU thread and only four NVMe devices, demonstrating that the
 uPCIe-cuda path requires minimal CPU and device resources to fully utilize the
 PCIe link at larger I/O sizes.
 
+### Run Validity
+
+As expected, SM_ACTIVE (1002) is 0.0% at every I/O size, confirming that the
+CPU-initiated P2P path consumes no GPU compute.
+
+Between 78% and 81% of each monitoring window qualified as transferring.
+DRAM_ACTIVE (1005) stays below 0.002% on average and peaks at 0.1%, so the HBM
+write drain is nowhere near a constraint and the limit sits on the link.
+
+The guard fields agree that the runs are comparable. The SM and memory clocks
+hold at 1755 MHz and 1593 MHz with the throttle reason bits clear, the replay
+counter stays at zero, and the link fields (237/238) report Gen5 x16 throughout,
+which confirms the 64.0 GB/s line rate.
+
 ### PCIe Protocol Overhead
 
 Across all three I/O sizes, the total PCIe receive bandwidth measured by DCGM
