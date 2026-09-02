@@ -115,6 +115,35 @@ nvme format /dev/<ns> --force
 devbind --device '<pci_addr>' --bind uio_pci_generic
 ```
 
+(sec-dcgm-sampling)=
+#### GPU Telemetry
+
+The benchmarks that transfer into GPU memory collect GPU telemetry with
+``dcgmi dmon`` alongside what the benchmark tool itself reports. The fields are
+those of the [DCGM feature
+overview](https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/feature-overview.html),
+which defines each of them; every experiment lists the ones it reports.
+
+Fields are sampled every 100 ms and reported as mean/p95/min/max over the
+samples in which the devices were transferring. A sample counts as transferring
+when the PCIe receive traffic (field 1010) exceeds 100 MB/s or the graphics
+engine (field 1001) is more than 1% active. The monitoring window also spans
+process startup and teardown, whose duration varies with the configuration under
+test, so a mean over the whole window would describe the length of the setup as
+much as the workload. The share of the window that qualified is recorded
+alongside the statistics.
+
+The engine fields report what is running on the GPU: SM activity (1002) how much
+of the device has a warp resident on it, warp slot occupancy (1003) how much of
+the warp capacity of a multiprocessor is taken, and DRAM_ACTIVE (1005) how much
+of the GPU memory bandwidth is in use.
+
+The clocks (fields 100 and 101), the throttle reason bits (112), the PCIe replay
+counter (202) and the link generation and width (237/238) are collected as
+guards on whether runs are comparable: the activity fields are fractions of
+cycles, so a run measured at a sagging clock cannot be held against one measured
+at boost, and a downtrained or retransmitting link changes the bandwidth there
+is to reach.
 
 #### Running the Workflows
 

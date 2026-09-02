@@ -42,12 +42,10 @@ first reaches device saturation.
 | SM activity (fraction of SMs occupied)   | DCGM field 1002 (SM_ACTIVE)              |
 | Warp slot occupancy                      | DCGM field 1003 (SM_OCCUPANCY)           |
 | GPU memory bandwidth utilization         | DCGM field 1005 (DRAM_ACTIVE)            |
+| SM clock                                 | DCGM field 100 (SM_CLOCK)                |
+| Run validity guards                      | DCGM fields 101/112/202/237/238          |
 
-The DCGM fields are sampled every 100 ms by ``dcgmi dmon`` during the benchmark
-run and reported as mean/p95/min/max per field. Since the total CUDA thread
-count grows with queue depth (``qdepth × nqueues × ndevs``), fields 1002/1003
-show how the compute footprint of the persistent polling kernel scales along
-the sweep.
+The DCGM fields are collected as described in {ref}`sec-dcgm-sampling`.
 
 ## Environment
 

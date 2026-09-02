@@ -25,10 +25,6 @@ in-flight commands are needed to fill the PCIe link. The minimum saturating
 queue depth is therefore expected to decrease as I/O size increases, revealing
 the thread count required at each I/O size.
 
-Hardware-level PCIe receive bandwidth is collected via DCGM alongside the
-application-level payload bandwidth reported by xnvmeperf, and a reference PCIe
-bandwidth measurement from ``nvbandwidth`` provides the practical ceiling.
-
 ## Independent Variables
 
 | Variable              | Parameter Set                                                |
@@ -45,22 +41,14 @@ bandwidth measurement from ``nvbandwidth`` provides the practical ceiling.
 | Metric                                   | Reported by                              |
 | ---------------------------------------- | ---------------------------------------- |
 | Payload bandwidth (GB/s)                 | xnvmeperf                                |
-| Total PCIe TX/RX bandwidth (bytes/s)     | DCGM fields 1009/1010 via ``dcgmi dmon`` |
 | SM activity (fraction of SMs occupied)   | DCGM field 1002 (SM_ACTIVE)              |
 | Warp slot occupancy                      | DCGM field 1003 (SM_OCCUPANCY)           |
 | GPU memory bandwidth utilization         | DCGM field 1005 (DRAM_ACTIVE)            |
-| Graphics engine activity                 | DCGM field 1001 (GR_ENGINE_ACTIVE)       |
-| SM/memory clocks, throttle reason bits   | DCGM fields 100/101/112                  |
+| SM clock                                 | DCGM field 100 (SM_CLOCK)                |
+| Run validity guards                      | DCGM fields 101/112/202/237/238          |
 | Host-to-device PCIe bandwidth (GB/s)     | ``nvbandwidth``                          |
 
-All DCGM fields are sampled every 100 ms by ``dcgmi dmon`` during the benchmark
-run and reported as mean/p95/min/max per field. The SM activity and occupancy
-fields (1002/1003) measure the GPU compute cost of the persistent polling
-kernel — the counterpart to the thread-count sweep. DRAM_ACTIVE (1005)
-discriminates bottlenecks: high PCIe RX with low DRAM_ACTIVE indicates a
-PCIe-bound run, while high DRAM_ACTIVE points to the GPU memory side. Fields
-100/101/112 are validity guards: runs where clocks dropped or throttling
-occurred are not comparable.
+The DCGM fields are collected as described in {ref}`sec-dcgm-sampling`.
 
 ## Environment
 
@@ -80,7 +68,7 @@ Instructions for running ``bench_cuda_iosize.yaml`` are provided in
 (sec-experiments-cuda-iosize-results)=
 ## Results
 
-Results are presented as PCIe RX bandwidth vs. I/O size, with one line per
+Results are presented as payload bandwidth vs. I/O size, with one line per
 queue depth (``qdepth`` ∈ { 1, 2, 4, 8, 16, 32, 64, 128 }). All configurations
 use **xnvmeperf** with the ``cuda-run`` subcommand and the **upcie-cuda**
 backend, ``nqueues=1``, and 16 NVMe devices. Total CUDA thread count equals
@@ -88,11 +76,11 @@ queue depth × 16. The dashed reference line marks the host-to-device PCIe
 bandwidth from ``nvbandwidth``.
 
 ```{figure} /lineplot-cuda-iosize.png
-:alt: PCIe RX bandwidth vs. I/O size for xnvmeperf (cuda-run) with varying queue depth
+:alt: Payload bandwidth vs. I/O size for xnvmeperf (cuda-run) with varying queue depth
 :width: 700px
 :align: center
 
-PCIe RX bandwidth vs. I/O size for xnvmeperf (cuda-run), 16 NVMe devices,
+Payload bandwidth vs. I/O size for xnvmeperf (cuda-run), 16 NVMe devices,
 nqueues=1. The minimum queue depth to saturate the ~45 GB/s practical ceiling
 drops from >128 at 512 B to 2 at 64 KiB.
 ```
