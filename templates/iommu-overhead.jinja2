@@ -9,7 +9,7 @@ SPDX-License-Identifier: BSD-3-Clause
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>uPCIe IOMMU Overhead</title>
+<title>{{ datasets[0].label if datasets else "IOMMU Overhead" }}</title>
 <style>
 :root {
   --bg: #ffffff;
@@ -173,7 +173,7 @@ tbody tr:hover {
 <body>
 <main>
 <section class="hero">
-<h1>uPCIe IOMMU Overhead</h1>
+<h1>{{ datasets[0].label if datasets else "IOMMU Overhead" }}</h1>
 
 <p>
 This report compares an IOMMU-off <code>uio_pci_generic</code> run against an
@@ -189,12 +189,16 @@ IOMMU-on <code>vfio-pci</code> run. Throughput is collected with
 <section class="panel summary-panel">
 <h2>Summary</h2>
 <div class="table-wrap">
+{% macro pct(value) -%}
+{% if value is none %}N/A{% else %}{{ "%.2f"|format(value) }}{% endif %}
+{%- endmacro %}
 <table>
 <thead>
 <tr>
   <th>Runner</th>
   <th>RW</th>
   <th>IO size</th>
+  <th>Devices</th>
   <th>IO depth</th>
   <th>UIO IOPS</th>
   <th>VFIO IOPS</th>
@@ -208,15 +212,13 @@ IOMMU-on <code>vfio-pci</code> run. Throughput is collected with
 </tr>
 </thead>
 <tbody>
-{% macro pct(value) -%}
-{% if value is none %}N/A{% else %}{{ "%.2f"|format(value) }}{% endif %}
-{%- endmacro %}
 {% for dataset in datasets %}
 {% for item in dataset.data %}
 <tr>
   <td>{{ item.runner }}</td>
   <td>{{ item.rw }}</td>
   <td>{{ item.iosize }}</td>
+  <td>{{ item.devcount | default(1) }}</td>
   <td>{{ item.iodepth }}</td>
   <td>{{ "%.2f"|format(item.uio.iops) }}</td>
   <td>{{ "%.2f"|format(item.vfio.iops) }}</td>
@@ -274,6 +276,7 @@ function chartMetric(entries, title, unit, valueForSide) {
     title,
     rw: entries[0].rw,
     iosize: entries[0].iosize,
+    devcount: entries[0].devcount || 1,
     unit,
     labels: chartRows.map(row => row.iodepth),
     uio: chartRows.map(row => row.uio),
@@ -285,7 +288,7 @@ function chartMetric(entries, title, unit, valueForSide) {
 function buildCharts(items) {
   const groups = new Map();
   items.forEach(item => {
-    const key = `${item.runner}|${item.rw}|${item.iosize}`;
+    const key = `${item.runner}|${item.rw}|${item.iosize}|${item.devcount || 1}`;
     if (!groups.has(key)) {
       groups.set(key, []);
     }
@@ -299,6 +302,7 @@ function buildCharts(items) {
       (runnerOrder[a[0].runner] ?? 99) - (runnerOrder[b[0].runner] ?? 99)
       || a[0].rw.localeCompare(b[0].rw)
       || Number(a[0].iosize) - Number(b[0].iosize)
+      || Number(a[0].devcount || 1) - Number(b[0].devcount || 1)
     ))
     .forEach(entries => {
       entries.sort((a, b) => Number(a.iodepth) - Number(b.iodepth));
@@ -335,7 +339,7 @@ charts.forEach((chart, idx) => {
   title.textContent = chart.title;
   const subtitle = document.createElement("p");
   subtitle.className = "chart-subtitle";
-  subtitle.textContent = `${chart.rw}, ${chart.iosize} bytes`;
+  subtitle.textContent = `${chart.rw}, ${chart.iosize} bytes, ${chart.devcount} device${chart.devcount === 1 ? "" : "s"}`;
   titleBlock.appendChild(title);
   titleBlock.appendChild(subtitle);
   const badge = document.createElement("div");
@@ -356,6 +360,7 @@ charts.forEach((chart, idx) => {
     <thead>
       <tr>
         <th>IO depth</th>
+        <th>Devices</th>
         <th>UIO ${chart.unit}</th>
         <th>VFIO ${chart.unit}</th>
         <th>Delta %</th>
@@ -365,6 +370,7 @@ charts.forEach((chart, idx) => {
       ${chart.rows.map(row => `
         <tr>
           <td>${row.iodepth}</td>
+          <td>${chart.devcount}</td>
           <td>${Number(row.uio).toFixed(2)}</td>
           <td>${Number(row.vfio).toFixed(2)}</td>
           <td>${formatDelta(row.delta)}</td>

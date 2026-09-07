@@ -37,6 +37,15 @@ def quote_shell_arg(value):
     return shlex.quote(str(value))
 
 
+def conf(cijoe, key, default=None):
+    return cijoe.getconf(f"iommu_overhead.{key}", default)
+
+
+def iommu_strict(cijoe):
+    """Whether the IOMMU-on boot adds iommu.strict=1 for DMA API devices."""
+    return bool(conf(cijoe, "iommu_strict", False))
+
+
 def artifacts_path(args):
     path = Path(args.output) / "artifacts" / "iommu-overhead"
     path.mkdir(parents=True, exist_ok=True)
@@ -96,9 +105,10 @@ def set_mode(args, cijoe, mode):
         log.error("Failed transferring grub update script")
         return err
 
+    strict_arg = "1" if mode == "on" and iommu_strict(cijoe) else "0"
     cmd = (
         f"python3 {quote_shell_arg(GRUB_UPDATE_REMOTE)} "
-        f"{quote_shell_arg(mode)} && {grub_update}"
+        f"{quote_shell_arg(mode)} {strict_arg} && {grub_update}"
     )
     err, state = cijoe.run(cmd)
     (artifacts / f"update-grub-{mode}.txt").write_text(state.output())
@@ -142,6 +152,21 @@ def verify_mode(args, cijoe, mode):
     if (mode == "on") != bool(units):
         log.error(f"Expected IOMMU-{mode}, but {IOMMU_SYSFS} shows the opposite")
         return errno.EINVAL
+
+    if mode == "on" and iommu_strict(cijoe) and "iommu.strict=1" not in cmdline:
+        log.error(
+            "Expected a strict IOMMU boot, but /proc/cmdline has no "
+            "iommu.strict=1 token"
+        )
+        return errno.EINVAL
+
+    # The grub rewrite only edits GRUB_CMDLINE_LINUX_DEFAULT. vfio devices still
+    # translate under iommu=pt, so this is worth a note but not a refusal.
+    if mode == "on" and "iommu=pt" in cmdline.split():
+        log.warning(
+            "/proc/cmdline has iommu=pt, likely from GRUB_CMDLINE_LINUX; devices "
+            "on the kernel DMA API bypass the IOMMU in this boot"
+        )
 
     return 0
 
