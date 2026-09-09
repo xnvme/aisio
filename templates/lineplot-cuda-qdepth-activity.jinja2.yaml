@@ -1,0 +1,30 @@
+{#
+SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+
+SPDX-License-Identifier: BSD-3-Clause
+
+The readings and the saturation marks shared by the GPU-activity figures of the
+queue-depth sweep, which chart one DCGM field each over the same grid.
+-#}
+# Exact readings matter as much as the shape here, since the section quotes
+# them; a point carries its value when it differs from the last one labelled.
+point_labels: true
+
+# The point on each line where its queue count first drives the devices to their
+# IOPS roofline. Everything to the right of it costs more for no more
+# throughput; a queue count that never reaches the roofline carries no mark.
+marks:
+  name: SSDs saturated
+  points:
+    {%- for series, qdepth in saturating.items() %}
+    {{ series }}: "{{ qdepth }}"
+    {%- endfor %}
+
+bars:
+{%- for qdepth, series in results.items() %}
+- label: "{{ qdepth }}"
+  {%- for nqueues, result in series.items() %}
+  nqueues_{{ nqueues }}: {{ result[0] }}
+  nqueues_{{ nqueues }}_std: {{ result[1] }}
+  {%- endfor %}
+{% endfor %}

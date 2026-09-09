@@ -25,10 +25,6 @@ in-flight commands are needed to fill the PCIe link. The minimum saturating
 queue depth is therefore expected to decrease as I/O size increases, revealing
 the thread count required at each I/O size.
 
-Hardware-level PCIe receive bandwidth is collected via DCGM alongside the
-application-level payload bandwidth reported by xnvmeperf, and a reference PCIe
-bandwidth measurement from ``nvbandwidth`` provides the practical ceiling.
-
 ## Independent Variables
 
 | Variable              | Parameter Set                                                |
@@ -45,22 +41,14 @@ bandwidth measurement from ``nvbandwidth`` provides the practical ceiling.
 | Metric                                   | Reported by                              |
 | ---------------------------------------- | ---------------------------------------- |
 | Payload bandwidth (GB/s)                 | xnvmeperf                                |
-| Total PCIe TX/RX bandwidth (bytes/s)     | DCGM fields 1009/1010 via ``dcgmi dmon`` |
 | SM activity (fraction of SMs occupied)   | DCGM field 1002 (SM_ACTIVE)              |
 | Warp slot occupancy                      | DCGM field 1003 (SM_OCCUPANCY)           |
 | GPU memory bandwidth utilization         | DCGM field 1005 (DRAM_ACTIVE)            |
-| Graphics engine activity                 | DCGM field 1001 (GR_ENGINE_ACTIVE)       |
-| SM/memory clocks, throttle reason bits   | DCGM fields 100/101/112                  |
+| SM clock                                 | DCGM field 100 (SM_CLOCK)                |
+| Run validity guards                      | DCGM fields 101/112/202/237/238          |
 | Host-to-device PCIe bandwidth (GB/s)     | ``nvbandwidth``                          |
 
-All DCGM fields are sampled every 100 ms by ``dcgmi dmon`` during the benchmark
-run and reported as mean/p95/min/max per field. The SM activity and occupancy
-fields (1002/1003) measure the GPU compute cost of the persistent polling
-kernel — the counterpart to the thread-count sweep. DRAM_ACTIVE (1005)
-discriminates bottlenecks: high PCIe RX with low DRAM_ACTIVE indicates a
-PCIe-bound run, while high DRAM_ACTIVE points to the GPU memory side. Fields
-100/101/112 are validity guards: runs where clocks dropped or throttling
-occurred are not comparable.
+The DCGM fields are collected as described in {ref}`sec-dcgm-sampling`.
 
 ## Environment
 
@@ -68,6 +56,9 @@ The benchmarks were run on the {ref}`sec-env-hpc-server`. NVMe devices are bound
 to user space drivers. The CPU governor is set to ``performance`` with turbo
 boost and SMT enabled. Each configuration is run five times and results are
 reported as arithmetic means.
+
+The namespaces are formatted before the run, as described in
+{ref}`sec-device-fill-state`.
 
 ## Execution of the Experiment
 
@@ -77,24 +68,19 @@ Instructions for running ``bench_cuda_iosize.yaml`` are provided in
 (sec-experiments-cuda-iosize-results)=
 ## Results
 
-The results below were collected before the reference measurement moved to
-``nvbandwidth`` and therefore quote the earlier ``p2pBandwidthLatencyTest``
-reference of 56.1 GB/s. They are restated against the ``nvbandwidth`` reference
-once the experiment has been re-run.
-
-Results are presented as PCIe RX bandwidth vs. I/O size, with one line per
+Results are presented as payload bandwidth vs. I/O size, with one line per
 queue depth (``qdepth`` ∈ { 1, 2, 4, 8, 16, 32, 64, 128 }). All configurations
 use **xnvmeperf** with the ``cuda-run`` subcommand and the **upcie-cuda**
 backend, ``nqueues=1``, and 16 NVMe devices. Total CUDA thread count equals
-queue depth × 16. The dashed reference line marks the peak P2P bandwidth from
-``p2pBandwidthLatencyTest``.
+queue depth × 16. The dashed reference line marks the host-to-device PCIe
+bandwidth from ``nvbandwidth``.
 
 ```{figure} /lineplot-cuda-iosize.png
-:alt: PCIe RX bandwidth vs. I/O size for xnvmeperf (cuda-run) with varying queue depth
+:alt: Payload bandwidth vs. I/O size for xnvmeperf (cuda-run) with varying queue depth
 :width: 700px
 :align: center
 
-PCIe RX bandwidth vs. I/O size for xnvmeperf (cuda-run), 16 NVMe devices,
+Payload bandwidth vs. I/O size for xnvmeperf (cuda-run), 16 NVMe devices,
 nqueues=1. The minimum queue depth to saturate the ~45 GB/s practical ceiling
 drops from >128 at 512 B to 2 at 64 KiB.
 ```
@@ -107,9 +93,9 @@ size increases, each command carries more payload, and the saturation threshold
 drops accordingly.
 
 All lines converge at a practical ceiling of approximately 44–45 GB/s, which
-falls roughly 80% of the way to the 56.1 GB/s ``p2pBandwidthLatencyTest``
-reference. This gap is consistent with the overhead of NVMe command processing
-and PCIe protocol framing on top of raw DMA throughput, as characterized in
+falls roughly 84% of the way to the 53.7 GB/s ``nvbandwidth`` reference. This
+gap is consistent with the overhead of NVMe command processing and PCIe
+protocol framing on top of raw DMA throughput, as characterized in
 {ref}`sec-experiments-pcie-bandwidth-results`.
 
 The saturation queue depths are:
@@ -127,7 +113,7 @@ The saturation queue depths are:
 
 At 64 KiB, a single queue depth of 2, 32 CUDA threads across 16 devices, is
 sufficient to sustain ~45 GB/s of storage bandwidth with no CPU involvement
-in the command path. ``qdepth=1`` still achieves 41.7 GB/s at this I/O size,
+in the command path. ``qdepth=1`` still achieves 41.9 GB/s at this I/O size,
 demonstrating that device-initiated I/O can approach the practical link ceiling
 with minimal thread-count overhead.
 
@@ -140,18 +126,45 @@ with minimal thread-count overhead.
 
 GPU engine activity vs. I/O size for xnvmeperf (cuda-run), 16 NVMe devices,
 nqueues=1, queue depth fixed at 128 (qdepth 128 × 16 devices = 2048 CUDA
-threads in total). SM active and SM
-occupancy (DCGM fields 1002/1003) measure the compute footprint of the
-persistent polling kernel; DRAM active (1005) tracks how much GPU memory
-bandwidth the P2P transfers consume.
+threads in total). SM active and SM occupancy are charted with each point
+carrying its reading; the SM clock (field 100) is on the right axis.
 ```
 
 The activity plot holds the queue depth at the largest configuration of the
-sweep and shows the GPU-side cost of driving the I/O across I/O sizes: unlike
-the CPU-initiated P2P path, the device-initiated path keeps a persistent kernel
-resident, so 1002/1003 quantify how much of the GPU's compute capacity the
-polling loop occupies while 1005 shows the memory-bandwidth share consumed by
-the incoming P2P writes.
+sweep, so what it charts across I/O sizes is the GPU-side cost of driving the
+I/O. Unlike the CPU-initiated P2P path, the device-initiated path keeps a
+persistent kernel resident.
+
+SM activity is flat at approximately 13.3% from 512 bytes to 64 KiB, and warp
+slot occupancy holds near 0.87%. Neither follows the work being done, since
+achieved bandwidth doubles across the sweep while the compute footprint moves by
+about two tenths of a percentage point. The cost follows the launch geometry
+instead. One resident block per queue per device is 16 blocks for the single
+queue per device this sweep uses, a footprint that stays flat however large the
+I/O. The queue-depth sweep confirms the reading by varying the queue count,
+which scales the footprint in proportion, as reported in
+{ref}`sec-experiments-cuda-qdepth-results`.
+
+DRAM activity stays at 0% up to 8 KiB and reaches only approximately 2.1% at the
+largest I/O sizes, so the data the SSDs read into GPU memory consumes a
+negligible share of HBM bandwidth and the constraint stays on the PCIe link
+rather than on GPU memory, as the CPU-initiated measurements in
+{ref}`sec-experiments-pcie-bandwidth-results` also found.
+
+Saturating the link through device-initiated I/O therefore costs roughly an
+eighth of the GPU's streaming multiprocessors and almost none of its memory
+bandwidth, leaving the remainder for the compute the data was fetched for. That
+eighth is the price of the single queue per device used throughout this sweep,
+and it is the queue count that moves it. The price of each further queue is
+reported in {ref}`sec-experiments-cuda-qdepth-results`.
+
+### Run Validity
+
+Between 73% and 77% of each monitoring window qualified as transferring.
+
+The guard fields agree that the runs are comparable. The SM and memory clocks
+hold at 1755 MHz and 1593 MHz with the throttle reason bits clear, the replay
+counter stays at zero, and the link fields report Gen5 x16 throughout.
 
 ## Summary
 

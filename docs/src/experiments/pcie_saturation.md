@@ -23,7 +23,8 @@ This experiment fixes CPU threads at 1 and devices at 4, then sweeps I/O size
 across three points (512, 4096, and 8192 bytes), measuring both the payload
 bandwidth reported by xnvmeperf and the total PCIe receive traffic observed by
 DCGM at the GPU endpoint. The gap between the two reveals the share of the link
-consumed by NVMe and PCIe protocol traffic rather than payload. A reference
+consumed by NVMe and PCIe protocol traffic rather than payload: Submission and
+Completion Queue Entries, PRP list transfers, and framing. A reference
 host-to-device bandwidth from ``nvbandwidth`` establishes the practical ceiling
 of the link under sustained transfers into GPU memory.
 
@@ -50,34 +51,14 @@ link (64 GB/s line rate) rather than leave it underutilized.
 | Metric                                   | Reported by                              |
 | ---------------------------------------- | ---------------------------------------- |
 | Payload bandwidth (GB/s)                 | xnvmeperf                                |
-| Total PCIe TX/RX bandwidth (bytes/s)     | DCGM fields 1009/1010 via ``dcgmi dmon`` |
-| GPU memory bandwidth utilization         | DCGM field 1005 (DRAM_ACTIVE)            |
+| PCIe RX bandwidth (bytes/s)              | DCGM field 1010 (PCIE_RX_BYTES)          |
 | SM activity (fraction of SMs occupied)   | DCGM field 1002 (SM_ACTIVE)              |
+| GPU memory bandwidth utilization         | DCGM field 1005 (DRAM_ACTIVE)            |
 | PCIe link generation and width           | DCGM fields 237/238                      |
-| PCIe replay counter                      | DCGM field 202                           |
+| Run validity guards                      | DCGM fields 100/101/112/202              |
 | Host-to-device PCIe bandwidth (GB/s)     | ``nvbandwidth``                          |
 
-DCGM field 1010 counts PCIe receive bytes per second at the GPU endpoint, capturing
-all PCIe traffic directed to the GPU including NVMe payload, NVMe Submission Queue
-Entries, Completion Queue Entries, and PRP list transfers; field 1009 counts the
-opposite direction (GPU to host: completions and doorbell responses). All DCGM
-fields are sampled every 100 ms during the benchmark run and reported as
-mean/p95/min/max per field. **xnvmeperf** reports payload bytes per second based
-on completed I/O operations and their requested sizes.
-
-Since the CPU submits the I/O in this experiment and no GPU kernel runs,
-SM_ACTIVE (1002) is expected at ~0 and serves as measured evidence that the
-CPU-initiated P2P path consumes no GPU compute resources. DRAM_ACTIVE (1005)
-shows whether HBM write drain has headroom at the saturation point, separating
-"the link is the limit" from "GPU memory is the limit". Fields 237/238 identify
-runs affected by link downtraining (generation drop or lane reduction), and an
-increasing replay counter (202) flags retransmissions that reduce effective
-bandwidth — such runs must be excluded from the comparison.
-
-``nvbandwidth`` copies from host memory into GPU memory across the PCIe link of
-the GPU given by ``dcgm.gpu``, the same link the NVMe devices transfer over under
-P2P, which measures the peak bandwidth that link sustains. The value recorded is
-its ``host_to_device_memcpy_ce`` result.
+The DCGM fields are collected as described in {ref}`sec-dcgm-sampling`.
 
 ## Environment
 
@@ -85,6 +66,9 @@ The benchmarks were run on the {ref}`sec-env-hpc-server`. NVMe devices are bound
 user space drivers. The CPU governor is set to ``performance`` with turbo boost and
 SMT enabled. Each configuration is run five times and results are reported as
 arithmetic means.
+
+The namespaces are formatted before the run, as described in
+{ref}`sec-device-fill-state`.
 
 ## Execution of the Experiment
 
@@ -94,11 +78,6 @@ Instructions for running ``bench_pcie.yaml`` are provided in
 (sec-experiments-pcie-bandwidth-results)=
 ## Results
 
-The results below were collected before the reference measurement moved to
-``nvbandwidth`` and therefore quote the earlier ``p2pBandwidthLatencyTest``
-reference of 56.1 GB/s. They are restated against the ``nvbandwidth`` reference
-once the experiment has been re-run.
-
 ```{figure} /barplot-sat.png
 :alt: Stacked bar chart of PCIe bandwidth by I/O size
 :width: 700px
@@ -107,11 +86,12 @@ once the experiment has been re-run.
 PCIe RX bandwidth by NVMe command data payload size, measured with 4 PCIe Gen5
 NVMe SSDs transferring data P2P to a PCIe Gen5 GPU via the upcie-cuda backend.
 Each bar is stacked: the lower segment is the payload bandwidth reported by
-xnvmeperf; the upper segment is the remainder observed by DCGM. The dashed lines
+xnvmeperf; the upper segment is the remainder observed by DCGM, taken as the p95
+of field 1010 rather than the mean, since the transferring samples include the
+ramp up. The dashed lines
 mark the PCIe line rate (64.0 GB/s for the Gen5 x16 link derived from the
-measured DCGM link fields 237/238) and the reference P2P bandwidth from
-``p2pBandwidthLatencyTest`` (56.1 GB/s). Result files that predate the link
-fields fall back to an assumed Gen5 x16 link, labelled ``(assumed)``.
+measured DCGM link fields 237/238) and the reference host-to-device bandwidth
+from ``nvbandwidth`` (53.3 GB/s).
 ```
 
 ### Small I/O: Link Underutilized
@@ -126,14 +106,28 @@ NVMe command throughput, not PCIe link capacity.
 ### Large I/O: Link Approaches Saturation
 
 With 4096- and 8192-byte payloads, DCGM measures approximately 57.8 GB/s in both
-cases, exceeding the ``p2pBandwidthLatencyTest`` reference of 56.1 GB/s and
+cases, exceeding the ``nvbandwidth`` reference of 53.3 GB/s and
 reaching approximately 90% of the 64.0 GB/s line rate. The identical result at
 both I/O sizes indicates that the PCIe link, rather than NVMe command throughput,
 is the binding constraint at these I/O sizes. xnvmeperf reports approximately
-45.2 GB/s of payload bandwidth for both sizes. This saturation is achieved
+45 GB/s of payload bandwidth at both sizes. This saturation is achieved
 with a single CPU thread and only four NVMe devices, demonstrating that the
 uPCIe-cuda path requires minimal CPU and device resources to fully utilize the
 PCIe link at larger I/O sizes.
+
+### Run Validity
+
+As expected, SM_ACTIVE (1002) is 0.0% at every I/O size, confirming that the
+CPU-initiated P2P path consumes no GPU compute.
+
+Between 78% and 81% of each monitoring window qualified as transferring.
+DRAM_ACTIVE (1005) stays below 0.002% on average and peaks at 0.1%, so the HBM
+write drain is nowhere near a constraint and the limit sits on the link.
+
+The guard fields agree that the runs are comparable. The SM and memory clocks
+hold at 1755 MHz and 1593 MHz with the throttle reason bits clear, the replay
+counter stays at zero, and the link fields (237/238) report Gen5 x16 throughout,
+which confirms the 64.0 GB/s line rate.
 
 ### PCIe Protocol Overhead
 
@@ -149,7 +143,9 @@ characterization of the P2P data path regardless of operating regime.
 
 At small I/O sizes the P2P link operates far below capacity. At 4 KiB and above,
 a single CPU thread driving four NVMe devices is sufficient to push total PCIe
-traffic to approximately 57.8 GB/s, exceeding the practical P2P ceiling of
-56.1 GB/s and reaching approximately 90% of the Gen5 x16 line rate. Protocol
-overhead accounts for a consistent 28% above payload bandwidth across all tested
-I/O sizes, indicating it scales with bytes transferred rather than operation count.
+traffic to approximately 57.8 GB/s, exceeding the practical host-to-device
+ceiling of 53.3 GB/s and reaching approximately 90% of the Gen5 x16 line rate.
+Protocol overhead accounts for a consistent 28% above payload bandwidth across
+all tested I/O sizes, indicating it scales with bytes transferred rather than
+operation count. Throughout, SM activity remains at zero, so the path reaches
+this bandwidth without consuming any GPU compute.

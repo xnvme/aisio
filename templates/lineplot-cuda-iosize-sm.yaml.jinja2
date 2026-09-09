@@ -11,10 +11,14 @@ title: |
 xlabel: I/O Size (bytes)
 ylabel: GPU engine activity (%)
 y2label: SM clock (MHz)
-footnote: DCGM fields 100/1002/1003/1005 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
+footnote: DCGM fields 100/1002/1003 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
 
 y2series:
 - SM_clock
+
+# Both fields hold a flat line an order of magnitude apart, so the readings the
+# section quotes are what the figure has to carry beyond that shape.
+point_labels: true
 
 rooflines:
 - name: Fully active

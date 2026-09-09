@@ -92,6 +92,61 @@ devbind --device '<pci_addr>' --bind uio_pci_generic
 hugepages setup --count 1024
 ```
 
+(sec-device-fill-state)=
+#### Device Fill State
+
+Every namespace is formatted before synthetic benchmarks are run, which leaves all
+logical blocks deallocated. Reads of deallocated blocks are served by the
+controller without media access resulting in a synthetically low latency.
+The figures this produces may therefore exceed those seen in real-world,
+data-bearing workloads. They are an upper bound on what the I/O path can drive,
+and are to be read as a measure of system overhead and scalability rather than
+as an indicator of application-level storage performance.
+
+The format is a manual step rather than a workflow step, because it only has to
+be done once: every synthetic benchmark issues ``randread`` exclusively, so none
+of them write to the devices and the state established by the format survives
+across runs. Formatting goes through the kernel NVMe driver, so it precedes the
+binding to ``uio_pci_generic`` above and each device is rebound afterwards:
+
+```
+devbind --device '<pci_addr>' --bind nvme
+nvme format /dev/<ns> --force
+devbind --device '<pci_addr>' --bind uio_pci_generic
+```
+
+(sec-dcgm-sampling)=
+#### GPU Telemetry
+
+The benchmarks that transfer into GPU memory collect GPU telemetry with
+``dcgmi dmon`` alongside what the benchmark tool itself reports. The fields are
+those of the [DCGM feature
+overview](https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/feature-overview.html),
+which defines each of them; every experiment lists the ones it reports.
+
+Fields are sampled every 100 ms and reported as mean/p95/min/max over the
+samples in which the devices were transferring. A sample counts as transferring
+when the PCIe receive traffic (field 1010) exceeds 100 MB/s or the graphics
+engine (field 1001) is more than 1% active. The monitoring window also spans
+process startup and teardown, whose duration varies with the configuration under
+test, so a mean over the whole window would describe the length of the setup as
+much as the workload. The share of the window that qualified is recorded
+alongside the statistics.
+
+The engine fields report what is running on the GPU: SM activity (1002) how much
+of the device has a warp resident on it, warp slot occupancy (1003) how much of
+the warp capacity of a multiprocessor is taken, and DRAM_ACTIVE (1005) how much
+of the GPU memory bandwidth is in use.
+
+The clocks (fields 100 and 101), the throttle reason bits (112), the PCIe replay
+counter (202) and the link generation and width (237/238) are collected as
+guards on whether runs are comparable: the activity fields are fractions of
+cycles, so a run measured at a sagging clock cannot be held against one measured
+at boost, and a downtrained or retransmitting link changes the bandwidth there
+is to reach.
+
+#### Running the Workflows
+
 The benchmark workflows are parameterised by editing the ``run`` step in
 the respective task file. The keys under ``with`` correspond to
 independent variables. ``numcpus_range`` and ``numdevs_range`` are
@@ -152,9 +207,15 @@ counters via DCGM and a reference PCIe bandwidth measurement from
 ``nvbandwidth``. Described in detail in
 {ref}`sec-experiments-pcie-bandwidth`.
 
-The ``nvbandwidth`` reference binary is built by
-``setup_nvstack.yaml`` at a fixed path, and DCGM fields default in the
-collector, so no extra config is required.
+``nvbandwidth`` copies from host memory into GPU memory across the PCIe link of
+the GPU given by ``dcgm.gpu``, the same link the NVMe devices transfer over under
+P2P, which measures the peak bandwidth that link sustains. The value recorded is
+its ``host_to_device_memcpy_ce`` result.
+
+This and ``bench_cuda_iosize.yaml``, measure the PCIe bandwidth with
+``nvbandwidth`` as a step of their own run rather than carrying a fixed value
+across experiments. As such, the experiments can quote figures that differ
+slightly in the last digit.
 
 ```
 cijoe --monitor \
@@ -170,9 +231,6 @@ Characterizes the minimum CUDA thread count needed to saturate the PCIe link
 under device-initiated I/O, using **xnvmeperf** with the ``cuda-run`` subcommand
 and the **upcie-cuda** backend, with queue depth as the secondary variable.
 Described in detail in {ref}`sec-experiments-cuda-iosize`.
-
-The ``nvbandwidth`` reference binary is built by
-``setup_nvstack.yaml`` at a fixed path, so no extra config is required.
 
 ```
 cijoe --monitor \

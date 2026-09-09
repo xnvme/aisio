@@ -14,6 +14,23 @@ import logging as log
 PCIE_LANE_GBPS = {1: 0.25, 2: 0.5, 3: 1.0, 4: 2.0, 5: 4.0, 6: 8.0}
 
 
+def dcgm_stat(dcgm, field: str, stat: str = "mean"):
+    """
+    The named statistic a result recorded for a DCGM field, or None if it holds
+    none. Accepts both the per-run schema (stats are floats) and the combined
+    schema (stats are ``[avg, stddev]`` pairs); returns None for legacy scalar
+    entries and for fields the run did not monitor.
+    """
+    if not isinstance(dcgm, dict):
+        return None
+
+    stats = dcgm.get(field)
+    value = stats.get(stat) if isinstance(stats, dict) else None
+    if isinstance(value, (list, tuple)):
+        value = value[0]
+    return value
+
+
 def pcie_link_from_dcgm(dcgm) -> Optional[Tuple[int, int, float]]:
     """
     Derive ``(gen, width, line_rate_gbps)`` of the GPU's PCIe link from a
@@ -24,17 +41,8 @@ def pcie_link_from_dcgm(dcgm) -> Optional[Tuple[int, int, float]]:
     stat: ASPM parks the link at Gen1 while idle, so the maximum observed
     during a run is the operational link state.
     """
-    if not isinstance(dcgm, dict):
-        return None
-
-    def stat_max(field):
-        stats = dcgm.get(field)
-        value = stats.get("max") if isinstance(stats, dict) else None
-        if isinstance(value, (list, tuple)):
-            value = value[0]
-        return value
-
-    gen, width = stat_max("237"), stat_max("238")
+    gen = dcgm_stat(dcgm, "237", "max")
+    width = dcgm_stat(dcgm, "238", "max")
     if gen is None or width is None:
         return None
     gen, width = round(gen), round(width)

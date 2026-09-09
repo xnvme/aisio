@@ -143,7 +143,8 @@ def make_plots(build_dir: str) -> None:
 
     with plots.artifacts_from_archive(artifacts / "device-initiated-qdepth.tar.gz") as archive:
         plots.lineplot(archive, build_dir, "cuda", "qdepth", colormap="plasma")
-        plots.lineplot(archive, build_dir, "cuda", "qdepth-sm")
+        plots.lineplot(archive, build_dir, "cuda", "qdepth-sm", colormap="plasma")
+        plots.lineplot(archive, build_dir, "cuda", "qdepth-occupancy", colormap="plasma")
 
 # ---------------------------------------------------------------------------
 # Extract latex_documents from latex_theme.py

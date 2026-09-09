@@ -1,0 +1,30 @@
+{#
+SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+
+SPDX-License-Identifier: BSD-3-Clause
+#}
+
+title: |
+  Warp slot occupancy when exercising a random-read workload using `xnvmeperf` with device-initiated I/O
+  16 PCIe Gen5 NVMe SSDs (BS 512, nqueues varied) via the `upcie-cuda` backend
+
+xlabel: Queue Depth
+ylabel: Warp slot occupancy (%)
+footnote: DCGM field 1003 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
+
+# Occupancy spans from a fraction of a percent to half the warp slots on the
+# device, so it is charted on a log axis, where the doubling it answers with
+# reads as a constant step at any point in that range.
+yscale: log
+
+# The series climb to the right, leaving the upper left and the floor free.
+legend_series: upper left
+legend_rooflines: lower right
+
+rooflines:
+- name: All warp slots
+  value_pct: 100
+  color: '#fb6a4a'
+  style: ':'
+
+{% include "lineplot-cuda-qdepth-activity.jinja2.yaml" %}

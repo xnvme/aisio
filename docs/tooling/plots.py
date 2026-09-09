@@ -5,9 +5,14 @@
 import re
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import to_rgb
+from matplotlib.lines import Line2D
+from matplotlib.patches import Rectangle
+from matplotlib.ticker import LogLocator, ScalarFormatter
 import tarfile
 import tempfile
 import yaml
+from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -22,6 +27,9 @@ def artifacts_from_archive(archive: Path):
         yield artifacts
 
 COLOR_SCHEME = [ "#2171b5", "#6baed6", "#9ecae1", "#fb6a4a", "#fcae91", "#ba381a" ]
+# A point carries its value when it stands this far clear of the last one
+# labelled, as a share of that reading.
+POINT_LABEL_STEP = 0.15
 LABEL_PP = {
     "spdk_bdevperf": "bdevperf (SPDK)",
     "spdk_nvme_perf": "nvmeperf (SPDK)",
@@ -57,6 +65,15 @@ def mathtt(s: str):
     return "".join(out)
 
 
+def fit_to_width(fig, text, max_frac=0.98, min_size=8):
+    """Shrink a figure-level text until it fits across the canvas."""
+    limit = max_frac * fig.get_size_inches()[0] * fig.dpi
+    renderer = fig.canvas.get_renderer()
+    while (text.get_fontsize() > min_size
+           and text.get_window_extent(renderer).width > limit):
+        text.set_fontsize(text.get_fontsize() - 0.5)
+
+
 def setup_figure(cfg):
     labels = [LABEL_PP.get(b["label"], b["label"]) for b in cfg["bars"]]
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -77,9 +94,10 @@ def setup_figure(cfg):
     main_title = mathtt(title_lines[0])
     subtitle = mathtt("\n".join(title_lines[1:]))
 
-    fig.suptitle(main_title, fontsize=11, fontweight="bold", y=0.97)
+    fit_to_width(fig, fig.suptitle(main_title, fontsize=11, fontweight="bold", y=0.97))
     if subtitle.strip():
-        fig.text(0.5, 0.92, subtitle, ha="center", va="top", fontsize=9, color="#555555")
+        fit_to_width(fig, fig.text(0.5, 0.92, subtitle, ha="center", va="top",
+                                   fontsize=9, color="#555555"))
 
     if cfg.get("footnote"):
         footnote = mathtt(cfg["footnote"])
@@ -209,12 +227,20 @@ def _sort_groups_numeric(groups):
     return groups
 
 
+def _colormap_colors(cmap, n):
+    """Return n colors spread across the readable span of a colormap."""
+    # A lone series has no span to spread across, so it takes the middle of the
+    # ramp rather than either extreme.
+    if n < 2:
+        return [cmap(0.5)] * n
+    return [cmap(0.1 + 0.8 * i / (n - 1)) for i in range(n)]
+
+
 def _line_colors(n):
     """Return n colors: use COLOR_SCHEME for small n, plasma for larger sets."""
     if n <= len(COLOR_SCHEME):
         return COLOR_SCHEME[:n]
-    cmap = plt.cm.plasma
-    return [cmap(0.1 + 0.8 * i / (n - 1)) for i in range(n)]
+    return _colormap_colors(plt.cm.plasma, n)
 
 
 def _fmt_bytes(val):
@@ -264,9 +290,7 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     y2groups = [group for group in cfg.get("y2series", []) if group in groups]
     groups = [group for group in groups if group not in y2groups]
     if colormap:
-        cmap = plt.get_cmap(colormap)
-        n = len(groups)
-        colors = [cmap(0.1 + 0.8 * i / (n - 1)) for i in range(n)]
+        colors = _colormap_colors(plt.get_cmap(colormap), len(groups))
     else:
         colors = _line_colors(len(groups))
 
@@ -282,16 +306,79 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         except (ValueError, TypeError):
             pass
 
-    data_max = 0
+    # The scaled readings each series draws, kept for the mark and the point
+    # labels below so the figure reads one set of values in one unit.
+    plotted = {}
     for group, color in zip(groups, colors):
         data = np.array([b.get(group, np.nan) for b in bars], dtype=float) / scale
         std = np.array([b.get(f"{group}_std", np.nan) for b in bars], dtype=float) / scale
         label = group.replace("_", " ")
-        data_max = max(data_max, float(np.nanmax(data + std)))
+        plotted[group] = data
 
         ax.fill_between(x, data - std, data + std, alpha=0.15, color=color)
         ax.plot(x, data, color=color, linewidth=2, marker="o", markersize=4,
                 label=label)
+
+    # A marked point on a series, named by the x label it sits at, so a figure
+    # can carry a threshold its own y-axis does not show. A ring around the
+    # point leaves the series reading as one line. A series without a mark is
+    # simply left unmarked.
+    marks = cfg.get("marks") or {}
+    mark_points = marks.get("points") or {}
+    positions = {str(b["label"]): idx for idx, b in enumerate(bars)}
+    marked = False
+    for group, color in zip(groups, colors):
+        at = mark_points.get(group)
+        if at is None:
+            continue
+        idx = positions.get(str(at))
+        if idx is None or np.isnan(plotted[group][idx]):
+            continue
+        ax.plot(idx, plotted[group][idx], linestyle="none", marker="o", markersize=11,
+                markerfacecolor="none", markeredgecolor=color, markeredgewidth=2.6,
+                zorder=5)
+        marked = True
+
+    # The legend names the mark once a series carries one, so a figure where no
+    # series reached the reference says nothing about it.
+    mark_handle = None
+    if marked:
+        mark_handle = Line2D([], [], linestyle="none", marker="o", markersize=9,
+                             markerfacecolor="none", markeredgecolor="#666666",
+                             markeredgewidth=2.6, label=marks.get("name", "marked"))
+
+    # Values written onto the points, for a figure whose exact readings matter
+    # as much as the shape it draws. A point is labelled when it says something
+    # the last labelled one did not, so a flat line carries a single number and
+    # a climbing one is labelled at every step it takes.
+    if cfg.get("point_labels"):
+        placed = defaultdict(list)
+        for group, color in zip(groups, colors):
+            # A number is written in a darkened cast of its series colour, which
+            # keeps it readable at the light end of a palette while still
+            # belonging to its line.
+            text_color = [channel * 0.62 for channel in to_rgb(color)]
+            last = None
+            for idx, value in enumerate(plotted[group]):
+                if np.isnan(value):
+                    continue
+                if last is not None and abs(value - last) <= POINT_LABEL_STEP * abs(last):
+                    continue
+                # Series lying on top of one another would stack their numbers
+                # illegibly, so the first one placed speaks for them. The
+                # series it speaks for keeps looking for a step of its own,
+                # since nothing of it has been written down yet.
+                if any(abs(value - was) <= POINT_LABEL_STEP * abs(was)
+                       for was in placed[idx]):
+                    continue
+                last = value
+                placed[idx].append(value)
+                # Every number sits above its own point: a series labelled below
+                # would meet the number belonging to the series beneath it.
+                ax.annotate(f"{value:.2f}" if value < 1 else f"{value:.1f}",
+                            (idx, value), textcoords="offset points", xytext=(0, 7),
+                            ha="center", fontsize=7.5, fontweight="bold", zorder=6,
+                            color=text_color)
 
     ax2 = None
     if y2groups:
@@ -311,8 +398,8 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
             ax2.fill_between(x, data - std, data + std, alpha=0.15, color=color)
             ax2.plot(x, data, color=color, linewidth=2, marker="s", markersize=4,
                      linestyle="--", label=group.replace("_", " "))
-        # The headroom keeps the series clear of the legends, which sit at the
-        # top of the axes whenever the first axis leaves that half free.
+        # The headroom keeps the second axis's series clear of the legends,
+        # which sit wherever they cover least of what the figure draws.
         y2max = max(np.nanmax(np.array([b.get(g, np.nan) for b in bars], dtype=float))
                     for g in y2groups)
         ax2.set_ylim(0, float(y2max) * 1.35)
@@ -324,11 +411,26 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         ax.axhline(y=val, color=r["color"], linestyle=r["style"], linewidth=1.5,
                 label=f"{r['name']} ({roofline_label(val)})", zorder=1)
         ymax = max(ymax, val)
-    ax.set_ylim(0, ymax * 1.15)
 
-    # Legends sit on the half of the axes the series leave free: a plot whose
-    # data hugs the bottom gets them on top.
-    vpos = "upper" if data_max < 0.5 * ax.get_ylim()[1] else "lower"
+    # A quantity spanning orders of magnitude is charted on a log axis, where a
+    # constant factor between points reads as a constant step wherever it falls.
+    # Its decades are labelled as plain numbers, in the unit the axis is named
+    # for, and it takes the limits matplotlib derives from the data since a log
+    # axis cannot start at zero.
+    if cfg.get("yscale") == "log":
+        ax.set_yscale("log")
+        ax.yaxis.set_major_formatter(ScalarFormatter())
+        ax.yaxis.set_minor_locator(LogLocator(base=10, subs=(0.2, 0.5)))
+        ax.yaxis.set_minor_formatter(ScalarFormatter())
+        ax.tick_params(axis="y", which="minor", labelsize=7)
+    else:
+        ax.set_ylim(0, ymax * 1.15)
+
+    # Legends land where they cover the least of what is drawn, which matplotlib
+    # weighs against the series themselves. A figure that reads better with them
+    # somewhere particular names the placement itself.
+    rooflines_loc = cfg.get("legend_rooflines", "best")
+    series_loc = cfg.get("legend_series", "best")
 
     handles, labels_ = ax.get_legend_handles_labels()
     if ax2 is not None:
@@ -338,12 +440,43 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     line_idx = [i for i, l in enumerate(labels_) if any(l.startswith(n) for n in line_labels)]
     stack_idx = [i for i in range(len(labels_)) if i not in line_idx]
 
-    leg1 = ax.legend([handles[i] for i in line_idx], [labels_[i] for i in line_idx],
-                     loc=f"{vpos} left", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
-    ax.add_artist(leg1)
+    # The rooflines legend also carries the mark, since both name a reference
+    # the series are read against rather than a series of their own.
+    ref_handles = [handles[i] for i in line_idx]
+    ref_labels = [labels_[i] for i in line_idx]
+    if mark_handle is not None:
+        ref_handles.append(mark_handle)
+        ref_labels.append(mark_handle.get_label())
 
-    ax.legend([handles[i] for i in reversed(stack_idx)], [labels_[i] for i in reversed(stack_idx)],
-              loc=f"{vpos} right", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
+    # Series that all run flat across the full width leave no box-shaped gap
+    # anywhere in the axes, so such a figure lays its legend out in a single row
+    # and puts it in the headroom above the topmost series.
+    ncol = cfg.get("legend_series_ncol", 1)
+    if ncol == "row":
+        ncol = len(stack_idx)
+    series_leg = ax.legend(
+        [handles[i] for i in reversed(stack_idx)], [labels_[i] for i in reversed(stack_idx)],
+        loc=series_loc, ncol=ncol,
+        fontsize=8, framealpha=0.9, edgecolor="#cccccc")
+    ax.add_artist(series_leg)
+
+    # Matplotlib weighs a legend against the series but not against a legend
+    # already placed, so left to itself each one picks the same free corner and
+    # the two stack. Asking the series legend for its extent resolves where it
+    # chose to sit, which is then pinned so that fencing off the ground it took
+    # cannot move it again. The fence is an invisible patch, which the rooflines
+    # legend reads as occupied like any other drawn thing and so routes around,
+    # as it does the series.
+    if rooflines_loc == "best":
+        taken = series_leg.get_window_extent(fig.canvas.get_renderer())
+        fenced = taken.transformed(ax.transAxes.inverted())
+        series_leg.set_loc("lower left")
+        series_leg.set_bbox_to_anchor(fenced, transform=ax.transAxes)
+        ax.add_patch(Rectangle((fenced.x0, fenced.y0), fenced.width, fenced.height,
+                               alpha=0, transform=ax.transAxes))
+
+    ax.legend(ref_handles, ref_labels,
+              loc=rooflines_loc, fontsize=8, framealpha=0.9, edgecolor="#cccccc")
 
     plt.tight_layout()
     fig.subplots_adjust(top=0.83)

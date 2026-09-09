@@ -5,16 +5,20 @@ SPDX-License-Identifier: BSD-3-Clause
 #}
 
 title: |
-  GPU engine activity during device-initiated random reads with `xnvmeperf`
-  16 PCIe Gen5 NVMe SSDs (BS 512, nqueues 1) via the `upcie-cuda` backend
+  SM activity when exercising a random-read workload using `xnvmeperf` with device-initiated I/O
+  16 PCIe Gen5 NVMe SSDs (BS 512, nqueues varied) via the `upcie-cuda` backend
 
 xlabel: Queue Depth
-ylabel: GPU engine activity (%)
-y2label: SM clock (MHz)
-footnote: DCGM fields 100/1002/1003/1005 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
+ylabel: SM active (%)
+footnote: DCGM field 1002 via dcgmi dmon; the persistent I/O kernel polls NVMe completions from the GPU{% if xnvme_version %} | xNVMe {{ xnvme_version }}{% endif %}
 
-y2series:
-- SM_clock
+# The series run flat across the whole width at the value their queue count
+# sets, leaving no gap in the axes that a stacked legend fits into. The series
+# legend is laid out as a single row and sits in the headroom above the topmost
+# series; the rooflines legend goes under the lowest one.
+legend_series: upper center
+legend_series_ncol: row
+legend_rooflines: lower left
 
 rooflines:
 - name: Fully active
@@ -22,11 +26,4 @@ rooflines:
   color: '#fb6a4a'
   style: ':'
 
-bars:
-{%- for qdepth, metrics in results.items() %}
-- label: "{{ qdepth }}"
-  {%- for key, result in metrics.items() %}
-  {{ key }}: {{ result[0] }}
-  {{ key }}_std: {{ result[1] }}
-  {%- endfor %}
-{% endfor %}
+{% include "lineplot-cuda-qdepth-activity.jinja2.yaml" %}

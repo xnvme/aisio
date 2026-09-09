@@ -42,7 +42,7 @@ system provides 2 TiB of host memory.
 | Motherboard | Dell PowerEdge R760                |
 | CPU         | 2x Intel® Xeon® Gold 6442Y         |
 | Memory      | 32x 64GiB Samsung DDR5 4800MHz     |
-| GPU         | 2x NVIDIA H100 80GB                |
+| GPU         | 1x NVIDIA H100 PCIe 80GB           |
 | Storage     | 16x Samsung SSD PM1753 32TB        |
 
 (sec-env-gpu-workstation)=

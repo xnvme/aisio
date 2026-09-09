@@ -20,6 +20,7 @@ from pathlib import Path
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
+from dcgm_helper import dcgm_stat
 from version_helper import version_of
 
 
@@ -31,12 +32,12 @@ REQ = {
 }
 
 # The GPU-activity plot holds queue depth fixed at the saturation point of
-# the bandwidth sweep.
+# the bandwidth sweep. It charts the two fields the polling kernel is paid for
+# in.
 SM_QDEPTH = 128
 SM_FIELDS = {
     "1002": "SM_active",
     "1003": "SM_occupancy",
-    "1005": "DRAM_active",
 }
 
 # The clock shares the sweep but not the unit of the activity fields, so it is
@@ -86,14 +87,12 @@ def collect(args, cijoe: Cijoe):
         if res["qdepth"] != SM_QDEPTH or not isinstance(dcgm, dict):
             continue
         for field, key in SM_FIELDS.items():
-            stats = dcgm.get(field)
-            value = stats.get("mean") if isinstance(stats, dict) else None
+            value = dcgm_stat(dcgm, field)
             if value is not None:
                 sm_data[res["iosize"]][key].append(value * 100)  # ratio -> %
 
         for field, key in STATE_FIELDS.items():
-            stats = dcgm.get(field)
-            value = stats.get("mean") if isinstance(stats, dict) else None
+            value = dcgm_stat(dcgm, field)
             if value is not None:
                 state_data[res["iosize"]][key].append(value)  # MHz
 
