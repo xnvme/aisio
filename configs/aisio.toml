@@ -11,14 +11,11 @@ remote = "https://github.com/xnvme/xnvme"
 branch = "main"
 path = "/root/git/xnvme"
 
+# The experimental package carries the version of the uPCIe release it ships
+# with, so one value names both.
 [upcie.dkms]
 remote = "https://github.com/safl/upcie"
-release = "v0.6.0"
-
-# Each DKMS package carries its own version, which is unrelated to the uPCIe
-# release above that publishes it as a '.deb' asset.
-[upcie.dkms.packages]
-dmabuf_import = "0.2.0"
+version = "0.9.0"
 
 [xal.repository]
 remote = "https://github.com/xnvme/xal"

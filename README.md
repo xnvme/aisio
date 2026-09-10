@@ -80,8 +80,10 @@ cijoe --monitor \
 
 Install the out-of-tree kernel modules released by uPCIe. The **dma-buf
 importer** resolves the DMA addresses of GPU memory, enabling the zero-copy
-GPU-to-storage path used by xNVMe uPCIe. They are DKMS packages, so they build
-against the stock Ubuntu GA kernel and rebuild themselves on kernel updates:
+GPU-to-storage path used by xNVMe uPCIe, and the **IOMMU physical-address
+mapper** reaches that memory with the IOMMU left on. Both arrive in one DKMS
+package, so they build against the stock Ubuntu GA kernel and rebuild
+themselves on kernel updates:
 
 ```
 cijoe --monitor \
