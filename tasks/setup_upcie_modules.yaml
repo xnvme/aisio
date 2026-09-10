@@ -6,20 +6,25 @@ doc: |
   Install the uPCIe kernel modules
   ================================
 
-  uPCIe releases the out-of-tree modules its experimental paths build on as
-  DKMS packages, so they build against the running kernel and rebuild
-  themselves on kernel updates. The stock Ubuntu GA kernel is all that is
-  required.
+  uPCIe releases the out-of-tree modules its experimental paths build on as a
+  single DKMS package, 'upcie-experimental-dkms', so they build against the
+  running kernel and rebuild themselves on kernel updates. The stock Ubuntu GA
+  kernel is all that is required.
 
-  * dmabuf-import serves DMABUF_IMPORT_ATTACH / _DETACH / _GET_MAP on
-    '/dev/dmabuf_import'. It resolves the DMA addresses of a dma-buf exported
-    by a GPU runtime, which is what lets xNVMe build NVMe PRP lists pointing
-    into device memory.
+  The package ships two modules and loads both:
 
-  Each package installs its UAPI under '/usr/include/linux/'. uPCIe compiles an
-  experimental path only when its header is present, so run this before
-  'setup_aisio.yaml' builds xNVMe; otherwise those paths are built as stubs
-  returning -ENOTSUP.
+  * dmabuf_import serves the dma-buf import ioctls on '/dev/dmabuf_import'. It
+    resolves the DMA addresses of a dma-buf exported by a GPU runtime, which is
+    what lets xNVMe address device memory in the commands it submits.
+
+  * iommu_map_pa serves IOMMU_MAP_PA / IOMMU_UNMAP_PA on '/dev/iommu_map_pa'.
+    It installs physical addresses into the IOMMU domain a device uses, which
+    reaches GPU memory for P2P DMA without disabling the IOMMU.
+
+  The package installs both UAPI headers under '/usr/include/linux/'. uPCIe
+  compiles an experimental path only when its header is present, so run this
+  before 'setup_aisio.yaml' builds xNVMe; otherwise those paths are built as
+  stubs returning -ENOTSUP.
 
   This can be run with::
 
@@ -33,23 +38,17 @@ doc: |
 steps:
   - name: download
     run: |
-      wget -qO /tmp/dmabuf-import-dkms_{{ config.upcie.dkms.packages.dmabuf_import }}_all.deb {{ config.upcie.dkms.remote }}/releases/download/{{ config.upcie.dkms.release }}/dmabuf-import-dkms_{{ config.upcie.dkms.packages.dmabuf_import }}_all.deb
+      wget -qO /tmp/upcie-experimental-dkms_{{ config.upcie.dkms.version }}_all.deb {{ config.upcie.dkms.remote }}/releases/download/v{{ config.upcie.dkms.version }}/upcie-experimental-dkms_{{ config.upcie.dkms.version }}_all.deb
 
   - name: install
     run: |
       apt-get -qy update
-      DEBIAN_FRONTEND=noninteractive apt-get -qy install /tmp/dmabuf-import-dkms_{{ config.upcie.dkms.packages.dmabuf_import }}_all.deb
+      DEBIAN_FRONTEND=noninteractive apt-get -qy install /tmp/upcie-experimental-dkms_{{ config.upcie.dkms.version }}_all.deb
 
-  # Installing a package registers the module with DKMS but does not load it; the
-  # drop-in has systemd-modules-load bring dmabuf_import in on every boot.
-  - name: autoload_dmabuf_import
+  - name: check_modules
     run: |
-      echo dmabuf_import | tee /etc/modules-load.d/dmabuf_import.conf
-      modprobe dmabuf_import
-
-  - name: check_dmabuf_import
-    run: |
-      dkms status | grep dmabuf-import/{{ config.upcie.dkms.packages.dmabuf_import }}
+      dkms status | grep upcie-experimental/{{ config.upcie.dkms.version }}
       lsmod | grep dmabuf_import
-      ls -l /dev/dmabuf_import
-      ls -l /usr/include/linux/dmabuf_import.h
+      lsmod | grep iommu_map_pa
+      ls -l /dev/dmabuf_import /dev/iommu_map_pa
+      ls -l /usr/include/linux/dmabuf_import.h /usr/include/linux/iommu_map_pa.h

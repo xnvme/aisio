@@ -15,7 +15,7 @@ with open(_repo_root / "configs/aisio.toml", "rb") as _f:
 
 myst_substitutions = {
     "ver_xnvme": _aisio["xnvme"]["repository"]["branch"],
-    "ver_dmabuf_import": _aisio["upcie"]["dkms"]["packages"]["dmabuf_import"],
+    "ver_upcie_experimental": _aisio["upcie"]["dkms"]["version"],
     "ver_spdk": _aisio["spdk"]["repository"]["tag"],
     "ver_xal": _aisio["xal"]["repository"]["tag"],
     "ver_fil": _aisio["fil"]["repository"]["tag"],
