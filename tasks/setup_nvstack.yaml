@@ -36,7 +36,7 @@ steps:
       DEBIAN_FRONTEND=noninteractive apt-get -qy install nvidia-driver-580-open
 
   - name: reboot
-    run: reboot
+    run: systemd-run --on-active=2 systemctl reboot
 
   - name: wait_down
     uses: core.wait_for_transport

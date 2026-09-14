@@ -44,7 +44,7 @@ steps:
       mode: set-off
 
   - name: reboot_iommu_off
-    run: shutdown -r now
+    run: systemd-run --on-active=2 systemctl reboot
 
   - name: wait_down_iommu_off
     uses: core.wait_for_transport
@@ -84,7 +84,7 @@ steps:
       mode: set-on
 
   - name: reboot_iommu_on
-    run: shutdown -r now
+    run: systemd-run --on-active=2 systemctl reboot
 
   - name: wait_down_iommu_on
     uses: core.wait_for_transport
