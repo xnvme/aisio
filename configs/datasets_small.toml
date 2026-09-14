@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Overrides only the dataset sizes of 'configs/datasets.toml' to fit a QEMU
+# guest; that file still supplies the device, paths and seeds, so pass both.
+
+[datasets.tiktokish]
+nclasses = 4
+nfiles_min = 2
+nfiles_max = 2
+
+[datasets.filesize8gib]
+nfiles_min = 2
+nfiles_max = 2
+filesize_min = 67108864
+filesize_max = 67108864
+
+[datasets.imagenetish]
+nclasses = 10
+nfiles_min = 10
+nfiles_max = 14

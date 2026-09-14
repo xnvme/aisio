@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Start a QEMU guest as the target
+  ================================
+
+  Then run any workflow with 'configs/qemu_guest.toml' in place of
+  'configs/transport.toml'. Needs KVM, and 'withcache' in the cijoe environment.
+
+    cijoe --monitor \
+      -c configs/qemu_guest.toml \
+      tasks/guest_start.yaml
+
+steps:
+  - name: guest_kill
+    uses: qemu.guest_kill
+    with:
+      guest_name: "{{ config.qemu.default_guest }}"
+
+  - name: stage_nosi_guest
+    uses: stage_nosi_guest
+
+  - name: guest_initialize
+    uses: qemu.guest_initialize
+    with:
+      guest_name: "{{ config.qemu.default_guest }}"
+      system_image_name: "{{ config.qemu.default_systemimage }}"
+
+  - name: guest_start
+    uses: qemu_guest_start_nvme
+    with:
+      guest_name: "{{ config.qemu.default_guest }}"
+
+  - name: root_unlock
+    uses: root_unlock
+
+  - name: guest_check
+    run: |
+      hostname
+      uname -a
+      df -h /
+      lspci | grep -i 'non-volatile'

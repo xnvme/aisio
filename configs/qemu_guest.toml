@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Ubuntu 26.04 QEMU guest with one emulated NVMe and no GPU. Pass it in place of
+# 'configs/transport.toml', after starting the guest with 'tasks/guest_start.yaml'.
+
+[cijoe.workflow]
+fail_fast = true
+
+# The first transport, so workflows run as root
+[cijoe.transport.root]
+username = "root"
+password = "root"
+hostname = "localhost"
+port = 4200
+
+# nosi operator account, used by root_unlock
+[cijoe.transport.odus]
+username = "odus"
+password = "odus.321"
+hostname = "localhost"
+port = 4200
+
+[qemu]
+img_bin = "qemu-img"
+default_guest = "ubuntu_2604_amd64"
+default_systemimage = "ubuntu-2604-x86_64"
+
+[qemu.systems.x86_64]
+bin = "qemu-system-x86_64"
+
+[qemu.guests.ubuntu_2604_amd64]
+path = "{{ local.env.HOME }}/guests/ubuntu-2604-amd64"
+system_label = "x86_64"
+system_args.kwa = {cpu = "host", smp = 4, m = "12G", accel = "kvm"}
+system_args.raw = """\
+-M "type=q35" \
+"""
+system_args.tcp_forward = {host = 4200, guest = 22}
+
+# 'grow' leaves room for CUDA and the SPDK build
+[guest_image]
+url = "oras://ghcr.io/safl/nosi/ubuntu-2604-headless@sha256:ba8a8e478a067fa3f566dcb05559d83abf3c823b10d93c0b27fb896192d03628"
+grow = "48G"
+
+[system-imaging.images.ubuntu-2604-x86_64]
+system_label = "x86_64"
+cloud.metadata_path = "{{ resources.auxiliary['system_imaging.cloudinit-linux-common-metadata'] }}"
+cloud.userdata_path = "{{ resources.auxiliary['system_imaging.cloudinit-linux-common-userdata'] }}"
+disk.path = "{{ local.env.HOME }}/system_imaging/disk/ubuntu-2604-amd64.qcow2"
