@@ -22,8 +22,8 @@ doc: |
   distro 'restricted' repo; CUDA comes from NVIDIA's ubuntu2604 repo, which
   publishes only CUDA 13 (no 12.x) -- CUDA 13 satisfies xNVMe's '>=12.8'. CUDA
   installs under /usr/local/cuda-13.x; a /usr/local/cuda symlink and a
-  /etc/profile.d/cuda.sh are wired up (non-interactive SSH still needs PATH set
-  explicitly, as the build does).
+  /etc/profile.d/cuda.sh are wired up, and /etc/environment puts nvcc on the
+  PATH of non-interactive SSH commands too.
 
   Run against a target whose default transport has root (e.g. via root_unlock):
 
@@ -66,6 +66,7 @@ steps:
       echo 'export PATH=/usr/local/cuda/bin:$PATH' | tee /etc/profile.d/cuda.sh
       echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' | tee -a /etc/profile.d/cuda.sh
       chmod +x /etc/profile.d/cuda.sh
+      grep -q /usr/local/cuda/bin /etc/environment || sed -i 's|^PATH="|PATH="/usr/local/cuda/bin:|' /etc/environment
 
   # DCGM: nv-hostengine daemon + dcgmi client, used by scripts/dcgm_helper.py to
   # collect GPU metrics during the bench workflows. The service must run (as
@@ -84,7 +85,7 @@ steps:
 
   - name: check_toolkit
     run: |
-      /usr/local/cuda/bin/nvcc --version | grep release
+      nvcc --version | grep release
 
   - name: check_libs
     run: |
@@ -110,7 +111,6 @@ steps:
       rm -rf /root/git/nvbandwidth
       mkdir -p /root/git
       git clone --depth 1 https://github.com/NVIDIA/nvbandwidth.git /root/git/nvbandwidth
-      export PATH=/usr/local/cuda/bin:$PATH
       cmake -S /root/git/nvbandwidth -B /root/git/nvbandwidth/build -DCMAKE_BUILD_TYPE=Release
       cmake --build /root/git/nvbandwidth/build -j "$(nproc)"
       ls -l /root/git/nvbandwidth/build/nvbandwidth
