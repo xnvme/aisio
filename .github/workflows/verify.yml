@@ -1,0 +1,176 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+name: verify
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Loads every workflow against the configs; the benchmarks get no other coverage
+  lint:
+    runs-on: ubuntu-latest
+
+    # the cijoe that the provisioning jobs run
+    container:
+      image: ghcr.io/safl/nosi/ubuntu-2604-docker:latest
+
+    steps:
+      - name: Grab source
+        uses: actions/checkout@v7.0.0
+
+      - name: Lint the cijoe workflows
+        run: |
+          cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
+          "$cijoe_python" .github/scripts/cijoe_lint.py
+
+  # README.md Steps 2-7 in a QEMU guest, less the steps that need a GPU
+  provision:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    container:
+      image: ghcr.io/safl/nosi/ubuntu-2604-docker:latest
+      options: --privileged -v /mnt:/mnt
+
+    steps:
+      - name: Grab source
+        uses: actions/checkout@v7.0.0
+
+      - name: Prepare environment
+        run: &prepare |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          # stage_nosi_guest needs withcache, and the cijoe venv has no pip
+          cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
+          "$cijoe_python" -m ensurepip --upgrade >/dev/null
+          "$cijoe_python" -m pip install --quiet withcache
+          echo "CIJOE_PYTHON=$cijoe_python" >> $GITHUB_ENV
+          # the guest images overflow the container overlay
+          mkdir -p /mnt/system_imaging /mnt/guests
+          ln -sfn /mnt/system_imaging "$HOME/system_imaging"
+          ln -sfn /mnt/guests "$HOME/guests"
+
+      - name: guest_start.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/qemu_guest.toml \
+            -o cijoe-output/guest_start \
+            tasks/guest_start.yaml
+
+      - name: setup_ubuntu.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/qemu_guest.toml \
+            -o cijoe-output/setup_ubuntu \
+            tasks/setup_ubuntu.yaml
+
+      - name: setup_upcie_modules.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/qemu_guest.toml \
+            -c configs/aisio.toml \
+            -o cijoe-output/setup_upcie_modules \
+            tasks/setup_upcie_modules.yaml
+
+      - name: setup_nvstack.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/qemu_guest.toml \
+            -o cijoe-output/setup_nvstack \
+            tasks/setup_nvstack.yaml \
+            $("$CIJOE_PYTHON" .github/scripts/cijoe_steps.py tasks/setup_nvstack.yaml --skip check_gpu)
+
+      - name: setup_aisio.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/qemu_guest.toml \
+            -c configs/aisio.toml \
+            -o cijoe-output/setup_aisio \
+            tasks/setup_aisio.yaml
+
+      - name: setup_dataset.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/qemu_guest.toml \
+            -c configs/datasets.toml \
+            -c configs/datasets_small.toml \
+            -o cijoe-output/setup_dataset \
+            tasks/setup_dataset.yaml
+
+      - name: Guest serial console
+        if: failure()
+        run: &serial |
+          tail -c 20000 "$HOME/guests/ubuntu-2604-amd64/serial.output" 2>/dev/null \
+            || echo "no guest serial output"
+
+      - name: Upload cijoe output
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: provision-cijoe-output
+          path: cijoe-output/
+          if-no-files-found: warn
+
+  # setup_amdstack.yaml in a guest of its own, less the checks that need a GPU
+  amdstack:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    container:
+      image: ghcr.io/safl/nosi/ubuntu-2604-docker:latest
+      options: --privileged -v /mnt:/mnt
+
+    steps:
+      - name: Grab source
+        uses: actions/checkout@v7.0.0
+
+      - name: Prepare environment
+        run: *prepare
+
+      - name: guest_start.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/qemu_guest.toml \
+            -o cijoe-output/guest_start \
+            tasks/guest_start.yaml
+
+      - name: setup_amdstack.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/qemu_guest.toml \
+            -o cijoe-output/setup_amdstack \
+            tasks/setup_amdstack.yaml \
+            $("$CIJOE_PYTHON" .github/scripts/cijoe_steps.py tasks/setup_amdstack.yaml --skip check_kfd_dri check_rocminfo)
+
+      - name: Guest serial console
+        if: failure()
+        run: *serial
+
+      - name: Upload cijoe output
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: amdstack-cijoe-output
+          path: cijoe-output/
+          if-no-files-found: warn
