@@ -31,6 +31,7 @@ repos:
         exclude: ^LICENSES/
       - id: trailing-whitespace
         exclude: ^LICENSES/
+      - id: check-yaml
 
   # 4. REUSE – licensing and copyright compliance
   - repo: https://github.com/fsfe/reuse-tool
