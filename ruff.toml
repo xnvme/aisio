@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# docs/src/conf.py reads configs with tomllib
+target-version = "py311"
+
+# Directories whose modules import one another
+src = ["scripts", "docs/src", "docs/tooling"]
+
+[lint]
+select = ["F", "I"]
+# An import can be used by name only, as Sphinx reads docs/src/conf.py
+ignore = ["F401"]

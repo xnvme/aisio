@@ -36,3 +36,11 @@ repos:
     rev: v6.2.0
     hooks:
       - id: reuse
+
+  # 5. Ruff – Python lint and format; rules in ruff.toml
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.7
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format
