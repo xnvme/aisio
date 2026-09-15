@@ -10,7 +10,8 @@ repos:
       - id: shellcheck
         name: shellcheck (bash)
         files: \.sh$
-        args: ["--severity=style"]
+        # Only definite errors; lower severities are advice
+        args: ["--severity=error"]
 
   # 2. shfmt – formatting and indentation consistency
   - repo: https://github.com/scop/pre-commit-shfmt
