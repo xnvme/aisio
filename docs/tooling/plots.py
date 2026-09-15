@@ -3,13 +3,14 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import re
-import matplotlib.pyplot as plt
-import numpy as np
 import tarfile
 import tempfile
-import yaml
 from contextlib import contextmanager
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import yaml
 
 
 @contextmanager
@@ -21,7 +22,8 @@ def artifacts_from_archive(archive: Path):
         artifacts = next(tmp.rglob("artifacts"))
         yield artifacts
 
-COLOR_SCHEME = [ "#2171b5", "#6baed6", "#9ecae1", "#fb6a4a", "#fcae91", "#ba381a" ]
+
+COLOR_SCHEME = ["#2171b5", "#6baed6", "#9ecae1", "#fb6a4a", "#fcae91", "#ba381a"]
 LABEL_PP = {
     "spdk_bdevperf": "bdevperf (SPDK)",
     "spdk_nvme_perf": "nvmeperf (SPDK)",
@@ -31,12 +33,20 @@ LABEL_PP = {
     "xnvmeperf_cuda": "xnvmeperf (uPCIe, dev-initiated)",
 }
 
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.sans-serif": ["Inter", "Helvetica Neue", "Helvetica", "Arial", "DejaVu Sans"],
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-})
+plt.rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.sans-serif": [
+            "Inter",
+            "Helvetica Neue",
+            "Helvetica",
+            "Arial",
+            "DejaVu Sans",
+        ],
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+    }
+)
 
 
 def mathtt(s: str):
@@ -49,7 +59,7 @@ def mathtt(s: str):
     latex = [r"$\mathtt{", "}$"]
     out = [s[0]]
     for idx in range(1, len(s)):
-        out.append(latex[(idx-1) % 2])
+        out.append(latex[(idx - 1) % 2])
         if idx % 2 == 1:
             out.append(s[idx].replace("_", r"\_"))
         else:
@@ -79,12 +89,22 @@ def setup_figure(cfg):
 
     fig.suptitle(main_title, fontsize=11, fontweight="bold", y=0.97)
     if subtitle.strip():
-        fig.text(0.5, 0.92, subtitle, ha="center", va="top", fontsize=9, color="#555555")
+        fig.text(
+            0.5, 0.92, subtitle, ha="center", va="top", fontsize=9, color="#555555"
+        )
 
     if cfg.get("footnote"):
         footnote = mathtt(cfg["footnote"])
-        fig.text(0.99, 0.01, footnote,
-                 ha="right", va="bottom", fontsize=7, fontstyle="italic", color="#999999")
+        fig.text(
+            0.99,
+            0.01,
+            footnote,
+            ha="right",
+            va="bottom",
+            fontsize=7,
+            fontstyle="italic",
+            color="#999999",
+        )
 
     return fig, ax
 
@@ -101,11 +121,12 @@ def barplot_tool(artifacts, output):
 
     scale = 1e6
 
-    n_tools     = len(tools)
+    n_tools = len(tools)
     group_width = 0.8
-    bar_width   = group_width / n_tools
-    offsets     = np.linspace(-group_width / 2 + bar_width / 2,
-                               group_width / 2 - bar_width / 2, n_tools)
+    bar_width = group_width / n_tools
+    offsets = np.linspace(
+        -group_width / 2 + bar_width / 2, group_width / 2 - bar_width / 2, n_tools
+    )
 
     fig, ax = setup_figure(cfg)
     x = np.arange(len(bars))
@@ -114,18 +135,31 @@ def barplot_tool(artifacts, output):
     # Bars
     for (key, label), offset, color in zip(LABEL_PP.items(), offsets, COLOR_SCHEME):
         values = np.array(
-            [b[key] / scale if b.get(key) is not None else float("nan")
-             for b in bars]
+            [b[key] / scale if b.get(key) is not None else float("nan") for b in bars]
         )
-        rects = ax.bar(x + offset, values, bar_width, label=label,
-                       color=color, edgecolor="none", zorder=3)
+        rects = ax.bar(
+            x + offset,
+            values,
+            bar_width,
+            label=label,
+            color=color,
+            edgecolor="none",
+            zorder=3,
+        )
 
         # Value labels on each stack segment
         for rect, val in zip(rects, values):
             if not np.isnan(val):
-                ax.text(rect.get_x() + rect.get_width() / 2, val / 2,
-                        f"{val:.1f}",
-                        ha="center", va="center", fontsize=7, color="white", fontweight="bold")
+                ax.text(
+                    rect.get_x() + rect.get_width() / 2,
+                    val / 2,
+                    f"{val:.1f}",
+                    ha="center",
+                    va="center",
+                    fontsize=7,
+                    color="white",
+                    fontweight="bold",
+                )
 
     ax.legend(fontsize=9, framealpha=0.9, edgecolor="#cccccc")
 
@@ -160,41 +194,100 @@ def barplot_sat(artifacts, output, unit="GB/s"):
     fig, ax = setup_figure(cfg)
 
     # Bars
-    ax.bar(x, payload, width, label="NVMe Data Payload",
-           color=COLOR_SCHEME[0], edgecolor="none", zorder=3)
-    ax.bar(x, overhead, width, bottom=payload, label="Observed PCIe BW",
-           color=COLOR_SCHEME[1], edgecolor="none", zorder=3)
+    ax.bar(
+        x,
+        payload,
+        width,
+        label="NVMe Data Payload",
+        color=COLOR_SCHEME[0],
+        edgecolor="none",
+        zorder=3,
+    )
+    ax.bar(
+        x,
+        overhead,
+        width,
+        bottom=payload,
+        label="Observed PCIe BW",
+        color=COLOR_SCHEME[1],
+        edgecolor="none",
+        zorder=3,
+    )
 
     # Value labels on each stack segment
     for i in range(len(x)):
-        ax.text(x[i], payload[i] / 2, f"{payload[i]:.1f}",
-                ha="center", va="center", fontsize=13, color="white", fontweight="bold")
-        ax.text(x[i], payload[i] + overhead[i] / 2, f"{overhead[i]:.1f}",
-                ha="center", va="center", fontsize=13, color="#08519c", fontweight="bold")
-        ax.text(x[i], total[i], f"{total[i]:.1f}",
-                ha="center", va="bottom", fontsize=10, fontweight="normal", color="#333333")
+        ax.text(
+            x[i],
+            payload[i] / 2,
+            f"{payload[i]:.1f}",
+            ha="center",
+            va="center",
+            fontsize=13,
+            color="white",
+            fontweight="bold",
+        )
+        ax.text(
+            x[i],
+            payload[i] + overhead[i] / 2,
+            f"{overhead[i]:.1f}",
+            ha="center",
+            va="center",
+            fontsize=13,
+            color="#08519c",
+            fontweight="bold",
+        )
+        ax.text(
+            x[i],
+            total[i],
+            f"{total[i]:.1f}",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="normal",
+            color="#333333",
+        )
 
     # Rooflines
     ymax = 0
     for r in cfg.get("rooflines", []):
         val = r["value_nbytes"] / scale
-        ax.axhline(y=val, color=r["color"], linestyle=r["style"], linewidth=1.5,
-                   label=f"{r['name']} ({val:.1f} {unit})", zorder=1)
+        ax.axhline(
+            y=val,
+            color=r["color"],
+            linestyle=r["style"],
+            linewidth=1.5,
+            label=f"{r['name']} ({val:.1f} {unit})",
+            zorder=1,
+        )
         ymax = max(ymax, val)
     ax.set_ylim(0, ymax * 1.20)
 
     # Legends
     handles, labels_ = ax.get_legend_handles_labels()
     line_labels = [r["name"] for r in cfg.get("rooflines", [])]
-    line_idx = [i for i, l in enumerate(labels_) if any(l.startswith(n) for n in line_labels)]
+    line_idx = [
+        i for i, l in enumerate(labels_) if any(l.startswith(n) for n in line_labels)
+    ]
     stack_idx = [i for i in range(len(labels_)) if i not in line_idx]
 
-    leg1 = ax.legend([handles[i] for i in line_idx], [labels_[i] for i in line_idx],
-                     loc="upper left", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
+    leg1 = ax.legend(
+        [handles[i] for i in line_idx],
+        [labels_[i] for i in line_idx],
+        loc="upper left",
+        fontsize=8,
+        framealpha=0.9,
+        edgecolor="#cccccc",
+    )
     ax.add_artist(leg1)
 
-    ax.legend([handles[i] for i in reversed(stack_idx)], [labels_[i] for i in reversed(stack_idx)],
-              loc="upper right", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
+    ax.legend(
+        [handles[i] for i in reversed(stack_idx)],
+        [labels_[i] for i in reversed(stack_idx)],
+        loc="upper right",
+        fontsize=8,
+        framealpha=0.9,
+        edgecolor="#cccccc",
+    )
 
     plt.tight_layout()
     fig.subplots_adjust(top=0.86)
@@ -204,8 +297,8 @@ def barplot_sat(artifacts, output, unit="GB/s"):
 
 def _sort_groups_numeric(groups):
     """Sort groups by trailing integer if every group name has one."""
-    if all(re.search(r'\d+$', g) for g in groups):
-        return sorted(groups, key=lambda g: int(re.search(r'(\d+)$', g).group(1)))
+    if all(re.search(r"\d+$", g) for g in groups):
+        return sorted(groups, key=lambda g: int(re.search(r"(\d+)$", g).group(1)))
     return groups
 
 
@@ -285,13 +378,16 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     data_max = 0
     for group, color in zip(groups, colors):
         data = np.array([b.get(group, np.nan) for b in bars], dtype=float) / scale
-        std = np.array([b.get(f"{group}_std", np.nan) for b in bars], dtype=float) / scale
+        std = (
+            np.array([b.get(f"{group}_std", np.nan) for b in bars], dtype=float) / scale
+        )
         label = group.replace("_", " ")
         data_max = max(data_max, float(np.nanmax(data + std)))
 
         ax.fill_between(x, data - std, data + std, alpha=0.15, color=color)
-        ax.plot(x, data, color=color, linewidth=2, marker="o", markersize=4,
-                label=label)
+        ax.plot(
+            x, data, color=color, linewidth=2, marker="o", markersize=4, label=label
+        )
 
     ax2 = None
     if y2groups:
@@ -303,26 +399,42 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         # palette too short for that falls back to continuing it.
         taken = {r.get("color") for r in rooflines} | set(colors)
         y2colors = [color for color in reversed(COLOR_SCHEME) if color not in taken]
-        y2colors += _line_colors(len(groups) + len(y2groups))[len(groups):]
+        y2colors += _line_colors(len(groups) + len(y2groups))[len(groups) :]
         for group, color in zip(y2groups, y2colors):
             data = np.array([b.get(group, np.nan) for b in bars], dtype=float)
             std = np.array([b.get(f"{group}_std", np.nan) for b in bars], dtype=float)
 
             ax2.fill_between(x, data - std, data + std, alpha=0.15, color=color)
-            ax2.plot(x, data, color=color, linewidth=2, marker="s", markersize=4,
-                     linestyle="--", label=group.replace("_", " "))
+            ax2.plot(
+                x,
+                data,
+                color=color,
+                linewidth=2,
+                marker="s",
+                markersize=4,
+                linestyle="--",
+                label=group.replace("_", " "),
+            )
         # The headroom keeps the series clear of the legends, which sit at the
         # top of the axes whenever the first axis leaves that half free.
-        y2max = max(np.nanmax(np.array([b.get(g, np.nan) for b in bars], dtype=float))
-                    for g in y2groups)
+        y2max = max(
+            np.nanmax(np.array([b.get(g, np.nan) for b in bars], dtype=float))
+            for g in y2groups
+        )
         ax2.set_ylim(0, float(y2max) * 1.35)
 
     # Rooflines
     ymax = 0
     for r in rooflines:
         val = r[roofline_key] / scale
-        ax.axhline(y=val, color=r["color"], linestyle=r["style"], linewidth=1.5,
-                label=f"{r['name']} ({roofline_label(val)})", zorder=1)
+        ax.axhline(
+            y=val,
+            color=r["color"],
+            linestyle=r["style"],
+            linewidth=1.5,
+            label=f"{r['name']} ({roofline_label(val)})",
+            zorder=1,
+        )
         ymax = max(ymax, val)
     ax.set_ylim(0, ymax * 1.15)
 
@@ -335,15 +447,29 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
         handles_2, labels_2 = ax2.get_legend_handles_labels()
         handles, labels_ = handles + handles_2, labels_ + labels_2
     line_labels = [r["name"] for r in cfg.get("rooflines", [])]
-    line_idx = [i for i, l in enumerate(labels_) if any(l.startswith(n) for n in line_labels)]
+    line_idx = [
+        i for i, l in enumerate(labels_) if any(l.startswith(n) for n in line_labels)
+    ]
     stack_idx = [i for i in range(len(labels_)) if i not in line_idx]
 
-    leg1 = ax.legend([handles[i] for i in line_idx], [labels_[i] for i in line_idx],
-                     loc=f"{vpos} left", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
+    leg1 = ax.legend(
+        [handles[i] for i in line_idx],
+        [labels_[i] for i in line_idx],
+        loc=f"{vpos} left",
+        fontsize=8,
+        framealpha=0.9,
+        edgecolor="#cccccc",
+    )
     ax.add_artist(leg1)
 
-    ax.legend([handles[i] for i in reversed(stack_idx)], [labels_[i] for i in reversed(stack_idx)],
-              loc=f"{vpos} right", fontsize=8, framealpha=0.9, edgecolor="#cccccc")
+    ax.legend(
+        [handles[i] for i in reversed(stack_idx)],
+        [labels_[i] for i in reversed(stack_idx)],
+        loc=f"{vpos} right",
+        fontsize=8,
+        framealpha=0.9,
+        edgecolor="#cccccc",
+    )
 
     plt.tight_layout()
     fig.subplots_adjust(top=0.83)

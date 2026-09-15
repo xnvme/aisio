@@ -99,7 +99,9 @@ def merge_versions(versions: List[Dict[str, str]]) -> Dict[str, str]:
         if len(stamps) > 1:
             log.warning(f"Runs span multiple {component} builds: {sorted(stamps)}")
 
-    return {component: ", ".join(sorted(stamps)) for component, stamps in merged.items()}
+    return {
+        component: ", ".join(sorted(stamps)) for component, stamps in merged.items()
+    }
 
 
 def version_of(results: List[dict], component: str = "xnvme") -> str:

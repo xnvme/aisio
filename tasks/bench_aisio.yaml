@@ -14,129 +14,128 @@ doc: |
   this benchmark. This assumes you already ran 'setup_aisio.yaml' and
   'setup_dataset.yaml'.
 
-
 steps:
-- name: tiktokish
-  uses: filperf
-  with:
-    backend: "aisio-cpu"
-    dataset: "tiktokish"
-    device: "{{ config.filesystems.dset.pci_addr }}"
-    batch_size: 26
-    batches: 1
-    max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
+  - name: tiktokish
+    uses: filperf
+    with:
+      backend: "aisio-cpu"
+      dataset: "tiktokish"
+      device: "{{ config.filesystems.dset.pci_addr }}"
+      batch_size: 26
+      batches: 1
+      max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
 
-- name: tiktokish-gpu
-  uses: filperf
-  with:
-    backend: "aisio-gpu"
-    dataset: "tiktokish"
-    device: "{{ config.filesystems.dset.pci_addr }}"
-    batch_size: 26
-    batches: 1
-    max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
-    queue_depth: 512
+  - name: tiktokish-gpu
+    uses: filperf
+    with:
+      backend: "aisio-gpu"
+      dataset: "tiktokish"
+      device: "{{ config.filesystems.dset.pci_addr }}"
+      batch_size: 26
+      batches: 1
+      max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
+      queue_depth: 512
 
-- name: tiktokish-p2p
-  uses: filperf
-  with:
-    backend: "aisio-p2p"
-    dataset: "tiktokish"
-    device: "{{ config.filesystems.dset.pci_addr }}"
-    batch_size: 26
-    batches: 1
-    max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
+  - name: tiktokish-p2p
+    uses: filperf
+    with:
+      backend: "aisio-p2p"
+      dataset: "tiktokish"
+      device: "{{ config.filesystems.dset.pci_addr }}"
+      batch_size: 26
+      batches: 1
+      max_file_size: "{{ config.datasets.tiktokish.filesize_max }}"
 
-- name: imagenetish
-  uses: filperf
-  with:
-    backend: "aisio-cpu"
-    dataset: "imagenetish"
-    device: "{{ config.filesystems.dset.pci_addr }}"
-    batch_size: 1024
-    batches: 300
-    max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
+  - name: imagenetish
+    uses: filperf
+    with:
+      backend: "aisio-cpu"
+      dataset: "imagenetish"
+      device: "{{ config.filesystems.dset.pci_addr }}"
+      batch_size: 1024
+      batches: 300
+      max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
 
-- name: imagenetish-gpu
-  uses: filperf
-  with:
-    backend: "aisio-gpu"
-    dataset: "imagenetish"
-    device: "{{ config.filesystems.dset.pci_addr }}"
-    batch_size: 1024
-    batches: 300
-    max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
-    queue_depth: 512
+  - name: imagenetish-gpu
+    uses: filperf
+    with:
+      backend: "aisio-gpu"
+      dataset: "imagenetish"
+      device: "{{ config.filesystems.dset.pci_addr }}"
+      batch_size: 1024
+      batches: 300
+      max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
+      queue_depth: 512
 
-- name: imagenetish-p2p
-  uses: filperf
-  with:
-    backend: "aisio-p2p"
-    dataset: "imagenetish"
-    device: "{{ config.filesystems.dset.pci_addr }}"
-    batch_size: 1024
-    batches: 300
-    max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
+  - name: imagenetish-p2p
+    uses: filperf
+    with:
+      backend: "aisio-p2p"
+      dataset: "imagenetish"
+      device: "{{ config.filesystems.dset.pci_addr }}"
+      batch_size: 1024
+      batches: 300
+      max_file_size: "{{ config.datasets.imagenetish.filesize_max }}"
 
-- name: filesize8gib
-  uses: filperf
-  with:
-    backend: "aisio-cpu"
-    dataset: "filesize8gib"
-    device: "{{ config.filesystems.dset.pci_addr }}"
-    batch_size: 1
-    batches: 10
-    max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
+  - name: filesize8gib
+    uses: filperf
+    with:
+      backend: "aisio-cpu"
+      dataset: "filesize8gib"
+      device: "{{ config.filesystems.dset.pci_addr }}"
+      batch_size: 1
+      batches: 10
+      max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
 
-- name: filesize8gib-gpu
-  uses: filperf
-  with:
-    backend: "aisio-gpu"
-    dataset: "filesize8gib"
-    device: "{{ config.filesystems.dset.pci_addr }}"
-    batch_size: 1
-    batches: 10
-    max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
-    queue_depth: 512
+  - name: filesize8gib-gpu
+    uses: filperf
+    with:
+      backend: "aisio-gpu"
+      dataset: "filesize8gib"
+      device: "{{ config.filesystems.dset.pci_addr }}"
+      batch_size: 1
+      batches: 10
+      max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
+      queue_depth: 512
 
-- name: filesize8gib-p2p
-  uses: filperf
-  with:
-    backend: "aisio-p2p"
-    dataset: "filesize8gib"
-    device: "{{ config.filesystems.dset.pci_addr }}"
-    batch_size: 1
-    batches: 10
-    max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
+  - name: filesize8gib-p2p
+    uses: filperf
+    with:
+      backend: "aisio-p2p"
+      dataset: "filesize8gib"
+      device: "{{ config.filesystems.dset.pci_addr }}"
+      batch_size: 1
+      batches: 10
+      max_file_size: "{{ config.datasets.filesize8gib.filesize_max }}"
 
-- name: cpu-initiated
-  uses: xnvmeperf
-  with:
-    backend: "upcie"
-    devices: ["{{ config.filesystems.dset.pci_addr }}"]
-    runtime: 10
-    iosize: 512
-    qdepth: 128
-    iopattern: randread
+  - name: cpu-initiated
+    uses: xnvmeperf
+    with:
+      backend: "upcie"
+      devices: ["{{ config.filesystems.dset.pci_addr }}"]
+      runtime: 10
+      iosize: 512
+      qdepth: 128
+      iopattern: randread
 
-- name: p2p
-  uses: xnvmeperf
-  with:
-    backend: "upcie-cuda"
-    devices: ["{{ config.filesystems.dset.pci_addr }}"]
-    runtime: 10
-    iosize: 512
-    qdepth: 128
-    iopattern: randread
+  - name: p2p
+    uses: xnvmeperf
+    with:
+      backend: "upcie-cuda"
+      devices: ["{{ config.filesystems.dset.pci_addr }}"]
+      runtime: 10
+      iosize: 512
+      qdepth: 128
+      iopattern: randread
 
-- name: dev-initiated
-  uses: xnvmeperf
-  with:
-    command: "cuda-run"
-    backend: "upcie-cuda"
-    devices: ["{{ config.filesystems.dset.pci_addr }}"]
-    nqueues: 4
-    runtime: 10
-    iosize: 512
-    qdepth: 512
-    iopattern: randread
+  - name: dev-initiated
+    uses: xnvmeperf
+    with:
+      command: "cuda-run"
+      backend: "upcie-cuda"
+      devices: ["{{ config.filesystems.dset.pci_addr }}"]
+      nqueues: 4
+      runtime: 10
+      iosize: 512
+      qdepth: 512
+      iopattern: randread

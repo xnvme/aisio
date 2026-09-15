@@ -11,18 +11,17 @@ Example command:
 """
 
 import logging as log
-import jinja2
 from argparse import ArgumentParser
 from collections import defaultdict
 from json import loads as json_load
 from pathlib import Path
 
+import jinja2
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
 from dcgm_helper import pcie_link_from_dcgm
 from version_helper import version_of
-
 
 REQ = {
     "qdepth": 128,
@@ -35,29 +34,40 @@ REQ = {
     "backend": "upcie-cuda",
 }
 
+
 def add_args(parser: ArgumentParser):
     parser.add_argument("--path", type=str, help="Path to the results data")
-    parser.add_argument("--devices", type=int, default=4, help="The number of devices used")
+    parser.add_argument(
+        "--devices", type=int, default=4, help="The number of devices used"
+    )
+
 
 def collect(args, cijoe: Cijoe):
     cmd = [
         "jq -s '[.[] | select(",
-        " and ".join([
-            f".{k} == " + (
-            f'"{v}"' if isinstance(v, str)
-            else f'{str(v).lower()}' if isinstance(v, bool)
-            else f'{v}') for k,v in REQ.items()
-        ]),
-        f")]' {args.path}/*.out"
+        " and ".join(
+            [
+                f".{k} == "
+                + (
+                    f'"{v}"'
+                    if isinstance(v, str)
+                    else f"{str(v).lower()}"
+                    if isinstance(v, bool)
+                    else f"{v}"
+                )
+                for k, v in REQ.items()
+            ]
+        ),
+        f")]' {args.path}/*.out",
     ]
 
     err, state = cijoe.run(" ".join(cmd))
     if err:
-        log.error(f"Failed: jq")
+        log.error("Failed: jq")
         return err, None, None, ""
 
     results = [res for res in json_load(state.output()) if res["ndevs"] == args.devices]
-    data = { iosize: defaultdict(list) for iosize in [512, 4096, 8192] }
+    data = {iosize: defaultdict(list) for iosize in [512, 4096, 8192]}
     pcie_link = None
 
     for res in results:
@@ -126,13 +136,17 @@ def main(args, cijoe):
 
     template = template_env.get_template(f"{template_name}.jinja2")
     with out_path.open("w") as body:
-        body.write(template.render({
-            "results": results,
-            "devices": args.devices,
-            "h2d_bandwidth": float(h2d_bandwidth),
-            "xnvme_version": version,
-            "line_rate": line_rate,
-            "link_desc": link_desc,
-        }))
+        body.write(
+            template.render(
+                {
+                    "results": results,
+                    "devices": args.devices,
+                    "h2d_bandwidth": float(h2d_bandwidth),
+                    "xnvme_version": version,
+                    "line_rate": line_rate,
+                    "link_desc": link_desc,
+                }
+            )
+        )
 
     return 0

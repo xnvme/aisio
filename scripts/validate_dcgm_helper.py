@@ -56,7 +56,12 @@ def report(tag, stats):
 
 def find_proftester(cijoe):
     """Find a dcgmproftester binary on the target, newest CUDA build first."""
-    for name in ["dcgmproftester13", "dcgmproftester12", "dcgmproftester11", "dcgmproftester4"]:
+    for name in [
+        "dcgmproftester13",
+        "dcgmproftester12",
+        "dcgmproftester11",
+        "dcgmproftester4",
+    ]:
         err, _ = cijoe.run(f"command -v {name}")
         if not err:
             return name
@@ -81,8 +86,14 @@ def main(args, cijoe):
 
     for tag, load_cmd in [
         ("idle (no load, 3s)", "sleep 3"),
-        (f"PCIe load: {proftester} -t 1010", f"{proftester} --no-dcgm-validation -t 1010 -d 8"),
-        (f"SM load: {proftester} -t 1002", f"{proftester} --no-dcgm-validation -t 1002 -d 8"),
+        (
+            f"PCIe load: {proftester} -t 1010",
+            f"{proftester} --no-dcgm-validation -t 1010 -d 8",
+        ),
+        (
+            f"SM load: {proftester} -t 1002",
+            f"{proftester} --no-dcgm-validation -t 1002 -d 8",
+        ),
     ]:
         dcgm = DcgmHelper(cijoe)
         err = dcgm.start()

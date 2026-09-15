@@ -10,12 +10,13 @@ Retargetable: False
 -------------------
 """
 
+import logging as log
 from argparse import ArgumentParser
 from collections import defaultdict
-from json import dump as json_dump, load as json_load
+from json import dump as json_dump
+from json import load as json_load
 from pathlib import Path
 from re import match
-import logging as log
 
 from version_helper import merge_versions
 
@@ -55,8 +56,7 @@ def main(args, cijoe):
             return err
 
     final_results = {
-        label: sorted(rows, key=sort_key)
-        for label, rows in all_results.items()
+        label: sorted(rows, key=sort_key) for label, rows in all_results.items()
     }
 
     if output_path.exists():
@@ -68,7 +68,9 @@ def main(args, cijoe):
     return 0
 
 
-def collect_results(results_dir: Path, all_results: dict, include_all: list[str]) -> int:
+def collect_results(
+    results_dir: Path, all_results: dict, include_all: list[str]
+) -> int:
     for path in sorted(results_dir.glob("*-0.out")):
         label = parse_label(path.stem)
         if label is None:
@@ -124,7 +126,9 @@ def merge_dicts(dicts: list[dict], include_all: list[str]) -> tuple[int, dict]:
 
     if not all(set(d.keys()) == keys for d in dicts):
         failed = next(d for d in dicts if set(d.keys()) != keys)
-        log.error(f"Error: Expected keys of all dicts to be equal: {set(failed.keys())} != {keys}")
+        log.error(
+            f"Error: Expected keys of all dicts to be equal: {set(failed.keys())} != {keys}"
+        )
         return 1, None
 
     for key in keys:
@@ -132,7 +136,9 @@ def merge_dicts(dicts: list[dict], include_all: list[str]) -> tuple[int, dict]:
             merged[key] = [d[key] for d in dicts]
         else:
             if not all(d[key] == first[key] for d in dicts):
-                log.error(f"Error: Expected all values for non-excluded key({key}) to be equal")
+                log.error(
+                    f"Error: Expected all values for non-excluded key({key}) to be equal"
+                )
                 return 1, None
             merged[key] = first[key]
 

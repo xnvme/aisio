@@ -2,14 +2,16 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from cijoe.core.command import Cijoe
-from cijoe.core.resources import get_resources
+import logging as log
 from pathlib import Path
 from re import match
 from typing import List, Tuple, Union
-import logging as log
 
-class CpuFrequencyHelper():
+from cijoe.core.command import Cijoe
+from cijoe.core.resources import get_resources
+
+
+class CpuFrequencyHelper:
     def __init__(self, cijoe: Cijoe):
         self.cijoe = cijoe
 
@@ -29,7 +31,9 @@ class CpuFrequencyHelper():
             `err, steps`, where err=0 indicates success and a non-zero value indicates an error.
         """
 
-        err, state = self.cijoe.run('cpupower frequency-info | grep "available frequency steps"')
+        err, state = self.cijoe.run(
+            'cpupower frequency-info | grep "available frequency steps"'
+        )
         if err or not state.output():
             log.error("Failed: cpupower")
             return 1, None
@@ -70,7 +74,9 @@ class CpuFrequencyHelper():
 
         err, _ = self.cijoe.run(cmd)
         if err:
-            log.warning("cpupower unavailable or unsupported; keeping current CPU frequency policy")
+            log.warning(
+                "cpupower unavailable or unsupported; keeping current CPU frequency policy"
+            )
             self.cpu_control_supported = False
             self.fixed_freq = freq
             self.governor = gvnr
@@ -89,9 +95,13 @@ class CpuFrequencyHelper():
             `err` where 0 indicates success and a non-zero value indicates an error.
         """
 
-        err, _ = self.cijoe.run(f"cpupower frequency-set -g {governor} --max 4.0GHz --min 0.8GHz")
+        err, _ = self.cijoe.run(
+            f"cpupower frequency-set -g {governor} --max 4.0GHz --min 0.8GHz"
+        )
         if err:
-            log.warning("cpupower unavailable or unsupported; skipping fixed CPU frequency reset")
+            log.warning(
+                "cpupower unavailable or unsupported; skipping fixed CPU frequency reset"
+            )
             self.cpu_control_supported = False
             self.fixed_freq = 0
             self.governor = governor
@@ -123,7 +133,9 @@ class CpuFrequencyHelper():
         if err or no_turbo_path != state.output().strip():
             err, state = self.cijoe.run(f"ls {boost_path}")
             if err or boost_path != state.output().strip():
-                log.warning("Turbo control not supported on this platform; skipping turbo toggle")
+                log.warning(
+                    "Turbo control not supported on this platform; skipping turbo toggle"
+                )
                 self.cpu_control_supported = False
                 self._turbo = on
                 return 0
@@ -150,7 +162,9 @@ class CpuFrequencyHelper():
         if self._smt == on:
             return 0
 
-        err, _ = self.cijoe.run(f"echo {'on' if on else 'off'} > /sys/devices/system/cpu/smt/control")
+        err, _ = self.cijoe.run(
+            f"echo {'on' if on else 'off'} > /sys/devices/system/cpu/smt/control"
+        )
         if err:
             return err
 
@@ -182,7 +196,7 @@ class CpuFrequencyHelper():
         Stop the logger and parse results from the frequency logger
         """
 
-        self.cijoe.run(f"pkill -f cpu_freq_logger")
+        self.cijoe.run("pkill -f cpu_freq_logger")
         self._is_running = False
 
         err, state = self.cijoe.run(f"cat {self._output}")
@@ -199,7 +213,7 @@ class CpuFrequencyHelper():
             self.cpu_control_supported = False
             return 0, []
 
-        lo, hi = int(len(lines)*0.1), int(len(lines)*0.9)
+        lo, hi = int(len(lines) * 0.1), int(len(lines) * 0.9)
         data = [[int(f) for f in line.split()[1:]] for line in lines[lo:hi]]
         if not data:
             self.cpu_control_supported = False
@@ -223,12 +237,16 @@ class CpuFrequencyHelper():
 
         self.cijoe.run(f"pkill -f {self._bin}; rm -f {self._bin}")
 
-        if not (script := get_resources().get("auxiliary", {}).get("cpu_freq_logger", {})):
+        if not (
+            script := get_resources().get("auxiliary", {}).get("cpu_freq_logger", {})
+        ):
             log.error("Failed retrieving the shell-script from auxiliary files")
             return 1
 
         if not self.cijoe.put(script.path, self._bin):
-            log.error("Failed transferring CPU frequency logger script from initator to target")
+            log.error(
+                "Failed transferring CPU frequency logger script from initator to target"
+            )
             return 1
 
         return 0

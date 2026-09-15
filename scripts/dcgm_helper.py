@@ -2,12 +2,12 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from cijoe.core.command import Cijoe
+import logging as log
 from pathlib import Path
 from statistics import mean, quantiles
 from typing import Dict, List, Optional, Tuple
-import logging as log
 
+from cijoe.core.command import Cijoe
 
 # Raw PCIe line rate per lane in GB/s by link generation (matches the
 # "line rate" convention used by the report rooflines: Gen5 x16 = 64 GB/s)
@@ -74,10 +74,18 @@ class DcgmHelper:
     """
 
     DEFAULT_FIELDS = [
-        "1009", "1010",  # PCIe TX/RX bytes/s
-        "1001", "1002", "1003", "1005",  # GRACT, SMACT, SMOCC, DRAMA
-        "100", "101", "112",  # SM clock, MEM clock, throttle reasons
-        "202", "237", "238",  # PCIe replay, link gen, link width
+        "1009",
+        "1010",  # PCIe TX/RX bytes/s
+        "1001",
+        "1002",
+        "1003",
+        "1005",  # GRACT, SMACT, SMOCC, DRAMA
+        "100",
+        "101",
+        "112",  # SM clock, MEM clock, throttle reasons
+        "202",
+        "237",
+        "238",  # PCIe replay, link gen, link width
     ]
 
     # A sample counts as active when the GPU either runs a kernel or receives
@@ -88,10 +96,19 @@ class DcgmHelper:
     ACTIVE_GRACT = 0.01
     ACTIVE_RX_BYTES = 100e6
 
-    def __init__(self, cijoe: Cijoe, gpu: Optional[int] = None, fields: Optional[List[str]] = None):
+    def __init__(
+        self,
+        cijoe: Cijoe,
+        gpu: Optional[int] = None,
+        fields: Optional[List[str]] = None,
+    ):
         self.cijoe = cijoe
         self.gpu = gpu if gpu is not None else cijoe.getconf("dcgm.gpu", 0)
-        self.fields = fields if fields is not None else cijoe.getconf("dcgm.fields", self.DEFAULT_FIELDS)
+        self.fields = (
+            fields
+            if fields is not None
+            else cijoe.getconf("dcgm.fields", self.DEFAULT_FIELDS)
+        )
         self._output = Path("/tmp/dcgm_monitor.txt")
         self._is_running = False
 
@@ -116,7 +133,9 @@ class DcgmHelper:
         self._is_running = True
         return 0
 
-    def _active_indices(self, raw: Dict[str, List[Optional[float]]], count: int) -> List[int]:
+    def _active_indices(
+        self, raw: Dict[str, List[Optional[float]]], count: int
+    ) -> List[int]:
         """
         Select the samples taken while the benchmark was transferring, by GPU
         kernel residency or by PCIe receive traffic. Without either field to
@@ -134,7 +153,9 @@ class DcgmHelper:
             return value is not None and value > floor
 
         def active(idx: int) -> bool:
-            return above(gract, idx, self.ACTIVE_GRACT) or above(rx, idx, self.ACTIVE_RX_BYTES)
+            return above(gract, idx, self.ACTIVE_GRACT) or above(
+                rx, idx, self.ACTIVE_RX_BYTES
+            )
 
         return [idx for idx in range(count) if active(idx)]
 
@@ -200,7 +221,13 @@ class DcgmHelper:
                 if idx < len(values) and values[idx] is not None
             ]
             if not selected:
-                stats[field] = {"samples": [], "mean": None, "p95": None, "min": None, "max": None}
+                stats[field] = {
+                    "samples": [],
+                    "mean": None,
+                    "p95": None,
+                    "min": None,
+                    "max": None,
+                }
                 continue
             ordered = sorted(selected)
             stats[field] = {

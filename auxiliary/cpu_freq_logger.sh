@@ -10,8 +10,8 @@ INTERVAL=$2
 
 # Check that both arguments are provided
 if [[ -z "$OUTFILE" || -z "$INTERVAL" ]]; then
-    echo "Usage: $0 <output_file> <interval_seconds>"
-    exit 1
+  echo "Usage: $0 <output_file> <interval_seconds>"
+  exit 1
 fi
 
 rm -f $OUTFILE
@@ -31,6 +31,6 @@ while true; do
     echo \"\$TS \$FREQ\" >> \"$OUTFILE\"
     sleep \"$INTERVAL\"
 done
-" >/dev/null 2>&1 &
+" > /dev/null 2>&1 &
 
 echo "Started logging CPU frequencies in $OUTFILE"

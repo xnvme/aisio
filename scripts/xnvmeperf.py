@@ -5,8 +5,15 @@
 import logging as log
 from argparse import ArgumentParser
 
-
-REQUIRED_KEYS = ["cpumask", "iopattern", "qdepth", "iosize", "runtime", "backend", "devices"]
+REQUIRED_KEYS = [
+    "cpumask",
+    "iopattern",
+    "qdepth",
+    "iosize",
+    "runtime",
+    "backend",
+    "devices",
+]
 CUDA_REQUIRED_KEYS = ["iopattern", "qdepth", "iosize", "runtime", "backend", "devices"]
 
 
@@ -70,7 +77,7 @@ def main(args, cijoe):
 
     if args.ndevs:
         devs = cijoe.getconf("devices", None)
-        args.devices = [d["pci_addr"] for d in devs[:args.ndevs]]
+        args.devices = [d["pci_addr"] for d in devs[: args.ndevs]]
 
     if args.command == "cuda-run":
         cmd = xnvmeperf_cuda_cmd("xnvmeperf", vars(args))

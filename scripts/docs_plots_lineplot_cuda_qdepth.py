@@ -11,17 +11,16 @@ Example command:
 """
 
 import logging as log
-import jinja2
 from argparse import ArgumentParser
 from collections import defaultdict
 from json import loads as json_load
 from pathlib import Path
 
+import jinja2
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
 
 from version_helper import version_of
-
 
 REQ = {
     "iosize": 512,
@@ -53,14 +52,20 @@ def add_args(parser: ArgumentParser):
 def collect(args, cijoe: Cijoe):
     cmd = [
         "jq -s '[.[] | select(",
-        " and ".join([
-            f".{k} == " + (
-            f'"{v}"' if isinstance(v, str)
-            else f'{str(v).lower()}' if isinstance(v, bool)
-            else f'{v}')
-            for k, v in REQ.items()
-        ]),
-        f")]' {args.path}/*.out"
+        " and ".join(
+            [
+                f".{k} == "
+                + (
+                    f'"{v}"'
+                    if isinstance(v, str)
+                    else f"{str(v).lower()}"
+                    if isinstance(v, bool)
+                    else f"{v}"
+                )
+                for k, v in REQ.items()
+            ]
+        ),
+        f")]' {args.path}/*.out",
     ]
 
     err, state = cijoe.run(" ".join(cmd))
@@ -135,10 +140,14 @@ def main(args, cijoe):
 
     out_path = artifacts / "lineplot-cuda-qdepth.yaml"
     with out_path.open("w") as body:
-        body.write(template.render({
-            "results": results,
-            "xnvme_version": version,
-        }))
+        body.write(
+            template.render(
+                {
+                    "results": results,
+                    "xnvme_version": version,
+                }
+            )
+        )
 
     charted = defaultdict(dict)
     for qdepth in sorted(set(sm_results) | set(state_results)):
@@ -150,9 +159,13 @@ def main(args, cijoe):
     sm_template = template_env.get_template(f"{sm_template_name}.jinja2")
     out_path = artifacts / sm_template_name
     with out_path.open("w") as body:
-        body.write(sm_template.render({
-            "results": charted,
-            "xnvme_version": version,
-        }))
+        body.write(
+            sm_template.render(
+                {
+                    "results": charted,
+                    "xnvme_version": version,
+                }
+            )
+        )
 
     return 0

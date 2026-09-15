@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
----
 doc: |
   Install the ROCm userspace (HIP + HSA) on Ubuntu 26.04 from the distro repos
 
@@ -18,28 +17,28 @@ doc: |
     cijoe tasks/setup_amdstack.yaml --config configs/<target>.toml
 
 steps:
-- name: packages
-  run: |
-    apt-get -qy update
-    DEBIAN_FRONTEND=noninteractive apt-get -qy install libamdhip64-dev libhsa-runtime-dev rocminfo
+  - name: packages
+    run: |
+      apt-get -qy update
+      DEBIAN_FRONTEND=noninteractive apt-get -qy install libamdhip64-dev libhsa-runtime-dev rocminfo
 
-- name: kfd_access
-  run: |
-    usermod -aG render,video odus || true
+  - name: kfd_access
+    run: |
+      usermod -aG render,video odus || true
 
-- name: check_headers
-  run: |
-    ls -l /usr/include/hip/hip_runtime_api.h /usr/include/hsa/hsa_ext_amd.h
-    grep -l hsa_amd_portable_export_dmabuf_v2 /usr/include/hsa/*.h || echo "MISSING export symbol header"
+  - name: check_headers
+    run: |
+      ls -l /usr/include/hip/hip_runtime_api.h /usr/include/hsa/hsa_ext_amd.h
+      grep -l hsa_amd_portable_export_dmabuf_v2 /usr/include/hsa/*.h || echo "MISSING export symbol header"
 
-- name: check_libs
-  run: |
-    ldconfig -p | grep -iE "amdhip64|hsa-runtime64"
+  - name: check_libs
+    run: |
+      ldconfig -p | grep -iE "amdhip64|hsa-runtime64"
 
-- name: check_kfd_dri
-  run: |
-    ls -l /dev/kfd /dev/dri/renderD128
+  - name: check_kfd_dri
+    run: |
+      ls -l /dev/kfd /dev/dri/renderD128
 
-- name: check_rocminfo
-  run: |
-    rocminfo 2>&1 | grep -iE "Marketing Name|^  Name:|gfx[0-9]|Device Type" | head -20
+  - name: check_rocminfo
+    run: |
+      rocminfo 2>&1 | grep -iE "Marketing Name|^  Name:|gfx[0-9]|Device Type" | head -20

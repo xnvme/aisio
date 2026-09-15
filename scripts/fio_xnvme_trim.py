@@ -10,9 +10,9 @@ Retargetable: True
 ------------------
 """
 
-from argparse import ArgumentParser
 import logging as log
 import re
+from argparse import ArgumentParser
 
 from cijoe.core.command import Cijoe
 

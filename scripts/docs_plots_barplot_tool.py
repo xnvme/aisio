@@ -11,15 +11,14 @@ Example command:
 """
 
 import logging as log
-import jinja2
 from argparse import ArgumentParser
 from collections import defaultdict
 from json import loads as json_load
 from pathlib import Path
 
+import jinja2
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
-
 
 REQ = {
     "qdepth": 128,
@@ -32,29 +31,38 @@ REQ = {
     "thr_sib": True,
 }
 
+
 def add_args(parser: ArgumentParser):
     parser.add_argument("--path", type=str, help="Path to the results data")
+
 
 def collect(args, cijoe: Cijoe):
     cmd = [
         "jq -s '[.[] | select(",
-        " and ".join([
-            f".{k} == " + (
-            f'"{v}"' if isinstance(v, str)
-            else f'{str(v).lower()}' if isinstance(v, bool)
-            else f'{v}') for k,v in REQ.items()
-        ]),
-        f")]' {args.path}/*.out"
+        " and ".join(
+            [
+                f".{k} == "
+                + (
+                    f'"{v}"'
+                    if isinstance(v, str)
+                    else f"{str(v).lower()}"
+                    if isinstance(v, bool)
+                    else f"{v}"
+                )
+                for k, v in REQ.items()
+            ]
+        ),
+        f")]' {args.path}/*.out",
     ]
 
     err, state = cijoe.run(" ".join(cmd))
     if err:
-        log.error(f"Failed: jq")
+        log.error("Failed: jq")
         return err, None
 
     results = json_load(state.output())
 
-    data = { threads: defaultdict(list) for threads in range(1,5) }
+    data = {threads: defaultdict(list) for threads in range(1, 5)}
 
     for res in results:
         threads = res["ncpus"]
@@ -62,7 +70,7 @@ def collect(args, cijoe: Cijoe):
             continue
 
         tool, be = res["tool"], res["backend"]
-        be = be.replace("-", "_") # upcie-cuda => upcie_cuda
+        be = be.replace("-", "_")  # upcie-cuda => upcie_cuda
 
         if tool == "bdevperf":
             label = "spdk_bdevperf"
@@ -118,8 +126,12 @@ def main(args, cijoe):
 
     template = template_env.get_template(f"{template_name}.jinja2")
     with out_path.open("w") as body:
-        body.write(template.render({
-            "results": results,
-        }))
+        body.write(
+            template.render(
+                {
+                    "results": results,
+                }
+            )
+        )
 
     return 0

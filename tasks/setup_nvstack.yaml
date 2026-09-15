@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
----
 doc: |
   Install the NVIDIA driver + CUDA toolkit + DCGM on Ubuntu 26.04 (no GDS/DOCA)
 
@@ -31,87 +30,87 @@ doc: |
     cijoe tasks/setup_nvstack.yaml --config configs/<target>.toml
 
 steps:
-- name: driver
-  run: |
-    apt-get -qy update
-    DEBIAN_FRONTEND=noninteractive apt-get -qy install nvidia-driver-580-open
+  - name: driver
+    run: |
+      apt-get -qy update
+      DEBIAN_FRONTEND=noninteractive apt-get -qy install nvidia-driver-580-open
 
-- name: reboot
-  run: reboot
+  - name: reboot
+    run: reboot
 
-- name: wait_down
-  uses: core.wait_for_transport
-  with:
-    state: down
-    timeout: 90
+  - name: wait_down
+    uses: core.wait_for_transport
+    with:
+      state: down
+      timeout: 90
 
-- name: wait_up
-  uses: core.wait_for_transport
-  with:
-    state: up
-    timeout: 300
+  - name: wait_up
+    uses: core.wait_for_transport
+    with:
+      state: up
+      timeout: 300
 
-- name: cuda_repo
-  run: |
-    wget -qO /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/cuda-keyring_1.1-1_all.deb
-    dpkg -i /tmp/cuda-keyring.deb
-    apt-get -qy update
+  - name: cuda_repo
+    run: |
+      wget -qO /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/cuda-keyring_1.1-1_all.deb
+      dpkg -i /tmp/cuda-keyring.deb
+      apt-get -qy update
 
-- name: cuda
-  run: |
-    DEBIAN_FRONTEND=noninteractive apt-get -qy install cuda-toolkit-13
-    ln -sfn "$(ls -d /usr/local/cuda-13* | sort -V | tail -1)" /usr/local/cuda
+  - name: cuda
+    run: |
+      DEBIAN_FRONTEND=noninteractive apt-get -qy install cuda-toolkit-13
+      ln -sfn "$(ls -d /usr/local/cuda-13* | sort -V | tail -1)" /usr/local/cuda
 
-- name: cuda_profile
-  run: |
-    echo 'export PATH=/usr/local/cuda/bin:$PATH' | tee /etc/profile.d/cuda.sh
-    echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' | tee -a /etc/profile.d/cuda.sh
-    chmod +x /etc/profile.d/cuda.sh
+  - name: cuda_profile
+    run: |
+      echo 'export PATH=/usr/local/cuda/bin:$PATH' | tee /etc/profile.d/cuda.sh
+      echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' | tee -a /etc/profile.d/cuda.sh
+      chmod +x /etc/profile.d/cuda.sh
 
-# DCGM: nv-hostengine daemon + dcgmi client, used by scripts/dcgm_helper.py to
-# collect GPU metrics during the bench workflows. The service must run (as
-# root, the systemd default) for the profiling fields (DCGM_FI_PROF_*) to be
-# readable. The -cuda13 variant matches the driver 580 / CUDA 13 stack and
-# bundles dcgmproftester13, the load generator used by
-# scripts/validate_dcgm_helper.py.
-- name: dcgm
-  run: |
-    DEBIAN_FRONTEND=noninteractive apt-get -qy install datacenter-gpu-manager-4-cuda13
-    systemctl enable --now nvidia-dcgm
+  # DCGM: nv-hostengine daemon + dcgmi client, used by scripts/dcgm_helper.py to
+  # collect GPU metrics during the bench workflows. The service must run (as
+  # root, the systemd default) for the profiling fields (DCGM_FI_PROF_*) to be
+  # readable. The -cuda13 variant matches the driver 580 / CUDA 13 stack and
+  # bundles dcgmproftester13, the load generator used by
+  # scripts/validate_dcgm_helper.py.
+  - name: dcgm
+    run: |
+      DEBIAN_FRONTEND=noninteractive apt-get -qy install datacenter-gpu-manager-4-cuda13
+      systemctl enable --now nvidia-dcgm
 
-- name: check_gpu
-  run: |
-    nvidia-smi --query-gpu=name,compute_cap,driver_version,memory.total --format=csv,noheader
+  - name: check_gpu
+    run: |
+      nvidia-smi --query-gpu=name,compute_cap,driver_version,memory.total --format=csv,noheader
 
-- name: check_toolkit
-  run: |
-    /usr/local/cuda/bin/nvcc --version | grep release
+  - name: check_toolkit
+    run: |
+      /usr/local/cuda/bin/nvcc --version | grep release
 
-- name: check_libs
-  run: |
-    ldconfig -p | grep -iE "libcudart|libcuda\.so"
+  - name: check_libs
+    run: |
+      ldconfig -p | grep -iE "libcudart|libcuda\.so"
 
-# hostengine reachable and GPU visible to DCGM; profiling-field support can be
-# inspected on the target with `dcgmi profile -l -i 0`
-- name: check_dcgm
-  run: |
-    dcgmi discovery -l
+  # hostengine reachable and GPU visible to DCGM; profiling-field support can be
+  # inspected on the target with `dcgmi profile -l -i 0`
+  - name: check_dcgm
+    run: |
+      dcgmi discovery -l
 
-# the CUDA driver-api header the host stack builds against
-- name: check_cuda_header
-  run: |
-    ls -l /usr/local/cuda/include/cuda.h
+  # the CUDA driver-api header the host stack builds against
+  - name: check_cuda_header
+    run: |
+      ls -l /usr/local/cuda/include/cuda.h
 
-# nvbandwidth: the PCIe peak-bandwidth reference for the bench_pcie /
-# bench_cuda_iosize experiments. The build needs Boost.ProgramOptions
-# for the test-case selection interface.
-- name: nvbandwidth
-  run: |
-    DEBIAN_FRONTEND=noninteractive apt-get -qy install git cmake build-essential libboost-program-options-dev
-    rm -rf /root/git/nvbandwidth
-    mkdir -p /root/git
-    git clone --depth 1 https://github.com/NVIDIA/nvbandwidth.git /root/git/nvbandwidth
-    export PATH=/usr/local/cuda/bin:$PATH
-    cmake -S /root/git/nvbandwidth -B /root/git/nvbandwidth/build -DCMAKE_BUILD_TYPE=Release
-    cmake --build /root/git/nvbandwidth/build -j "$(nproc)"
-    ls -l /root/git/nvbandwidth/build/nvbandwidth
+  # nvbandwidth: the PCIe peak-bandwidth reference for the bench_pcie /
+  # bench_cuda_iosize experiments. The build needs Boost.ProgramOptions
+  # for the test-case selection interface.
+  - name: nvbandwidth
+    run: |
+      DEBIAN_FRONTEND=noninteractive apt-get -qy install git cmake build-essential libboost-program-options-dev
+      rm -rf /root/git/nvbandwidth
+      mkdir -p /root/git
+      git clone --depth 1 https://github.com/NVIDIA/nvbandwidth.git /root/git/nvbandwidth
+      export PATH=/usr/local/cuda/bin:$PATH
+      cmake -S /root/git/nvbandwidth -B /root/git/nvbandwidth/build -DCMAKE_BUILD_TYPE=Release
+      cmake --build /root/git/nvbandwidth/build -j "$(nproc)"
+      ls -l /root/git/nvbandwidth/build/nvbandwidth

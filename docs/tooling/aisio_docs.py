@@ -3,16 +3,16 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import os
-import sys
-from pathlib import Path
-import subprocess
-import threading
-import time
 import importlib.util
 import json
+import os
+import subprocess
+import sys
+import threading
+import time
 from datetime import datetime
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from pathlib import Path
 
 import plots
 
@@ -32,8 +32,8 @@ PDF_PORT = 8002
 
 # watchdog dependencies
 try:
-    from watchdog.observers import Observer
     from watchdog.events import PatternMatchingEventHandler
+    from watchdog.observers import Observer
 except ImportError:
     print("[aisio-docs] Missing dependency: watchdog")
     print("Install it with: pipx inject aisio-docs watchdog")
@@ -125,25 +125,36 @@ def make_plots(build_dir: str) -> None:
     with plots.artifacts_from_archive(artifacts / "tool-comparison.tar.gz") as archive:
         plots.barplot_tool(archive, build_dir)
 
-    with plots.artifacts_from_archive(artifacts / "pcie-bandwidth-saturation.tar.gz") as archive:
+    with plots.artifacts_from_archive(
+        artifacts / "pcie-bandwidth-saturation.tar.gz"
+    ) as archive:
         plots.barplot_sat(archive, build_dir)
 
-    with plots.artifacts_from_archive(artifacts / "cpu-initiated-spdk.tar.gz") as archive:
+    with plots.artifacts_from_archive(
+        artifacts / "cpu-initiated-spdk.tar.gz"
+    ) as archive:
         plots.lineplot(archive, build_dir, "spdk")
         plots.lineplot(archive, build_dir, "spdk", "qdepth")
         plots.lineplot(archive, build_dir, "spdk", "iosize")
         plots.lineplot(archive, build_dir, "spdk", "ndevs")
 
-    with plots.artifacts_from_archive(artifacts / "cpu-initiated-upcie.tar.gz") as archive:
+    with plots.artifacts_from_archive(
+        artifacts / "cpu-initiated-upcie.tar.gz"
+    ) as archive:
         plots.lineplot(archive, build_dir, "upcie")
 
-    with plots.artifacts_from_archive(artifacts / "device-initiated-iosize.tar.gz") as archive:
+    with plots.artifacts_from_archive(
+        artifacts / "device-initiated-iosize.tar.gz"
+    ) as archive:
         plots.lineplot(archive, build_dir, "cuda", "iosize", colormap="plasma")
         plots.lineplot(archive, build_dir, "cuda", "iosize-sm")
 
-    with plots.artifacts_from_archive(artifacts / "device-initiated-qdepth.tar.gz") as archive:
+    with plots.artifacts_from_archive(
+        artifacts / "device-initiated-qdepth.tar.gz"
+    ) as archive:
         plots.lineplot(archive, build_dir, "cuda", "qdepth", colormap="plasma")
         plots.lineplot(archive, build_dir, "cuda", "qdepth-sm")
+
 
 # ---------------------------------------------------------------------------
 # Extract latex_documents from latex_theme.py

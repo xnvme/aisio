@@ -36,38 +36,38 @@ doc: |
   It is not necessary to run this step if the workflow is run repeatedly.
 
 steps:
-- name: bind_to_userspace
-  run: |
-    {{ config.xnvme.driver.prefix }} xnvme-driver
+  - name: bind_to_userspace
+    run: |
+      {{ config.xnvme.driver.prefix }} xnvme-driver
 
-- name: run
-  uses: bench_runall
-  with:
-    depths: [64, 128, 256]
-    sizes: [512, 4096]
-    numcpus_range: [1, 8]
-    numdevs_range: [1, 16]
-    cpu_freqs: ["powersave", "performance", 3.0]
-    turbo: [0,1]
-    smt: [0,1]
-    hyperthreads: [0,1]
-    stress: [0,1]
-    results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
-    tool: &tool xnvmeperf
-    backend: &backend upcie
+  - name: run
+    uses: bench_runall
+    with:
+      depths: [64, 128, 256]
+      sizes: [512, 4096]
+      numcpus_range: [1, 8]
+      numdevs_range: [1, 16]
+      cpu_freqs: ["powersave", "performance", 3.0]
+      turbo: [0, 1]
+      smt: [0, 1]
+      hyperthreads: [0, 1]
+      stress: [0, 1]
+      results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
+      tool: &tool xnvmeperf
+      backend: &backend upcie
 
-- name: combine
-  uses: bench_combine
-  with:
-    results_dir: *results-dir
+  - name: combine
+    uses: bench_combine
+    with:
+      results_dir: *results-dir
 
-- name: visualize
-  uses: bench_visualize
+  - name: visualize
+    uses: bench_visualize
 
-- name: lineplot_yaml
-  uses: docs_plots_lineplot
-  with:
-    path: *results-dir
-    tool: *tool
-    backend: *backend
-    xaxes: [ "ncpus", "qdepth", "iosize", "ndevs" ]
+  - name: lineplot_yaml
+    uses: docs_plots_lineplot
+    with:
+      path: *results-dir
+      tool: *tool
+      backend: *backend
+      xaxes: ["ncpus", "qdepth", "iosize", "ndevs"]

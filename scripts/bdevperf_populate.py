@@ -18,8 +18,8 @@ Retargetable: True
 ------------------
 """
 
-from pathlib import Path
 import logging as log
+from pathlib import Path
 
 from cijoe.core.command import Cijoe
 
@@ -31,7 +31,7 @@ def populate_device(cijoe: Cijoe, spdk_path: Path, pcie_addr: str) -> int:
         f"LD_PRELOAD={Path(spdk_path) / 'build' / 'fio' / 'spdk_nvme'} "
         f"fio "
         f"--name=spdk "
-        f'--filename="trtype=PCIe traddr={pcie_addr.replace(":",".")} ns=1" '
+        f'--filename="trtype=PCIe traddr={pcie_addr.replace(":", ".")} ns=1" '
         f"--ioengine=spdk "
         f"--direct=1 "
         f"--rw=write "

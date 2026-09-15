@@ -5,9 +5,8 @@
 import os
 import sys
 import tomllib
-from pathlib import Path
 from datetime import datetime
-
+from pathlib import Path
 
 _repo_root = Path(__file__).resolve().parent.parent.parent
 
@@ -15,12 +14,12 @@ with open(_repo_root / "configs/aisio.toml", "rb") as _f:
     _aisio = tomllib.load(_f)
 
 myst_substitutions = {
-    "ver_xnvme":  _aisio["xnvme"]["repository"]["branch"],
+    "ver_xnvme": _aisio["xnvme"]["repository"]["branch"],
     "ver_dmabuf_import": _aisio["upcie"]["dkms"]["packages"]["dmabuf_import"],
-    "ver_spdk":   _aisio["spdk"]["repository"]["tag"],
-    "ver_xal":    _aisio["xal"]["repository"]["tag"],
-    "ver_fil":    _aisio["fil"]["repository"]["tag"],
-    "ver_fio":    _aisio["fio"]["repository"]["tag"].removeprefix("fio-"),
+    "ver_spdk": _aisio["spdk"]["repository"]["tag"],
+    "ver_xal": _aisio["xal"]["repository"]["tag"],
+    "ver_fil": _aisio["fil"]["repository"]["tag"],
+    "ver_fio": _aisio["fio"]["repository"]["tag"].removeprefix("fio-"),
 }
 
 project = "AiSIO"
@@ -75,4 +74,4 @@ html_theme_options = {
 suppress_warnings = ["image.not_readable"]
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-from latex_theme import latex_engine, latex_documents, latex_elements
+from latex_theme import latex_documents, latex_elements, latex_engine

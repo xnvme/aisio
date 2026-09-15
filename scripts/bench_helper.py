@@ -26,15 +26,17 @@ resulting in using a hyper thread on core 0, 1 and 2, it will return 0x0013
 core 1.
 """
 
-from cpu_freq_helper import CpuFrequencyHelper
-from cijoe.core.command import Cijoe
+import json
+import logging as log
 from pathlib import Path
 from re import match, search
 from typing import Tuple
-import json
-import logging as log
 
-from bdevperf import bdevperf_cmd, create_config as bdevperf_config
+from cijoe.core.command import Cijoe
+
+from bdevperf import bdevperf_cmd
+from bdevperf import create_config as bdevperf_config
+from cpu_freq_helper import CpuFrequencyHelper
 from dcgm_helper import DcgmHelper
 from fio_xnvme import fio_xnvme_cmd
 from spdk_nvme_perf import spdk_nvme_perf_cmd
@@ -42,16 +44,16 @@ from version_helper import target_versions
 from xnvmeperf import xnvmeperf_cmd, xnvmeperf_cuda_cmd
 
 
-class BenchHelper():
+class BenchHelper:
     def __init__(
-            self,
-            cijoe: Cijoe,
-            configs_path: Path,
-            results_path: Path,
-            cfm: CpuFrequencyHelper,
-            tool: str = "bdevperf",
-            backend: str = "spdk",
-            fio_size: str = "16GiB",
+        self,
+        cijoe: Cijoe,
+        configs_path: Path,
+        results_path: Path,
+        cfm: CpuFrequencyHelper,
+        tool: str = "bdevperf",
+        backend: str = "spdk",
+        fio_size: str = "16GiB",
     ):
         self.initialised = False
 
@@ -72,7 +74,7 @@ class BenchHelper():
         self.use_thrsib = False
         err = self._create_cpumasks(self.use_thrsib)
         if err:
-            log.error(f"Failed: _create_cpumasks()")
+            log.error("Failed: _create_cpumasks()")
             return
 
         self.remote_config = Path("/tmp/bdevperf-config.json")
@@ -87,7 +89,7 @@ class BenchHelper():
             if tool == "bdevperf":
                 self.bin = Path(spdk_path) / "build" / "examples" / "bdevperf"
             else:
-                self.bin = Path(spdk_path)  / "build" / "bin" / "spdk_nvme_perf"
+                self.bin = Path(spdk_path) / "build" / "bin" / "spdk_nvme_perf"
         elif tool in ["xnvmeperf", "xnvmeperf-cuda"]:
             self.bin = "xnvmeperf"
         elif tool == "fio_xnvme":
@@ -108,13 +110,24 @@ class BenchHelper():
 
         err = self._create_cpumasks(use_thrsib)
         if err:
-            log.error(f"Failed: _create_cpumasks()")
+            log.error("Failed: _create_cpumasks()")
             return err
 
         self.use_thrsib = use_thrsib
         return 0
 
-    def run_benchmark(self, rw: str, depth: int, size: int, ndevs: int, ncpus: int, time: int, cpu_freq: float, suffix: str = "", nqueues: int = 1):
+    def run_benchmark(
+        self,
+        rw: str,
+        depth: int,
+        size: int,
+        ndevs: int,
+        ncpus: int,
+        time: int,
+        cpu_freq: float,
+        suffix: str = "",
+        nqueues: int = 1,
+    ):
         if not self.initialised:
             log.error("Failed: benchmarker not initialised correctly")
             return 1, None
@@ -164,9 +177,13 @@ class BenchHelper():
             selected_cpus = []
         else:
             bench_args["cpumask"] = self.cpu_masks[ncpus]
-            selected_cpus = [v[0] for v in self.cpu_pairs if int(bench_args["cpumask"], 16) & (1 << v[0])]
+            selected_cpus = [
+                v[0]
+                for v in self.cpu_pairs
+                if int(bench_args["cpumask"], 16) & (1 << v[0])
+            ]
 
-        command = f"/usr/bin/time "
+        command = "/usr/bin/time "
 
         if self.tool == "bdevperf":
             config_local_path = self.configs_path / f"d{ndevs}.json"
@@ -188,7 +205,9 @@ class BenchHelper():
 
         elif is_fio:
             if ndevs != 1:
-                log.error("Failed: fio_xnvme currently supports exactly 1 device per benchmark point")
+                log.error(
+                    "Failed: fio_xnvme currently supports exactly 1 device per benchmark point"
+                )
                 return 1, None
 
             bench_args["backend"] = self.backend
@@ -201,13 +220,19 @@ class BenchHelper():
             log.error(f"Unknown tool: {self.tool}")
             return -1, None
 
-        if self.stress and (stressed_cpus := [str(x) for x in range(len(self.cpu_pairs)) if x not in selected_cpus]):
-            command = "\n".join([
-                f"taskset -c {','.join(stressed_cpus)} stress-ng --cpu {len(stressed_cpus)} --timeout {time + 5}s &",
-                "STRESS_PID=$!",
-                command,
-                "wait $STRESS_PID",
-            ])
+        if self.stress and (
+            stressed_cpus := [
+                str(x) for x in range(len(self.cpu_pairs)) if x not in selected_cpus
+            ]
+        ):
+            command = "\n".join(
+                [
+                    f"taskset -c {','.join(stressed_cpus)} stress-ng --cpu {len(stressed_cpus)} --timeout {time + 5}s &",
+                    "STRESS_PID=$!",
+                    command,
+                    "wait $STRESS_PID",
+                ]
+            )
 
         def abort_monitors():
             self.cfm.stop_logging_and_parse()
@@ -296,7 +321,9 @@ class BenchHelper():
             "dcgm": {
                 field: {k: v for k, v in stats.items() if k != "samples"}
                 for field, stats in dcgm_stats.items()
-            } if self.dcgm else None,
+            }
+            if self.dcgm
+            else None,
         }
 
         with open(res_path, "x") as file:
@@ -318,14 +345,16 @@ class BenchHelper():
         """
         err, state = self.cijoe.run("lscpu -e")
         if err:
-            log.error(f"Failed: lscpu -e")
-            return err,
+            log.error("Failed: lscpu -e")
+            return (err,)
 
         table_regex = r"\s*(?P<cpu>\d+)\s+\d+\s+\d+\s+(?P<core>\d+).*"
-        matches = filter(None, [match(table_regex, row) for row in state.output().split("\n")])
+        matches = filter(
+            None, [match(table_regex, row) for row in state.output().split("\n")]
+        )
         if not matches:
             log.error("Failed: output of 'lspci -e' did not match the expected format")
-            return 1,
+            return (1,)
 
         cpu_pairs = [[int(v) for v in match.groupdict().values()] for match in matches]
         if use_thrsib:
@@ -337,11 +366,11 @@ class BenchHelper():
 
         cpu_masks = {}
         for i, (cpu, _) in enumerate(pairs):
-            n = i+1
+            n = i + 1
             if i == 0:
                 cpu_masks[n] = 1 << cpu
             else:
-                cpu_masks[n] = cpu_masks[n-1] | (1 << cpu)
+                cpu_masks[n] = cpu_masks[n - 1] | (1 << cpu)
 
         for n in cpu_masks.keys():
             cpu_masks[n] = f"{cpu_masks[n]:04x}"
@@ -358,7 +387,7 @@ class BenchHelper():
         Returns `(err, result)`, where a non-zero value for `err` describes that the
         output did not match the expected format.
         """
-        result = { "devices": [] }
+        result = {"devices": []}
         table_regex = None
 
         if self.tool == "bdevperf":
@@ -376,7 +405,11 @@ class BenchHelper():
         matches = filter(None, [match(table_regex, row) for row in table.split("\n")])
 
         for m in matches:
-            device_result = {k: float(v) if v else None for (k, v) in m.groupdict().items() if k != "name"}
+            device_result = {
+                k: float(v) if v else None
+                for (k, v) in m.groupdict().items()
+                if k != "name"
+            }
             if m.group("name") == "Total":
                 result["total"] = device_result
             else:
@@ -392,7 +425,7 @@ class BenchHelper():
             return 1, None
 
         try:
-            payload = json.loads(output[start:end + 1])
+            payload = json.loads(output[start : end + 1])
         except json.JSONDecodeError:
             log.error("Failed: invalid fio JSON output")
             return 1, None

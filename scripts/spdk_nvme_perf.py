@@ -6,7 +6,6 @@ import logging as log
 from argparse import ArgumentParser
 from pathlib import Path
 
-
 REQUIRED_KEYS = ["cpumask", "iopattern", "qdepth", "iosize", "runtime", "devices"]
 
 
@@ -46,7 +45,7 @@ def main(args, cijoe):
 
     if args.ndevs:
         devs = cijoe.getconf("devices", None)
-        args.devices = [d["pci_addr"] for d in devs[:args.ndevs]]
+        args.devices = [d["pci_addr"] for d in devs[: args.ndevs]]
 
     spdk_path = cijoe.getconf("spdk.repository.path", None)
     if not spdk_path:

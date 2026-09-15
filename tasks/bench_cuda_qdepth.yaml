@@ -44,27 +44,27 @@ doc: |
   It is not necessary to run this step if the workflow is run repeatedly.
 
 steps:
-- name: bind_to_userspace
-  run: |
-    HUGEMEM=8192 {{ config.xnvme.driver.prefix }} xnvme-driver
+  - name: bind_to_userspace
+    run: |
+      HUGEMEM=8192 {{ config.xnvme.driver.prefix }} xnvme-driver
 
-- name: run
-  uses: bench_runall
-  with:
-    depths: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
-    sizes: [512]
-    numdevs_specific: [16]
-    nqueues: [1, 2, 4, 8, 16]
-    results_dir: &results-dir "{{ local.env.HOME }}/bench-cuda-results"
-    tool: xnvmeperf-cuda
-    backend: upcie-cuda
+  - name: run
+    uses: bench_runall
+    with:
+      depths: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+      sizes: [512]
+      numdevs_specific: [16]
+      nqueues: [1, 2, 4, 8, 16]
+      results_dir: &results-dir "{{ local.env.HOME }}/bench-cuda-results"
+      tool: xnvmeperf-cuda
+      backend: upcie-cuda
 
-- name: combine
-  uses: bench_combine
-  with:
-    results_dir: *results-dir
+  - name: combine
+    uses: bench_combine
+    with:
+      results_dir: *results-dir
 
-- name: lineplot_yaml
-  uses: docs_plots_lineplot_cuda_qdepth
-  with:
-    path: *results-dir
+  - name: lineplot_yaml
+    uses: docs_plots_lineplot_cuda_qdepth
+    with:
+      path: *results-dir

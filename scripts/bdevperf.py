@@ -7,8 +7,15 @@ import logging as log
 from argparse import ArgumentParser
 from pathlib import Path
 
-
-REQUIRED_KEYS = ["cpumask", "iopattern", "qdepth", "iosize", "runtime", "config_path", "devices"]
+REQUIRED_KEYS = [
+    "cpumask",
+    "iopattern",
+    "qdepth",
+    "iosize",
+    "runtime",
+    "config_path",
+    "devices",
+]
 
 
 def add_args(parser: ArgumentParser):
@@ -30,24 +37,17 @@ def create_config(devices: list, path: Path) -> int:
     if path.exists():
         return 0
 
-    subsystem = {
-        "subsystem": "bdev",
-        "config": []
-    }
+    subsystem = {"subsystem": "bdev", "config": []}
 
     for i, device in enumerate(devices):
         item = {
             "method": "bdev_nvme_attach_controller",
-            "params": {
-                "name": f"nvme{i:02d}",
-                "trtype": "PCIe",
-                "traddr": device
-            }
+            "params": {"name": f"nvme{i:02d}", "trtype": "PCIe", "traddr": device},
         }
         subsystem["config"].append(item)
 
     with open(path, "x") as file:
-        json.dump({ "subsystems": [subsystem] }, file, indent=2)
+        json.dump({"subsystems": [subsystem]}, file, indent=2)
 
     return 0
 
@@ -78,7 +78,7 @@ def main(args, cijoe):
 
     if args.ndevs:
         devs = cijoe.getconf("devices", None)
-        args.devices = [d["pci_addr"] for d in devs[:args.ndevs]]
+        args.devices = [d["pci_addr"] for d in devs[: args.ndevs]]
 
     config_path = Path(args.output) / cijoe.output_ident / "bdevperf_config.json"
 

@@ -11,15 +11,14 @@ Example command:
 """
 
 import logging as log
-import jinja2
 from argparse import ArgumentParser
 from collections import defaultdict
 from json import loads as json_load
 from pathlib import Path
 
+import jinja2
 from cijoe.core.command import Cijoe
 from cijoe.core.resources import get_resources
-
 
 REQ = {
     "qdepth": 128,
@@ -31,16 +30,14 @@ REQ = {
     "ncpus": 8,
 }
 
-BE_PP = {
-    "spdk": "SPDK",
-    "upcie": "uPCIe",
-    "upcie-cuda": "uPCIe"
-}
+BE_PP = {"spdk": "SPDK", "upcie": "uPCIe", "upcie-cuda": "uPCIe"}
 
 
 def add_args(parser: ArgumentParser):
     parser.add_argument("--path", type=str, help="Path to the results data")
-    parser.add_argument("--backend", type=str, help="Prettyname for the driver / backend used")
+    parser.add_argument(
+        "--backend", type=str, help="Prettyname for the driver / backend used"
+    )
     parser.add_argument("--tool", type=str, help="benchmarking tool")
     parser.add_argument("--xaxes", type=str, default=["ncpus"], nargs="+")
 
@@ -50,19 +47,26 @@ def collect(args, cijoe: Cijoe, xaxis):
 
     cmd = [
         "jq -s '[.[] | select(",
-        " and ".join([
-            f".{k} == " + (
-            f'"{v}"' if isinstance(v, str)
-            else f'{str(v).lower()}' if isinstance(v, bool)
-            else f'{v}')
-            for k,v in REQ.items() if k != xaxis
-        ]),
-        f")]' {args.path}/*.out"
+        " and ".join(
+            [
+                f".{k} == "
+                + (
+                    f'"{v}"'
+                    if isinstance(v, str)
+                    else f"{str(v).lower()}"
+                    if isinstance(v, bool)
+                    else f"{v}"
+                )
+                for k, v in REQ.items()
+                if k != xaxis
+            ]
+        ),
+        f")]' {args.path}/*.out",
     ]
 
     err, state = cijoe.run(" ".join(cmd))
     if err:
-        log.error(f"Failed: jq")
+        log.error("Failed: jq")
         return err, None
 
     results = json_load(state.output())
@@ -142,12 +146,16 @@ def main(args, cijoe):
                 results[x][label] = list(map(round, avg_stddev(iops)))
 
         with out_path.open("w") as body:
-            body.write(template.render({
-                "results": results,
-                "driver": BE_PP.get(args.backend, args.backend),
-                "tool": args.tool,
-                "xlabel": xlabels[xaxis],
-                "xaxis": xaxis,
-            }))
+            body.write(
+                template.render(
+                    {
+                        "results": results,
+                        "driver": BE_PP.get(args.backend, args.backend),
+                        "tool": args.tool,
+                        "xlabel": xlabels[xaxis],
+                        "xaxis": xaxis,
+                    }
+                )
+            )
 
     return 0

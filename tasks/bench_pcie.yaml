@@ -36,41 +36,41 @@ doc: |
   It is not necessary to run this step if the workflow is run repeatedly.
 
 steps:
-- name: bind_to_userspace
-  run: |
-    {{ config.xnvme.driver.prefix }} xnvme-driver
+  - name: bind_to_userspace
+    run: |
+      {{ config.xnvme.driver.prefix }} xnvme-driver
 
-- name: run
-  uses: bench_runall
-  with:
-    depths: [128]
-    sizes: [512, 4096, 8192]
-    numcpus_specific: [1]
-    numdevs_specific: [4] # should be the same as barplot.with.devices
-    cpu_freqs: ["performance"]
-    turbo: [1]
-    smt: [1]
-    hyperthreads: [0]
-    stress: [0]
-    results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
-    tool: xnvmeperf
-    backend: upcie-cuda
+  - name: run
+    uses: bench_runall
+    with:
+      depths: [128]
+      sizes: [512, 4096, 8192]
+      numcpus_specific: [1]
+      numdevs_specific: [4]  # should be the same as barplot.with.devices
+      cpu_freqs: ["performance"]
+      turbo: [1]
+      smt: [1]
+      hyperthreads: [0]
+      stress: [0]
+      results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
+      tool: xnvmeperf
+      backend: upcie-cuda
 
-- name: nvbandwidth
-  uses: nvbandwidth
+  - name: nvbandwidth
+    uses: nvbandwidth
 
-- name: combine
-  uses: bench_combine
-  with:
-    results_dir: *results-dir
+  - name: combine
+    uses: bench_combine
+    with:
+      results_dir: *results-dir
 
-- name: visualize
-  uses: bench_visualize
-  with:
-    template: benchmark-pcie
+  - name: visualize
+    uses: bench_visualize
+    with:
+      template: benchmark-pcie
 
-- name: barplot
-  uses: docs_plots_barplot_sat
-  with:
-    path: *results-dir
-    devices: 4 # should be the same as run.with.numdevs_specific
+  - name: barplot
+    uses: docs_plots_barplot_sat
+    with:
+      path: *results-dir
+      devices: 4  # should be the same as run.with.numdevs_specific

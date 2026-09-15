@@ -38,90 +38,90 @@ doc: |
   and reboot.
 
 steps:
-- name: set_iommu_off
-  uses: iommu_boot
-  with:
-    mode: set-off
+  - name: set_iommu_off
+    uses: iommu_boot
+    with:
+      mode: set-off
 
-- name: reboot_iommu_off
-  run: shutdown -r now
+  - name: reboot_iommu_off
+    run: shutdown -r now
 
-- name: wait_down_iommu_off
-  uses: core.wait_for_transport
-  with:
-    state: down
-    timeout: 60
+  - name: wait_down_iommu_off
+    uses: core.wait_for_transport
+    with:
+      state: down
+      timeout: 60
 
-- name: wait_up_iommu_off
-  uses: core.wait_for_transport
-  with:
-    state: up
-    timeout: 300
+  - name: wait_up_iommu_off
+    uses: core.wait_for_transport
+    with:
+      state: up
+      timeout: 300
 
-- name: verify_iommu_off
-  uses: iommu_boot
-  with:
-    mode: verify-off
+  - name: verify_iommu_off
+    uses: iommu_boot
+    with:
+      mode: verify-off
 
-- name: benchmark_uio
-  uses: iommu_overhead
-  with:
-    repeat: 3
-    runtime: 10
-    fio_ramp_time: 5
-    fio_size: "100%"
-    workload_pause: 5
-    hugepages: 1024
-    rws: [randread, read]
-    iosizes: [4096, 131072]
-    iodepths: [1, 2, 4, 8, 16, 32]
-    driver: uio_pci_generic
-    label: uio
+  - name: benchmark_uio
+    uses: iommu_overhead
+    with:
+      repeat: 3
+      runtime: 10
+      fio_ramp_time: 5
+      fio_size: "100%"
+      workload_pause: 5
+      hugepages: 1024
+      rws: [randread, read]
+      iosizes: [4096, 131072]
+      iodepths: [1, 2, 4, 8, 16, 32]
+      driver: uio_pci_generic
+      label: uio
 
-- name: set_iommu_on
-  uses: iommu_boot
-  with:
-    mode: set-on
+  - name: set_iommu_on
+    uses: iommu_boot
+    with:
+      mode: set-on
 
-- name: reboot_iommu_on
-  run: shutdown -r now
+  - name: reboot_iommu_on
+    run: shutdown -r now
 
-- name: wait_down_iommu_on
-  uses: core.wait_for_transport
-  with:
-    state: down
-    timeout: 60
+  - name: wait_down_iommu_on
+    uses: core.wait_for_transport
+    with:
+      state: down
+      timeout: 60
 
-- name: wait_up_iommu_on
-  uses: core.wait_for_transport
-  with:
-    state: up
-    timeout: 300
+  - name: wait_up_iommu_on
+    uses: core.wait_for_transport
+    with:
+      state: up
+      timeout: 300
 
-- name: verify_iommu_on
-  uses: iommu_boot
-  with:
-    mode: verify-on
+  - name: verify_iommu_on
+    uses: iommu_boot
+    with:
+      mode: verify-on
 
-- name: benchmark_vfio
-  uses: iommu_overhead
-  with:
-    repeat: 3
-    runtime: 10
-    fio_ramp_time: 5
-    fio_size: "100%"
-    workload_pause: 5
-    hugepages: 1024
-    rws: [randread, read]
-    iosizes: [4096, 131072]
-    iodepths: [1, 2, 4, 8, 16, 32]
-    driver: vfio-pci
-    label: vfio
+  - name: benchmark_vfio
+    uses: iommu_overhead
+    with:
+      repeat: 3
+      runtime: 10
+      fio_ramp_time: 5
+      fio_size: "100%"
+      workload_pause: 5
+      hugepages: 1024
+      rws: [randread, read]
+      iosizes: [4096, 131072]
+      iodepths: [1, 2, 4, 8, 16, 32]
+      driver: vfio-pci
+      label: vfio
 
-- name: combine
-  uses: iommu_overhead_combine
+  - name: combine
+    uses: iommu_overhead_combine
 
-- name: visualize
-  uses: bench_visualize
-  with:
-    template: iommu-overhead
+  - name: visualize
+    uses: bench_visualize
+    with:
+      template: iommu-overhead

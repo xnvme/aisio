@@ -17,9 +17,9 @@ Retargetable: True
 ------------------
 """
 
+import logging as log
 from pathlib import Path
 from re import MULTILINE, search
-import logging as log
 
 from cijoe.core.command import Cijoe
 

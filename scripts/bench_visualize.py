@@ -14,11 +14,12 @@ Retargetable: False
 """
 
 import json
-import jinja2
 import logging as log
 from argparse import ArgumentParser
-from cijoe.core.resources import get_resources
 from pathlib import Path
+
+import jinja2
+from cijoe.core.resources import get_resources
 
 
 def add_args(parser: ArgumentParser):

@@ -5,7 +5,6 @@
 import logging as log
 from shlex import quote
 
-
 REQUIRED_KEYS = ["devices", "iosize", "qdepth", "rw", "backend", "fio_size"]
 PREFILL_REQUIRED_KEYS = ["devices", "backend", "fio_size"]
 FIO_PREFILL_BS = 131072

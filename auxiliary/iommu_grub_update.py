@@ -11,7 +11,6 @@ import re
 import sys
 from pathlib import Path
 
-
 mode = sys.argv[1]
 if mode not in ("on", "off"):
     raise SystemExit(f"unsupported mode: {mode}")

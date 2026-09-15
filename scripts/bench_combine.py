@@ -12,13 +12,14 @@ Retargetable: True
 ------------------
 """
 
+import logging as log
 from argparse import ArgumentParser
 from collections import defaultdict
-from json import dump as json_dump, load as json_load
+from json import dump as json_dump
+from json import load as json_load
 from pathlib import Path
 from re import match
 from typing import List, Tuple, Union
-import logging as log
 
 from cijoe.core.command import Cijoe
 
@@ -26,7 +27,12 @@ from version_helper import merge_versions
 
 
 def add_args(parser: ArgumentParser):
-    parser.add_argument("--results_dir", type=Path, default=None, help="Path to existing directory in which the results should be saved. Note: Already existing results will not be benchmarked again")
+    parser.add_argument(
+        "--results_dir",
+        type=Path,
+        default=None,
+        help="Path to existing directory in which the results should be saved. Note: Already existing results will not be benchmarked again",
+    )
 
 
 def main(args, cijoe: Cijoe):
@@ -70,7 +76,10 @@ def main(args, cijoe: Cijoe):
                 repeated_results.append({"versions": {}, **json_load(file)})
 
         # err, result = get_average(repeated_results)
-        err, result = merge_dicts(repeated_results, ["cpu_freqs", "iops", "mibs", "cpu_usage", "dcgm", "versions"])
+        err, result = merge_dicts(
+            repeated_results,
+            ["cpu_freqs", "iops", "mibs", "cpu_usage", "dcgm", "versions"],
+        )
         if err:
             log.error("Failed: merge_dicts()")
             return err
@@ -167,7 +176,9 @@ def merge_dicts(dicts: List[dict], include_all: List[str]) -> Tuple[int, dict]:
 
     if not all([set(d.keys()) == keys for d in dicts]):
         failed = next(d for d in dicts if set(d.keys()) != keys)
-        log.error(f"Error: Expected keys of all dicts to be equal: {set(failed.keys())} != {keys}")
+        log.error(
+            f"Error: Expected keys of all dicts to be equal: {set(failed.keys())} != {keys}"
+        )
         return 1, None
 
     for key in keys:
@@ -175,7 +186,9 @@ def merge_dicts(dicts: List[dict], include_all: List[str]) -> Tuple[int, dict]:
             merged[key] = [d[key] for d in dicts]
         else:
             if not all([d[key] == first[key] for d in dicts]):
-                log.error(f"Error: Expected all values for non-excluded key({key}) to be equal")
+                log.error(
+                    f"Error: Expected all values for non-excluded key({key}) to be equal"
+                )
                 return 1, None
             merged[key] = first[key]
 

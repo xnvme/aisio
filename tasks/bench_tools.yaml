@@ -36,99 +36,99 @@ doc: |
   It is not necessary to run this step if the workflow is run repeatedly.
 
 steps:
-- name: bind_to_userspace
-  run: |
-    {{ config.xnvme.driver.prefix }} xnvme-driver
+  - name: bind_to_userspace
+    run: |
+      {{ config.xnvme.driver.prefix }} xnvme-driver
 
-- name: bdevperf
-  uses: bench_runall
-  with:
-    depths: &qd [128]
-    sizes: &io [512]
-    numcpus_specific: &cpus [1, 2] # 4 hardware threads
-    numdevs_specific: &devs [16]
-    cpu_freqs: &cpufreq ["performance"]
-    turbo: &turbo [1]
-    smt: &smt [1]
-    hyperthreads: &ht [1]
-    stress: &stress [0]
-    results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
-    tool: bdevperf
+  - name: bdevperf
+    uses: bench_runall
+    with:
+      depths: &qd [128]
+      sizes: &io [512]
+      numcpus_specific: &cpus [1, 2]  # 4 hardware threads
+      numdevs_specific: &devs [16]
+      cpu_freqs: &cpufreq ["performance"]
+      turbo: &turbo [1]
+      smt: &smt [1]
+      hyperthreads: &ht [1]
+      stress: &stress [0]
+      results_dir: &results-dir "{{ local.env.HOME }}/bench-results"
+      tool: bdevperf
 
-- name: spdk_nvme_perf
-  uses: bench_runall
-  with:
-    depths: *qd
-    sizes: *io
-    numcpus_specific: *cpus
-    numdevs_specific: *devs
-    cpu_freqs: *cpufreq
-    turbo: *turbo
-    smt: *smt
-    hyperthreads: *ht
-    stress: *stress
-    results_dir: *results-dir
-    tool: spdk_nvme_perf
+  - name: spdk_nvme_perf
+    uses: bench_runall
+    with:
+      depths: *qd
+      sizes: *io
+      numcpus_specific: *cpus
+      numdevs_specific: *devs
+      cpu_freqs: *cpufreq
+      turbo: *turbo
+      smt: *smt
+      hyperthreads: *ht
+      stress: *stress
+      results_dir: *results-dir
+      tool: spdk_nvme_perf
 
-- name: xnvmeperf_spdk
-  uses: bench_runall
-  with:
-    depths: *qd
-    sizes: *io
-    numcpus_specific: *cpus
-    numdevs_specific: *devs
-    cpu_freqs: *cpufreq
-    turbo: *turbo
-    smt: *smt
-    hyperthreads: *ht
-    stress: *stress
-    results_dir: *results-dir
-    tool: xnvmeperf
-    backend: spdk
+  - name: xnvmeperf_spdk
+    uses: bench_runall
+    with:
+      depths: *qd
+      sizes: *io
+      numcpus_specific: *cpus
+      numdevs_specific: *devs
+      cpu_freqs: *cpufreq
+      turbo: *turbo
+      smt: *smt
+      hyperthreads: *ht
+      stress: *stress
+      results_dir: *results-dir
+      tool: xnvmeperf
+      backend: spdk
 
-- name: xnvmeperf_upcie
-  uses: bench_runall
-  with:
-    depths: *qd
-    sizes: *io
-    numcpus_specific: *cpus
-    numdevs_specific: *devs
-    cpu_freqs: *cpufreq
-    turbo: *turbo
-    smt: *smt
-    hyperthreads: *ht
-    stress: *stress
-    results_dir: *results-dir
-    tool: xnvmeperf
-    backend: upcie
+  - name: xnvmeperf_upcie
+    uses: bench_runall
+    with:
+      depths: *qd
+      sizes: *io
+      numcpus_specific: *cpus
+      numdevs_specific: *devs
+      cpu_freqs: *cpufreq
+      turbo: *turbo
+      smt: *smt
+      hyperthreads: *ht
+      stress: *stress
+      results_dir: *results-dir
+      tool: xnvmeperf
+      backend: upcie
 
-- name: xnvmeperf_upcie_cuda
-  uses: bench_runall
-  with:
-    depths: *qd
-    sizes: *io
-    numcpus_specific: *cpus
-    numdevs_specific: *devs
-    cpu_freqs: *cpufreq
-    turbo: *turbo
-    smt: *smt
-    hyperthreads: *ht
-    stress: *stress
-    results_dir: *results-dir
-    tool: xnvmeperf
-    backend: upcie-cuda
+  - name: xnvmeperf_upcie_cuda
+    uses: bench_runall
+    with:
+      depths: *qd
+      sizes: *io
+      numcpus_specific: *cpus
+      numdevs_specific: *devs
+      cpu_freqs: *cpufreq
+      turbo: *turbo
+      smt: *smt
+      hyperthreads: *ht
+      stress: *stress
+      results_dir: *results-dir
+      tool: xnvmeperf
+      backend: upcie-cuda
 
-- name: combine
-  uses: bench_combine
-  with:
-    results_dir: *results-dir
+  - name: combine
+    uses: bench_combine
+    with:
+      results_dir: *results-dir
 
-- name: visualize
-  uses: bench_visualize
-  with:
-    template: benchmark-tools
+  - name: visualize
+    uses: bench_visualize
+    with:
+      template: benchmark-tools
 
-- name: barplot_yaml
-  uses: docs_plots_barplot_tool
-  with:
-    path: *results-dir
+  - name: barplot_yaml
+    uses: docs_plots_barplot_tool
+    with:
+      path: *results-dir

@@ -21,9 +21,10 @@ This approach reduces overhead by replacing millions of SSH operations
 with just a few, improving reliability and performance.
 """
 
-from argparse import ArgumentParser
-from cijoe.core.resources import get_resources
 import logging as log
+from argparse import ArgumentParser
+
+from cijoe.core.resources import get_resources
 
 
 def add_args(parser: ArgumentParser):

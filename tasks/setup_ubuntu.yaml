@@ -23,40 +23,40 @@ doc: |
       tasks/setup_ubuntu.yaml
 
 steps:
-- name: directories
-  run: |
-    mkdir -p {git,workdir}
+  - name: directories
+    run: |
+      mkdir -p {git,workdir}
 
-- name: disable_upgrades
-  run: |
-    systemctl stop unattended-upgrades || true
-    systemctl disable unattended-upgrades || true
-    systemctl mask unattended-upgrades || true
-    apt-get remove unattended-upgrades || true
+  - name: disable_upgrades
+    run: |
+      systemctl stop unattended-upgrades || true
+      systemctl disable unattended-upgrades || true
+      systemctl mask unattended-upgrades || true
+      apt-get remove unattended-upgrades || true
 
-- name: packages
-  run: |
-    apt-get -qy update && apt-get -qy upgrade
-    apt-get -qy install build-essential linux-headers-$(uname -r) linux-tools-common linux-tools-$(uname -r) wget git htop vim cmake stress-ng parallel sysstat time environment-modules python3-setuptools python3-wheel meson pipx screen
-    apt-get -qy autoremove
+  - name: packages
+    run: |
+      apt-get -qy update && apt-get -qy upgrade
+      apt-get -qy install build-essential linux-headers-$(uname -r) linux-tools-common linux-tools-$(uname -r) wget git htop vim cmake stress-ng parallel sysstat time environment-modules python3-setuptools python3-wheel meson pipx screen
+      apt-get -qy autoremove
 
-- name: blacklist_nouveau
-  run: |
-    echo "blacklist nouveau" | tee /etc/modprobe.d/disable-nouveau.conf
-    echo "options nouveau modeset=0" | tee -a /etc/modprobe.d/disable-nouveau.conf
-    update-initramfs -u
+  - name: blacklist_nouveau
+    run: |
+      echo "blacklist nouveau" | tee /etc/modprobe.d/disable-nouveau.conf
+      echo "options nouveau modeset=0" | tee -a /etc/modprobe.d/disable-nouveau.conf
+      update-initramfs -u
 
-- name: reboot
-  run: shutdown -r now
+  - name: reboot
+    run: shutdown -r now
 
-- name: wait_down
-  uses: core.wait_for_transport
-  with:
-    state: down
-    timeout: 60
+  - name: wait_down
+    uses: core.wait_for_transport
+    with:
+      state: down
+      timeout: 60
 
-- name: wait_up
-  uses: core.wait_for_transport
-  with:
-    state: up
-    timeout: 300
+  - name: wait_up
+    uses: core.wait_for_transport
+    with:
+      state: up
+      timeout: 300
