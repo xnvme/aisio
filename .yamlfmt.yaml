@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+formatter:
+  type: basic
+  retain_line_breaks_single: true
+  # "<<" merge keys otherwise gain an explicit "!!merge" tag
+  drop_merge_tag: true
+  pad_line_comments: 2

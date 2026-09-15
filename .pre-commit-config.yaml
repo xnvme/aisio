@@ -44,3 +44,9 @@ repos:
       - id: ruff-check
         args: ["--fix"]
       - id: ruff-format
+
+  # 6. yamlfmt – YAML formatting; style in .yamlfmt.yaml
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.21.0
+    hooks:
+      - id: yamlfmt
