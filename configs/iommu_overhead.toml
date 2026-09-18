@@ -15,8 +15,12 @@ hugepages = 1024
 iommu_strict = false
 
 # Every run also needs a config with [[devices]] entries, such as
-# configs/devices_16.toml. Devices are pinned automatically by order:
-# device 0 -> CPU 0, device 1 -> CPU 1, and so on.
+# configs/devices_16.toml. An entry may name the CPU it pins to, and without one
+# it falls back to its position in the list (device 0 -> CPU 0):
+#
+#   [[devices]]
+#   pci_addr = "0000:4a:00.0"
+#   cpu = 24
 
 [[iommu_overhead.workloads]]
 rw = "randread"

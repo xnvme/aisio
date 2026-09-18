@@ -80,6 +80,13 @@ def bdf_from_fio_filename(filename):
 
 
 def configured_devices(cijoe):
+    """
+    Resolve '[[devices]]' into the (pci_addr, cpu) pairs a run pins.
+
+    A device entry may name the CPU to pin to. Without one it falls back to its
+    position in the list, which only lands on the right cores when the node the
+    devices sit on owns CPU ids from 0 up.
+    """
     devices = cijoe.getconf("devices", [])
     if not devices:
         raise ValueError(
@@ -88,36 +95,100 @@ def configured_devices(cijoe):
         )
 
     resolved = []
+    seen = set()
     for idx, device in enumerate(devices):
         pci_addr = device.get("pci_addr")
         if not pci_addr:
             raise ValueError(f"devices[{idx}] is missing pci_addr")
+        if pci_addr in seen:
+            raise ValueError(f"devices[{idx}] repeats {pci_addr}")
+        seen.add(pci_addr)
 
-        resolved.append({"pci_addr": pci_addr, "cpu": idx})
+        try:
+            cpu = int(device.get("cpu", idx))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"devices[{idx}] has a non-integer cpu: {exc}") from exc
+        if cpu < 0:
+            raise ValueError(f"devices[{idx}] has a negative cpu: {cpu}")
+
+        resolved.append({"pci_addr": pci_addr, "cpu": cpu})
+
+    by_cpu = {}
+    for device in resolved:
+        owner = by_cpu.setdefault(device["cpu"], device["pci_addr"])
+        if owner != device["pci_addr"]:
+            raise ValueError(
+                f"{device['pci_addr']} and {owner} are both pinned to CPU "
+                f"{device['cpu']}"
+            )
 
     return resolved
 
 
-def check_multi_cpu_capacity(cijoe, ndevices):
-    err, state = cijoe.run("nproc")
+def parse_cpu_list(text):
+    """Expand a sysfs CPU list such as '0-3,8,12-15' into a set of ids."""
+    cpus = set()
+    for part in text.strip().split(","):
+        if not part:
+            continue
+        if "-" in part:
+            low, high = part.split("-", 1)
+            cpus.update(range(int(low), int(high) + 1))
+        else:
+            cpus.add(int(part))
+    return cpus
+
+
+def check_cpu_pinning(cijoe, devices):
+    """Every CPU a device is pinned to has to be online on the target."""
+    err, state = cijoe.run("cat /sys/devices/system/cpu/online")
     if err:
-        log.error(f"Failed reading target CPU count: {state.output().strip()}")
+        log.error(f"Failed reading the target's online CPUs: {state.output().strip()}")
         return err
 
     try:
-        ncpus = int(state.output().strip().splitlines()[-1])
+        online = parse_cpu_list(state.output().strip().splitlines()[-1])
     except (IndexError, ValueError):
-        log.error(f"Failed parsing target CPU count: {state.output()!r}")
+        log.error(f"Failed parsing the online CPU list: {state.output()!r}")
         return errno.EINVAL
 
-    if ncpus < ndevices:
-        log.error(
-            f"multi-device mode needs at least {ndevices} CPUs for per-device "
-            f"pinning, but target reports {ncpus}"
-        )
+    wanted = {device["cpu"] for device in devices}
+    missing = sorted(wanted - online)
+    if missing:
+        log.error(f"devices pinned to CPUs the target has offline: {missing}")
         return errno.EINVAL
 
+    warn_cross_node_pinning(cijoe, devices)
     return 0
+
+
+def warn_cross_node_pinning(cijoe, devices):
+    """
+    Warn about a device pinned to a CPU on another NUMA node.
+
+    Only a warning: both boots pin the same way, so the IOMMU delta stays
+    comparable, and a single-node machine reports no node for its devices.
+    """
+    for device in devices:
+        pci_addr, cpu = device["pci_addr"], device["cpu"]
+        cmd = (
+            f"cat /sys/bus/pci/devices/{q(pci_addr)}/numa_node; "
+            f"for n in /sys/devices/system/cpu/cpu{cpu}/node*; "
+            'do echo "${n##*node}"; done'
+        )
+        err, state = cijoe.run(cmd)
+        lines = state.output().strip().splitlines()
+        if err or len(lines) < 2:
+            continue
+        try:
+            dev_node, cpu_node = int(lines[-2]), int(lines[-1])
+        except ValueError:
+            continue
+        if dev_node >= 0 and dev_node != cpu_node:
+            log.warning(
+                f"{pci_addr} is on NUMA node {dev_node} but pinned to CPU {cpu} "
+                f"on node {cpu_node}"
+            )
 
 
 def expected_iommu_enabled(driver):
@@ -580,7 +651,7 @@ def main(args, cijoe):
     err = check_iommu_state(args, cijoe)
     if err:
         return err
-    err = check_multi_cpu_capacity(cijoe, len(devices))
+    err = check_cpu_pinning(cijoe, devices)
     if err:
         return err
 

@@ -17,8 +17,10 @@ doc: |
 
   The devices come from the top-level `[[devices]]` entries of a config such
   as `configs/devices_16.toml`, and a single entry measures one device. Devices
-  are pinned to CPUs by config order, starting at CPU 0. A run refuses to start
-  without `[[devices]]`.
+  are pinned to the CPU an entry names with `cpu = N`, or to its position in the
+  list when it names none. A run refuses to start without `[[devices]]`, or when
+  a CPU it would pin to is offline, and warns about a device pinned to a CPU on
+  another NUMA node.
 
   Example:
 
