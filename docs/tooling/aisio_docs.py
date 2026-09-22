@@ -30,6 +30,9 @@ HTML_PORT = 8001
 PDF_HOST = "127.0.0.1"
 PDF_PORT = 8002
 
+# Warnings, unresolved references included, fail the build
+SPHINX_OPTS = "-n -W --keep-going"
+
 # watchdog dependencies
 try:
     from watchdog.events import PatternMatchingEventHandler
@@ -200,7 +203,7 @@ def build_html() -> None:
     html_dir = os.path.join(docs_root, "build", "html")
 
     make_plots(os.path.join(html_dir, "experiments"))
-    run(f"{sphinx_build()} -b html {docs_src} {html_dir}")
+    run(f"{sphinx_build()} {SPHINX_OPTS} -b html {docs_src} {html_dir}")
 
 
 def build_pdf() -> None:
@@ -215,7 +218,7 @@ def build_pdf() -> None:
         make_plots(latex_dir)
 
         # Run Sphinx -> LaTeX
-        run(f"{sphinx_build()} -b latex {docs_src} {latex_dir}")
+        run(f"{sphinx_build()} {SPHINX_OPTS} -b latex {docs_src} {latex_dir}")
 
         # Build the PDF
         run(f"make -C {latex_dir}")
