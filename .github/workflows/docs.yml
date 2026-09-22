@@ -64,3 +64,10 @@ jobs:
 
       - name: Build PDF
         run: aisio-docs-build-pdf
+
+      - name: Upload PDF
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: aisio-docs-pdf
+          path: docs/build/latex/aisio.pdf
+          if-no-files-found: error
