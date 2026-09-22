@@ -1,0 +1,79 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Builds the docs a PR would publish, without publishing them; pages.yml deploys from main
+name: docs
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'artifacts/**'
+      - 'configs/local.toml'
+      - 'tasks/build_docs.yaml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Grab source
+        uses: actions/checkout@v7.0.0
+        with:
+          # the figures are plotted from the archives under artifacts/
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install LaTeX
+        run: |
+          sudo apt-get update
+          # libertinus loads LinBiolinum_K.otf, which texlive-fonts-extra only recommends
+          sudo apt-get install -y --no-install-recommends \
+            fonts-linuxlibertine \
+            latexmk \
+            texlive-fonts-extra \
+            texlive-fonts-recommended \
+            texlive-latex-extra \
+            texlive-latex-recommended \
+            texlive-luatex \
+            xindy
+
+      - name: Install pipx, cijoe and docs tooling
+        env:
+          PIPX_HOME: /home/runner/.local/share/pipx
+          PIPX_BIN_DIR: /home/runner/.local/bin
+        run: |
+          python -m pip install --upgrade pip pipx
+          python -m pipx install cijoe
+          python -m pipx install ./docs/tooling
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: build_docs.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/local.toml \
+            -o cijoe-output/build_docs \
+            tasks/build_docs.yaml
+
+      - name: Upload cijoe output
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: docs-cijoe-output
+          path: cijoe-output/
+          if-no-files-found: warn

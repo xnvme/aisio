@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# No transport, so workflows run on the machine running cijoe
+
+[cijoe.workflow]
+fail_fast = true

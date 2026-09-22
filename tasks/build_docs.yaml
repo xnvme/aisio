@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Build the docs as HTML and PDF, failing on Sphinx warnings
+
+  Needs the docs tooling and a LaTeX installation with lualatex. Run it from the
+  repository root like so:
+
+    pipx install --force -e docs/tooling/
+    cijoe \
+      -c configs/local.toml \
+      tasks/build_docs.yaml \
+      --monitor
+
+  The PDF lands in docs/build/latex/aisio.pdf.
+
+steps:
+  - name: latex_info
+    run: |
+      lualatex --version | head -n 1
+      kpsewhich libertinus.sty inconsolata.sty titlesec.sty fancyhdr.sty lastpage.sty microtype.sty
+
+  - name: build_html
+    run: aisio-docs-build-html
+
+  - name: build_pdf
+    run: aisio-docs-build-pdf
