@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Builds the docs a PR would publish, without publishing them; pages.yml deploys from main
+name: docs
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'artifacts/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Grab source
+        uses: actions/checkout@v7.0.0
+        with:
+          # the figures are plotted from the archives under artifacts/
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install LaTeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            latexmk \
+            texlive-fonts-extra \
+            texlive-fonts-recommended \
+            texlive-latex-extra \
+            texlive-latex-recommended \
+            texlive-luatex \
+            xindy
+
+      - name: Install pipx and docs tooling
+        env:
+          PIPX_HOME: /home/runner/.local/share/pipx
+          PIPX_BIN_DIR: /home/runner/.local/bin
+        run: |
+          python -m pip install --upgrade pip pipx
+          python -m pipx install ./docs/tooling
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # Sphinx warnings fail both builds
+      - name: Build HTML
+        run: aisio-docs-build-html
+
+      - name: Build PDF
+        run: aisio-docs-build-pdf
+
+      - name: Upload PDF
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: aisio-docs-pdf
+          path: docs/build/latex/aisio.pdf
+          if-no-files-found: error
