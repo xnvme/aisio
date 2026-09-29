@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Probe how a CUDA dma-buf is imported for an NVMe
+  ================================================
+
+  Allocates one CUDA buffer, exports it as a dma-buf, imports it through
+  uPCIe's ``/dev/dmabuf_import``, and prints the ``(dma_addr, dma_len)``
+  tuples ``GET_MAP`` returns. The misc import is the one upcie-cuda makes to
+  list the physical addresses of a GPU heap. The ``--bdf`` import shows what
+  an NVMe gets for the same buffer.
+
+  The NVIDIA exporter cuts the buffer into chunks of the importing device's
+  DMA max segment size and maps each with ``dma_map_resource()`` for that
+  device. The misc import, the same one upcie-cuda makes to list the
+  physical pages, sets no max segment size and so gets the kernel's 64 KiB
+  default with raw BAR1 physical addresses. An NVMe (``--bdf``) sets it to
+  4 GiB and gets one segment for the whole buffer: the IOVA of a single
+  ``iommu_map`` into that NVMe's domain when the IOMMU is enforcing, the raw
+  BAR1 physical range when it is off. Neither tuple size is an IOMMU page
+  size. ``tasks/trace_iommu_gpu.yaml`` shows those.
+
+  It also prints the CUDA VMM allocation granularity for reference, and
+  DMABUF_IMPORT_DESCRIBE, which says where the buffer ended up. Each import is
+  checked: the segments must cover the whole buffer, every entry must be
+  device memory rather than memory migrated to the host, and DESCRIBE must
+  agree on the segment count. A failed check fails the step. The output ends
+  with findings on the imports: the pieces each came in, and whether the
+  ``--bdf`` import is translated by the IOMMU (an IOVA) or not (the physical
+  address the misc import shows, with the IOMMU off or in passthrough).
+
+  Requirements
+  ------------
+  The target needs the DMABUF_IMPORT UAPI and module: run
+  `tasks/setup_upcie_modules.yaml` first. It also needs CUDA. nvcc is found on
+  the PATH that `tasks/setup_nvstack.yaml` sets in /etc/environment, and
+  without it the probe is built with gcc against /usr/local/cuda.
+
+  Tuning
+  ------
+  The step takes `size_mib` (CUDA buffer size, default 1024), `gpu_id` (default
+  0), and `bdf`. The default import (no `bdf`) attaches as uPCIe's own misc
+  device, the enumeration step the upcie-cuda backend also performs; its actual
+  2 MiB ``iommu_map_pa_add`` mapping is not exercised here. Set `bdf` to an
+  NVMe PCI address to also import on behalf of that device, the
+  peer-to-peer path the addresses are programmed into. The commented line
+  below takes the dataset device from ``configs/datasets.toml``, which
+  normally stays on the ``nvme`` driver. Pass that config too when you
+  enable it, and rebind the device to nvme first if a benchmark left it on
+  vfio or uio.
+
+  Example:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      tasks/probe_dmabuf_import.yaml
+
+  Recovery
+  --------
+  If a later run fails to open the device with -ENOMEM or -ESTALE, the module
+  may hold a leaked import from an earlier one-shot tool; confirm with
+  `dmesg | grep dmabuf_import` and recover with
+  `rmmod dmabuf_import && modprobe dmabuf_import`. This probe uses
+  ATTACH_BDF (even for the misc-device case), so its own imports are released
+  when the descriptor closes and it does not leak on exit.
+
+steps:
+  - name: probe
+    uses: dmabuf_import_probe
+    with:
+      size_mib: 1024
+      gpu_id: 0
+      # bdf: "{{ config.filesystems.dset.pci_addr }}"
