@@ -18,7 +18,7 @@ from pathlib import Path
 
 from cijoe.core.resources import get_resources
 
-from iommu_common import cmdline_has_iommu_off, dmesg_indicates_iommu_enabled
+from iommu_common import IOMMU_SYSFS, cmdline_has_iommu_off, iommu_units
 
 GRUB_UPDATE_REMOTE = "/tmp/aisio-iommu-grub-update.py"
 GRUB_UPDATE_RESOURCE = "iommu_grub_update"
@@ -126,25 +126,21 @@ def verify_mode(args, cijoe, mode):
         return err
     cmdline = cmdline_state.output()
 
-    err, dmesg_state = cijoe.run("dmesg | grep -i -E 'DMAR|IOMMU|AMD-Vi' || true")
-    if err:
-        log.error(f"Failed reading dmesg: {dmesg_state}")
-        return err
-    dmesg = dmesg_state.output()
+    units = iommu_units(cijoe)
 
     (artifacts / f"iommu-verify-{mode}.txt").write_text(
-        f"=== /proc/cmdline ===\n{cmdline}\n=== dmesg ===\n{dmesg}"
+        f"=== /proc/cmdline ===\n{cmdline}\n=== {IOMMU_SYSFS} ===\n{units}\n"
     )
 
     off_in_cmdline = cmdline_has_iommu_off(cmdline)
-    enabled_in_dmesg = dmesg_indicates_iommu_enabled(dmesg)
 
     if (mode == "off") != off_in_cmdline:
         log.error(f"Expected IOMMU-{mode}, but /proc/cmdline shows the opposite")
         return errno.EINVAL
 
-    if (mode == "on") != enabled_in_dmesg:
-        log.error(f"Expected IOMMU-{mode}, but dmesg indicates the opposite")
+    # The same test the benchmark step applies, so the two cannot disagree.
+    if (mode == "on") != bool(units):
+        log.error(f"Expected IOMMU-{mode}, but {IOMMU_SYSFS} shows the opposite")
         return errno.EINVAL
 
     return 0

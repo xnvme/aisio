@@ -19,7 +19,7 @@ import time
 from argparse import ArgumentParser
 from pathlib import Path
 
-from iommu_common import dmesg_indicates_iommu_enabled
+from iommu_common import IOMMU_SYSFS, iommu_units
 from xnvmeperf import xnvmeperf_cmd
 
 DEFAULT_REPEAT = 3
@@ -70,17 +70,22 @@ def cpu_to_cpumask(cpu):
 
 
 def check_iommu_state(args, cijoe):
-    cmd = "cat /proc/cmdline; echo; dmesg | grep -i -E 'DMAR|IOMMU|AMD-Vi' || true"
-    err, state = cijoe.run(cmd)
-    if err:
-        log.error(f"Failed reading IOMMU state: {state}")
-        return err
+    """
+    Refuse a run whose boot does not match the driver it measures.
 
-    enabled = dmesg_indicates_iommu_enabled(state.output())
+    Reads sysfs rather than dmesg, which loses its head once the ring buffer
+    wraps.
+    """
     expected = args.driver == "vfio-pci"
-    if enabled != expected:
+
+    present = bool(iommu_units(cijoe))
+    if present != expected:
         mode = "enabled" if expected else "disabled"
-        log.error(f"{args.driver} requires IOMMU {mode}; refusing to overwrite results")
+        seen = "is not empty" if present else "is empty or absent"
+        log.error(
+            f"{args.driver} requires IOMMU {mode}, but {IOMMU_SYSFS} {seen}; "
+            f"refusing to overwrite results"
+        )
         return errno.EINVAL
 
     return 0
