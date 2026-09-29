@@ -103,7 +103,8 @@ def set_mode(args, cijoe, mode):
     err, state = cijoe.run(cmd)
     (artifacts / f"update-grub-{mode}.txt").write_text(state.output())
     if err:
-        log.error(f"Failed updating grub for IOMMU {mode}: {state}")
+        tail = "\n".join(state.output().strip().splitlines()[-10:])
+        log.error(f"Failed updating grub for IOMMU {mode}:\n{tail}")
         return err
 
     err, after = read_target_file(cijoe, "/etc/default/grub")
@@ -121,7 +122,7 @@ def verify_mode(args, cijoe, mode):
 
     err, cmdline_state = cijoe.run("cat /proc/cmdline")
     if err:
-        log.error(f"Failed reading /proc/cmdline: {cmdline_state}")
+        log.error(f"Failed reading /proc/cmdline: {cmdline_state.output().strip()}")
         return err
     cmdline = cmdline_state.output()
 

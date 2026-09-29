@@ -104,11 +104,17 @@ def results_path(args):
     return path
 
 
+def output_tail(output, lines=10):
+    """The last lines of a command's output, which is where tools report why."""
+    return "\n".join(output.strip().splitlines()[-lines:])
+
+
 def run_command(cijoe, cmd):
     err, state = cijoe.run(cmd)
+    output = state.output()
     if err:
-        log.error(f"Failed command: {state}")
-    return err, state.output()
+        log.error(f"Failed command (err {err}): {cmd}\n{output_tail(output)}")
+    return err, output
 
 
 def bind_driver(cijoe, driver, pci_addr, mountpoint, hugepages):
