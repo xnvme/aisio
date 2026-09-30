@@ -196,6 +196,7 @@ IOMMU-on <code>vfio-pci</code> run. Throughput is collected with
 <thead>
 <tr>
   <th>Runner</th>
+  <th>Buffers</th>
   <th>RW</th>
   <th>IO size</th>
   <th>Devices</th>
@@ -216,6 +217,7 @@ IOMMU-on <code>vfio-pci</code> run. Throughput is collected with
 {% for item in dataset.data %}
 <tr>
   <td>{{ item.runner }}</td>
+  <td>{{ item.memory | default("host") }}</td>
   <td>{{ item.rw }}</td>
   <td>{{ item.iosize }}</td>
   <td>{{ item.devcount | default(1) }}</td>
@@ -277,6 +279,7 @@ function chartMetric(entries, title, unit, valueForSide) {
     rw: entries[0].rw,
     iosize: entries[0].iosize,
     devcount: entries[0].devcount || 1,
+    memory: entries[0].memory || "host",
     unit,
     labels: chartRows.map(row => row.iodepth),
     uio: chartRows.map(row => row.uio),
@@ -288,7 +291,11 @@ function chartMetric(entries, title, unit, valueForSide) {
 function buildCharts(items) {
   const groups = new Map();
   items.forEach(item => {
-    const key = `${item.runner}|${item.rw}|${item.iosize}|${item.devcount || 1}`;
+    // Buffers in host memory and buffers in GPU memory are different
+    // experiments, so they never share a chart.
+    const key = [
+      item.runner, item.memory || "host", item.rw, item.iosize, item.devcount || 1,
+    ].join("|");
     if (!groups.has(key)) {
       groups.set(key, []);
     }
@@ -299,7 +306,8 @@ function buildCharts(items) {
   const charts = [];
   [...groups.values()]
     .sort((a, b) => (
-      (runnerOrder[a[0].runner] ?? 99) - (runnerOrder[b[0].runner] ?? 99)
+      (a[0].memory || "host").localeCompare(b[0].memory || "host")
+      || (runnerOrder[a[0].runner] ?? 99) - (runnerOrder[b[0].runner] ?? 99)
       || a[0].rw.localeCompare(b[0].rw)
       || Number(a[0].iosize) - Number(b[0].iosize)
       || Number(a[0].devcount || 1) - Number(b[0].devcount || 1)
@@ -339,7 +347,8 @@ charts.forEach((chart, idx) => {
   title.textContent = chart.title;
   const subtitle = document.createElement("p");
   subtitle.className = "chart-subtitle";
-  subtitle.textContent = `${chart.rw}, ${chart.iosize} bytes, ${chart.devcount} device${chart.devcount === 1 ? "" : "s"}`;
+  const buffers = chart.memory === "gpu" ? "GPU memory" : "host memory";
+  subtitle.textContent = `${chart.rw}, ${chart.iosize} bytes, ${chart.devcount} device${chart.devcount === 1 ? "" : "s"}, buffers in ${buffers}`;
   titleBlock.appendChild(title);
   titleBlock.appendChild(subtitle);
   const badge = document.createElement("div");

@@ -20,7 +20,7 @@ import time
 from argparse import ArgumentParser
 from pathlib import Path
 
-from iommu_common import IOMMU_SYSFS, iommu_units
+from iommu_common import IOMMU_SYSFS, check_vfio_kernel, iommu_units
 from xnvmeperf import xnvmeperf_cmd
 
 FIO_PERCENTILE_LIST = "99.9:99.99:99.999"
@@ -50,6 +50,8 @@ def add_args(parser: ArgumentParser):
         "--driver", choices=["uio_pci_generic", "vfio-pci"], required=True
     )
     parser.add_argument("--label", choices=["uio", "vfio"], required=True)
+    parser.add_argument("--memory", choices=["host", "gpu"], default="host")
+    parser.add_argument("--gpu_id", type=int, default=0)
 
 
 def q(value):
@@ -69,6 +71,81 @@ def cpus_to_cpumask(cpus):
     for cpu in cpus:
         mask |= 1 << int(cpu)
     return hex(mask)
+
+
+def backend_for(memory):
+    """The xNVMe backend that puts data buffers where `memory` says."""
+    return "upcie-cuda" if memory == "gpu" else "upcie"
+
+
+def gpu_memory(args):
+    return args.memory == "gpu"
+
+
+def gpu_bdf_from_smi(bus_id):
+    """'00000000:01:00.0' from nvidia-smi as the sysfs name '0000:01:00.0'."""
+    domain, rest = bus_id.strip().lower().split(":", 1)
+    return f"{domain[-4:]}:{rest}"
+
+
+def warn_gpu_cross_node(args, cijoe, pci_addrs):
+    """
+    Warn about a device on another NUMA node than the GPU it reads into.
+
+    Only a warning, as for CPUs. nvidia-smi numbers GPUs in PCI bus order while
+    CUDA, which reads gpu_id, puts the fastest first by default, so on a machine
+    with mixed GPU models this may look at the wrong GPU.
+    """
+    if not gpu_memory(args):
+        return
+
+    err, state = cijoe.run(
+        f"nvidia-smi --query-gpu=pci.bus_id --format=csv,noheader -i {q(args.gpu_id)}"
+    )
+    lines = state.output().strip().splitlines()
+    if err or not lines:
+        return
+    try:
+        gpu_bdf = gpu_bdf_from_smi(lines[-1])
+    except ValueError:
+        return
+
+    bdfs = [gpu_bdf, *pci_addrs]
+    cmd = "; ".join(f"cat /sys/bus/pci/devices/{q(bdf)}/numa_node" for bdf in bdfs)
+    err, state = cijoe.run(cmd)
+    lines = state.output().strip().splitlines()[-len(bdfs) :]
+    if err or len(lines) != len(bdfs):
+        return
+    try:
+        gpu_node, *dev_nodes = (int(line) for line in lines)
+    except ValueError:
+        return
+    if gpu_node < 0:
+        return
+
+    for pci_addr, dev_node in zip(pci_addrs, dev_nodes):
+        if dev_node >= 0 and dev_node != gpu_node:
+            log.warning(
+                f"{pci_addr} is on NUMA node {dev_node} but GPU {args.gpu_id} "
+                f"({gpu_bdf}) is on node {gpu_node}"
+            )
+
+
+def runner_env(args):
+    """
+    Environment prefix for an xnvmeperf or fio run.
+
+    Reaching GPU memory while an IOMMU enforces needs the iommufd path: it is
+    the one that reserves the IOVA window the GPU pages are mapped into. xNVMe
+    picks it only when /dev/iommu opens and the device has a cdev node, and
+    falls back to the legacy type1 container without saying so, which maps the
+    window without reserving it. Asking for it by name turns that silent
+    fallback into a failure. Host-memory runs ask for it too, so both kinds of
+    memory are measured on the same IOMMU backend.
+    """
+    if args.driver == "vfio-pci":
+        return "XNVME_UPCIE_VFIO_MODE=iommufd "
+    return ""
 
 
 def bdf_safe(pci_addr):
@@ -304,6 +381,11 @@ def run_with_vfio_retry(cijoe, cmd, driver, what):
 
 
 def bind_driver(cijoe, driver, pci_addrs, mountpoint, hugepages):
+    if driver == "vfio-pci":
+        err = check_vfio_kernel(cijoe)
+        if err:
+            return err
+
     commands = [
         "set -e",
         f"modprobe {q(driver)}",
@@ -312,6 +394,11 @@ def bind_driver(cijoe, driver, pci_addrs, mountpoint, hugepages):
         "mkdir -p /dev/hugepages",
         "mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages",
     ]
+    if driver == "vfio-pci":
+        # /dev/iommu only appears once the module is in, and not every setup
+        # loads it. Tolerate a kernel built without it: the run then fails
+        # where the mode is asked for, naming what is missing.
+        commands.append("modprobe iommufd || true")
     commands.extend(
         f"devbind --device {q(pci_addr)} --bind {q(driver)}" for pci_addr in pci_addrs
     )
@@ -326,9 +413,9 @@ def reset_driver(cijoe, pci_addrs):
     return err
 
 
-def build_xnvmeperf_cmd(cijoe, devices, rw, iosize, iodepth):
+def build_xnvmeperf_cmd(args, cijoe, devices, rw, iosize, iodepth):
     """One xnvmeperf run over every device, on the CPUs they are pinned to."""
-    return xnvmeperf_cmd(
+    return runner_env(args) + xnvmeperf_cmd(
         "xnvmeperf",
         {
             "cpumask": cpus_to_cpumask(device["cpu"] for device in devices),
@@ -336,20 +423,21 @@ def build_xnvmeperf_cmd(cijoe, devices, rw, iosize, iodepth):
             "iosize": iosize,
             "runtime": int(conf(cijoe, "runtime", 10)),
             "iopattern": rw,
-            "backend": "upcie",
+            "backend": backend_for(args.memory),
+            "gpu_id": args.gpu_id if gpu_memory(args) else None,
             "devices": [device["pci_addr"] for device in devices],
         },
     )
 
 
-def fio_cmd(cijoe, devices, rw, iosize, iodepth):
+def fio_cmd(args, cijoe, devices, rw, iosize, iodepth):
     runtime = int(conf(cijoe, "runtime", 10))
     ramp_time = int(conf(cijoe, "fio_ramp_time", 5))
     size = conf(cijoe, "fio_size", "100%")
     parts = [
         "fio",
         "--ioengine=xnvme",
-        "--xnvme_be=upcie",
+        f"--xnvme_be={backend_for(args.memory)}",
         "--thread=1",
         "--direct=1",
         f"--rw={q(rw)}",
@@ -376,7 +464,7 @@ def fio_cmd(cijoe, devices, rw, iosize, iodepth):
             ]
         )
 
-    return " ".join(parts)
+    return runner_env(args) + " ".join(parts)
 
 
 def parse_xnvmeperf(output):
@@ -442,9 +530,11 @@ def parse_fio(output, rw, devices):
     return parsed
 
 
-def result_file(path, label, runner, rw, iosize, iodepth, rep, devcount, dev=None):
+def result_file(
+    path, label, memory, runner, rw, iosize, iodepth, rep, devcount, dev=None
+):
     suffix = (
-        f"label_{label}-runner_{runner}-rw_{rw}-"
+        f"label_{label}-mem_{memory}-runner_{runner}-rw_{rw}-"
         f"iosize_{iosize}-iodepth_{iodepth}-devcount_{devcount}"
     )
     if dev is not None:
@@ -474,6 +564,8 @@ def base_result(
         "label": args.label,
         "driver": args.driver,
         "iommu": "on" if args.driver == "vfio-pci" else "off",
+        "memory": args.memory,
+        "backend": backend_for(args.memory),
         "runner": runner,
         "rw": rw,
         "iosize": iosize,
@@ -487,6 +579,8 @@ def base_result(
     if runner == "fio":
         result["fio_numjobs"] = 1
         result["fio_cpus_allowed"] = str(cpu)
+    if gpu_memory(args):
+        result["gpu_id"] = int(args.gpu_id)
     if dev is not None:
         result["dev"] = dev
     return result
@@ -512,6 +606,7 @@ def xnvmeperf_pass(args, cijoe, devices, cases, repeat, out_dir, progress):
             path = result_file(
                 out_dir,
                 args.label,
+                args.memory,
                 "xnvmeperf",
                 rw,
                 iosize,
@@ -524,7 +619,7 @@ def xnvmeperf_pass(args, cijoe, devices, cases, repeat, out_dir, progress):
                 continue
 
             workload = (
-                f"{args.label} {rw} iosize={iosize} "
+                f"{args.label}/{args.memory} {rw} iosize={iosize} "
                 f"iodepth={iodepth} devices={devcount} rep={rep}"
             )
             print_progress(
@@ -532,7 +627,7 @@ def xnvmeperf_pass(args, cijoe, devices, cases, repeat, out_dir, progress):
             )
             err, output = run_with_vfio_retry(
                 cijoe,
-                build_xnvmeperf_cmd(cijoe, devices, rw, iosize, iodepth),
+                build_xnvmeperf_cmd(args, cijoe, devices, rw, iosize, iodepth),
                 args.driver,
                 f"xnvmeperf {workload}",
             )
@@ -578,13 +673,14 @@ def fio_pass(args, cijoe, devices, cases, repeat, out_dir, progress):
     for case_idx, (rw, iosize, iodepth) in enumerate(cases, start=1):
         for rep in range(1, repeat + 1):
             workload = (
-                f"{args.label} {rw} iosize={iosize} "
+                f"{args.label}/{args.memory} {rw} iosize={iosize} "
                 f"iodepth={iodepth} devices={devcount} rep={rep}"
             )
             paths = {
                 device["pci_addr"]: result_file(
                     out_dir,
                     args.label,
+                    args.memory,
                     "fio",
                     rw,
                     iosize,
@@ -607,7 +703,7 @@ def fio_pass(args, cijoe, devices, cases, repeat, out_dir, progress):
             )
             err, output = run_with_vfio_retry(
                 cijoe,
-                fio_cmd(cijoe, devices, rw, iosize, iodepth),
+                fio_cmd(args, cijoe, devices, rw, iosize, iodepth),
                 args.driver,
                 f"fio {workload}",
             )
@@ -638,6 +734,12 @@ def fio_pass(args, cijoe, devices, cases, repeat, out_dir, progress):
 
 
 def main(args, cijoe):
+    # fio's xNVMe engine has no option that reaches xnvme_opts.gpu_id, so fio
+    # would measure GPU 0 while xnvmeperf measured the one asked for.
+    if gpu_memory(args) and args.gpu_id != 0:
+        log.error(f"gpu_id {args.gpu_id} is not supported: fio always uses GPU 0")
+        return errno.EINVAL
+
     try:
         devices = configured_devices(cijoe)
         cases = workload_cases(cijoe)
@@ -654,6 +756,7 @@ def main(args, cijoe):
     err = check_cpu_pinning(cijoe, devices)
     if err:
         return err
+    warn_gpu_cross_node(args, cijoe, pci_addrs)
 
     repeat = int(conf(cijoe, "repeat", 3))
     hugepages = int(conf(cijoe, "hugepages", 1024))

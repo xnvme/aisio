@@ -18,7 +18,12 @@ from pathlib import Path
 
 from cijoe.core.resources import get_resources
 
-from iommu_common import IOMMU_SYSFS, cmdline_has_iommu_off, iommu_units
+from iommu_common import (
+    IOMMU_SYSFS,
+    check_vfio_kernel,
+    cmdline_has_iommu_off,
+    iommu_units,
+)
 
 GRUB_UPDATE_REMOTE = "/tmp/aisio-iommu-grub-update.py"
 GRUB_UPDATE_RESOURCE = "iommu_grub_update"
@@ -27,7 +32,7 @@ GRUB_UPDATE_RESOURCE = "iommu_grub_update"
 def add_args(parser: ArgumentParser):
     parser.add_argument(
         "--mode",
-        choices=["set-off", "set-on", "verify-off", "verify-on"],
+        choices=["check-kernel", "set-off", "set-on", "verify-off", "verify-on"],
         required=True,
     )
 
@@ -172,6 +177,9 @@ def verify_mode(args, cijoe, mode):
 
 
 def main(args, cijoe):
+    # Runs before the first grub edit, so an unsupported kernel costs no reboot.
+    if args.mode == "check-kernel":
+        return check_vfio_kernel(cijoe)
     if args.mode == "set-off":
         return set_mode(args, cijoe, "off")
     if args.mode == "set-on":
