@@ -29,16 +29,14 @@ trade-offs between the two approaches.
 
 ## Broader Accelerator Support
 
-The current PoC is developed and validated against NVIDIA GPUs using CUDA for
-device memory allocation and dma-buf export. The I/O path itself — built on
-xNVMe, uPCIe, and dma-buf — is not NVIDIA-specific, as these components
-operate on any dma-buf exporter. The CUDA dependency is therefore confined to
-the memory management layer. Extending support to AMD GPUs via ROCm requires
-work in three areas. First, device memory allocation must be ported from
-`cuMemAlloc` to the HIP equivalent. Second, dma-buf export must be adapted
-from `cuMemGetHandleForAddressRange` to the corresponding amdgpu kernel driver
-interface. Third, the device-resident NVMe driver must be ported from CUDA to
-HIP; this is the most substantial effort.
+Device-initiated I/O is developed and validated against NVIDIA GPUs, using CUDA
+for device memory allocation and dma-buf export. The I/O path itself is built on
+xNVMe, uPCIe, and dma-buf, which operate on any dma-buf exporter, so it is not
+NVIDIA-specific. AMD GPUs are supported for CPU-initiated P2P I/O through
+xNVMe's ``upcie-hip`` backend, which allocates device memory with `hipMalloc`
+and exports it as dma-buf with `hipMemGetHandleForAddressRange`.
+Device-initiated I/O on AMD GPUs requires porting the device-resident NVMe
+driver from CUDA to HIP.
 
 ## Multi-Accelerator Topologies
 
