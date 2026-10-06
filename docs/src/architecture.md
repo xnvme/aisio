@@ -221,19 +221,16 @@ strategies: software-mediated multiplexing via *ublk* {cite}`ublk`, and
 hardware-assisted delegation via SR-IOV. Both are described in the subsections
 below.
 
-A foundational component of HOMI is a host-resident daemon that centralizes
-control-plane responsibilities shared across all I/O paths. This daemon is
-responsible for device discovery and initialization, NVMe control operations,
-and the extraction and caching of file-extent information from the host file
-system. It exposes interfaces through which user space processes and
-accelerators can obtain access to NVMe resources, including handles required to
+HOMI is a host-resident control plane that enables controller sharing. It
+performs device initialization and NVMe control operations, and shares the
+controller handles through which user space processes and accelerators
 establish I/O queue pairs for direct command submission.
 
 Accelerators cannot interact directly with kernel metadata structures or perform
-pathname resolution. HOMI therefore extracts file extent information on the host
-and makes it available through controlled interfaces, allowing accelerators to
-translate file offsets into physical block ranges without kernel involvement on
-the data path.
+pathname resolution. File extent information must therefore be extracted on
+the host. A separate host-resident component, ``xal-server``, does so and makes
+it available through shared memory, allowing accelerators to translate file
+offsets into physical block ranges without kernel involvement on the data path.
 
 HOMI is intentionally scoped as a reference implementation. It focuses on
 exposing and coordinating multiple I/O paths rather than on providing a complete

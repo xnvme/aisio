@@ -6,32 +6,10 @@ SPDX-License-Identifier: BSD-3-Clause
 
 # Future Work
 
-The work presented here is bounded in two important ways. First, HOMI is a
-reference implementation under active development rather than a complete
-system: several architectural components described in Section
-{ref}`sec-architecture` are not yet realized in the current PoC. Second,
-the scope is limited to locally-attached NVMe storage, leaving remote and
-disaggregated storage as an open direction. The following sections describe
-the most significant areas of future work along these dimensions and others.
-
-## Completing the HOMI Reference Implementation
-
-The most immediate area of future work is completing the HOMI reference
-implementation described in Section {ref}`sec-architecture`. The current
-PoC demonstrates key aspects of the design in a reduced form, but the
-full reference implementation requires several components not yet in place:
-a persistent host-resident control-plane daemon, dynamic provisioning and
-reassignment of NVMe queue resources across initiators, and coordinated
-lifecycle management spanning OS-managed, user space managed, and
-device-initiated I/O paths. Dynamic queue management is of particular
-importance, as it is a prerequisite for supporting workloads where the set
-of active initiators changes at runtime. The current PoC relies exclusively
-on SR-IOV for hardware-assisted queue isolation, a feature limited to
-datacenter-grade NVMe devices. Completing the HOMI reference implementation
-includes realizing the ublk-based software-mediated multipath configuration
-described in Section {ref}`sec-architecture`, which removes this hardware
-dependency and enables the architecture to operate on commodity storage
-hardware.
+The work presented here is limited in scope to locally-attached NVMe storage,
+leaving remote and disaggregated storage as an open direction. The following
+sections describe the most significant areas of future work along this
+dimension and others.
 
 ## Kernel Integration and Upstream Components
 
@@ -65,11 +43,10 @@ HIP; this is the most substantial effort.
 ## Multi-Accelerator Topologies
 
 While multi-accelerator support is a goal of this work, only
-single-accelerator configurations have been targeted so far. Dynamic queue
-management is a prerequisite for this. Beyond that, achieving multi-accelerator
-support also requires accounting for PCIe topology effects on P2P transfer
-latency and bandwidth, and managing concurrent access to shared namespaces from
-multiple devices within the HOMI control plane.
+single-accelerator configurations have been targeted so far. Achieving
+multi-accelerator support requires accounting for PCIe topology effects on P2P
+transfer latency and bandwidth, and managing concurrent access to shared
+namespaces from multiple devices within the HOMI control plane.
 
 ## Remote Storage and RDMA
 
