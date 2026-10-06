@@ -108,6 +108,5 @@ paths to coexist with shared access to storage resources while preserving
 operating-system semantics.
 
 This paper introduces AiSIO as a conceptual framework, defines a taxonomy of
-I/O paths within that framework, presents the HOMI architecture, and describes a
-proof-of-concept implementation evaluated through a series of synthetic
-benchmarks.
+I/O paths within that framework, presents the HOMI architecture, and describes
+an implementation evaluated through a series of synthetic benchmarks.

@@ -6,19 +6,17 @@ SPDX-License-Identifier: BSD-3-Clause
 
 # Implementation
 
-This section distinguishes between the existing proof-of-concept (PoC)
-implementations used for evaluation and experimentation, and the ongoing work
-toward a full Host-Orchestrated Multipath I/O (HOMI) reference implementation.
-The PoC represents a concrete, functional subset of the overall design, while
-HOMI defines the target system architecture that is currently under active
-development.
+This section first describes the earlier proof-of-concept (PoC)
+implementation, built on libnvm in its BaM-modified form, and then the current
+implementation, including the Host-Orchestrated Multipath I/O (HOMI) reference
+implementation.
 
 ## Proof-of-Concept Implementation
 
-The current PoC consists of a set of functional software components that
-demonstrate key aspects of accelerator-integrated storage I/O. These components
-are used to validate feasibility, explore performance characteristics, and
-exercise device-initiated I/O paths under controlled conditions.
+The PoC consisted of a set of functional software components that demonstrated
+key aspects of accelerator-integrated storage I/O. These components were used
+to validate feasibility, explore performance characteristics, and exercise
+device-initiated I/O paths under controlled conditions.
 
 ```{figure} _static/aisio_overview_poc.drawio.png
 :alt: Overview of the initial AiSIO PoC
@@ -28,7 +26,7 @@ exercise device-initiated I/O paths under controlled conditions.
 Overview of the initial AiSIO PoC
 ```
 
-The **AiSIO** PoC demonstrates functionality on Linux systems using:
+The **AiSIO** PoC demonstrated functionality on Linux systems using:
 
 - xNVMe for NVMe command construction and submission across both CPU-initiated
   and GPU-initiated I/O paths, including invocation directly from CUDA kernels,
@@ -38,28 +36,30 @@ The **AiSIO** PoC demonstrates functionality on Linux systems using:
   between the NVMe controller and GPU device memory.
 - The XAL metadata decoder for XFS.
 - The SIL: Storage Iterator Library (now called FIL: File Iterator Library),
-  a benchmark application that iterates over file-based datasets using XAL
-  for extent resolution and exercises both CPU and GPU I/O paths.
+  a benchmark application that iterated over file-based datasets using XAL
+  for extent resolution and exercised both CPU and GPU I/O paths.
 
-The PoC is open-source, reproducible, and interoperates with unmodified XFS.
+The PoC is open-source, interoperates with unmodified XFS, and is reproducible
+from the ``poc`` tag.
 
-The PoC relies on hardware-assisted delegation using NVMe Single Root
-I/O Virtualization (SR-IOV). NVMe Virtual Functions (VFs) are provisioned and
-assigned statically to initiators. A single host-resident process performs device
-initialization, queue provisioning, metadata handling, and I/O submission. In
-this configuration, control-plane and data-path responsibilities are co-located,
-and no separate persistent host-resident control-plane daemon is present.
+The PoC relied on hardware-assisted delegation using NVMe Single Root
+I/O Virtualization (SR-IOV). NVMe Virtual Functions (VFs) were provisioned and
+assigned statically to initiators. A single host-resident process performed
+device initialization, queue provisioning, metadata handling, and I/O
+submission. In this configuration, control-plane and data-path responsibilities
+were co-located, and no separate persistent host-resident control-plane daemon
+was present.
 
-Accelerator access in the PoC is realized by assigning an NVMe Virtual Function
+Accelerator access in the PoC was realized by assigning an NVMe Virtual Function
 directly to the accelerator, enabling device-initiated I/O through
-hardware-isolated queues. This allows multiple initiators to access shared
-namespaces concurrently, but does not yet exercise dynamic queue management or
+hardware-isolated queues. This allowed multiple initiators to access shared
+namespaces concurrently, but did not exercise dynamic queue management or
 centralized host orchestration.
 
-The PoC includes early implementations of several HOMI-related components, such
+The PoC included early implementations of several HOMI-related components, such
 as user space NVMe driver extensions, accelerator-accessible I/O queue
 provisioning, and file system extent extraction used to support file-backed
-accelerator access. These components are functional but are composed in a
+accelerator access. These components were functional but were composed in a
 reduced form suitable for experimentation rather than as a complete system.
 
 ## HOMI Reference Implementation (Work in Progress)
