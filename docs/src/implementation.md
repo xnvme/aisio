@@ -62,30 +62,24 @@ provisioning, and file system extent extraction used to support file-backed
 accelerator access. These components were functional but were composed in a
 reduced form suitable for experimentation rather than as a complete system.
 
-## HOMI Reference Implementation (Work in Progress)
+## Current Implementation
 
-The HOMI reference implementation represents the intended realization of the
-architecture described in Section {ref}`sec-architecture`. It extends beyond
-the current PoC by introducing a host-resident orchestration layer responsible
-for global coordination across OS-managed, user space managed, and
-device-initiated I/O paths.
+Where the PoC depended on libnvm and on NVIDIA's peer-to-peer memory interface,
+the current implementation reaches the NVMe controller through uPCIe and GPU
+device memory through dma-buf, neither of which is specific to NVIDIA hardware.
+It is built from:
 
-Key elements of the HOMI reference implementation that are under development
-include a persistent host-resident control-plane daemon, dynamic provisioning
-and assignment of NVMe queue resources across initiators, centralized caching of
-file-to-block mappings, and coordinated lifecycle and policy management spanning
-all I/O paths. Unlike the PoC, the reference implementation is designed to
-support both software-mediated and hardware-assisted multipath configurations
-within a unified orchestration framework.
+- xNVMe with its uPCIe backends, for NVMe command construction and submission
+  across both CPU-initiated and GPU-initiated I/O paths.
+- The dma-buf importer released by uPCIe, which resolves the physical addresses
+  of GPU device memory.
+- XAL, for file-to-block extent resolution.
+- FIL, whose ``aisio-cpu``, ``aisio-p2p``, and ``aisio-gpu`` backends exercise
+  CPU-initiated I/O into host memory, CPU-initiated P2P I/O, and GPU-initiated
+  I/O.
 
-The reference implementation is intended to serve as a stable and extensible
-platform for exploring host-orchestrated multipath I/O, rather than as a
-production-ready storage system. Development is ongoing, and future work
-focuses on incrementally integrating existing PoC components into this broader
-HOMI framework.
-
-Information about building, installing and managing HOMI is found in the README
-file in the ``homi`` directory of the AiSIO reference implementation.
+The following subsections describe uPCIe, the dma-buf import mechanism,
+device-initiated benchmarking in xnvmeperf, and HOMI.
 
 ### uPCIe
 
@@ -94,11 +88,11 @@ device drivers. It provides composable, zero-dependency abstractions that cover
 PCIe device discovery and BAR mapping, DMA-capable memory allocation, and a
 minimalistic NVMe driver built directly on top of these primitives.
 
-HOMI uses uPCIe as the user space NVMe driver. Being header-only, uPCIe
+AiSIO uses uPCIe as its user space NVMe driver. Being header-only, uPCIe
 integrates directly into xNVMe — where it is available as a backend
 for user space NVMe access, as described in the [xNVMe uPCIe backend
 documentation](https://xnvme.io/en/next/background/backends/upcie/index.html) —
-which in turn is the NVMe layer used by HOMI.
+which in turn is the NVMe layer used throughout AiSIO, HOMI included.
 
 uPCIe includes an optional GPU integration layer that adds CUDA-backed memory
 management. This enables two distinct I/O modes. In the **CPU-initiated P2P
@@ -173,3 +167,16 @@ counts are read back and used to compute throughput. Sequential and random
 access patterns are supported through separate kernel implementations; the
 random kernel uses a per-thread linear congruential generator seeded from the
 host to produce independent LBA sequences without shared-memory coordination.
+
+### HOMI
+
+HOMI realizes the control plane of the architecture described in Section
+{ref}`sec-architecture`, enabling OS-managed, user space managed, and
+device-initiated I/O paths to share an NVMe controller. It ships as the
+``homi`` tool in xNVMe, a persistent host-resident process that owns the
+controller state and DMA memory, and to which the processes doing I/O attach.
+Each attached process creates and tears down its own I/O queue pairs at
+runtime, so queue resources are provisioned dynamically across initiators.
+
+Information about running HOMI is found in the [xNVMe homi
+documentation](https://xnvme.io/tools/homi/index.html).
