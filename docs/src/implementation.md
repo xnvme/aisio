@@ -110,16 +110,29 @@ space. It also tracks the SQ tail, CQ head, phase bit, and a clock-based timeout
 derived from the GPU's SM clock rate.
 
 CUDA kernels call ``xnvme_cuda_cmd_io()`` collectively across all threads
-in a block. The submission flow proceeds in four stages. First, each thread
-enqueues its NVMe command into the SQ using word-by-word volatile pointer
-writes, bypassing the per-SM L1 cache so writes reach system DRAM and become
-visible to the NVMe DMA engine without waiting for cache eviction. Second, a
-``__syncthreads()`` barrier ensures all commands are written before the doorbell
-is rung. Third, thread 0 issues a ``__threadfence_system()`` fence and writes
-the updated SQ tail to the MMIO doorbell register, triggering the controller to
-fetch and execute the queued commands. Fourth, each thread polls its CQ entry
-using the phase bit to detect completion, with timeout tracked in GPU clock
-cycles.
+in a block, with the block size equal to the queue depth. A batch size sets how
+many threads take part in a round. The remaining threads join the barriers
+without submitting, which allows rounds with fewer commands than the queue
+holds. The flow proceeds in six stages:
+
+1. Each active thread enqueues its NVMe command into the SQ using word-by-word
+   volatile pointer writes, bypassing the per-SM L1 cache so writes reach
+   system DRAM and become visible to the NVMe DMA engine without waiting for
+   cache eviction.
+2. A ``__syncthreads()`` barrier ensures all commands are written before the
+   doorbell is rung.
+3. Thread 0 issues a ``__threadfence_system()`` fence and writes the updated SQ
+   tail to the MMIO doorbell register, triggering the controller to fetch and
+   execute the queued commands.
+4. Each active thread polls its CQ entry using the phase bit to detect
+   completion, with timeout tracked in GPU clock cycles.
+5. A second barrier ensures all completions are reaped.
+6. Thread 0 advances the CQ head, flipping the phase bit on wrap, and writes it
+   to the CQ doorbell register.
+
+The barriers are what make a block that spans several warps safe. Without them,
+thread 0 could ring the SQ doorbell before other warps have written their
+commands, or advance the CQ head before they have reaped.
 
 Both modes rely on the NVMe command's Physical Region Page (PRP) list containing
 the physical addresses of the data buffer. Obtaining these from CUDA device
