@@ -45,6 +45,32 @@ system provides 2 TiB of host memory.
 | GPU         | 1x NVIDIA H100 PCIe 80GB           |
 | Storage     | 16x Samsung SSD PM1753 32TB        |
 
+(sec-env-storage-server)=
+## NVMe Storage Server
+
+A dual-socket server with 32 NVMe devices, 16 on each NUMA node, and a GPU on
+the first node, used for the IOMMU translation overhead experiment. The
+experiment uses the 16 devices that share a NUMA node with the GPU, so
+peer-to-peer transfers stay on one socket.
+
+| Hardware    | Details                                                         |
+| ----------- | --------------------------------------------------------------- |
+| Motherboard | Inspur NF5180M6                                                 |
+| CPU         | 2x Intel® Xeon® Scalable 3rd Gen (Ice Lake-SP), 24 cores, SMT   |
+| Memory      | 16x 16GiB SK hynix DDR4 2666MHz                                 |
+| GPU         | 1x NVIDIA L4 24GB, PCIe Gen4 x16                                |
+| Storage     | 32x Samsung MZTLD15THEPB, PCIe Gen4 x4, 16 per NUMA node        |
+| OS          | Ubuntu 26.04.1 LTS                                              |
+
+The two sockets give 48 cores and 96 threads, with 72MiB of L3 cache in total,
+and every memory channel holds one module. Each group of eight NVMe devices sits
+behind a Microchip PCIe Gen4 switch, and each switch connects to its own CPU
+root port through a Gen4 x16 link, two switches per socket. The GPU has its own
+Gen4 x16 root port on the first socket. The switches and the GPU limit every
+link to Gen4. Unlike the other environments, this
+server boots with the IOMMU off or on depending on the half of the experiment
+that runs, as described in {ref}`sec-experimental-framework`.
+
 (sec-env-gpu-workstation)=
 ## Professional GPU Workstation
 
@@ -86,6 +112,27 @@ Unlike the {ref}`sec-env-gpu-workstation`, P2P is only possible between devices
 installed in the PCIe expansion slot labeled **PCI_E1** and the M.2 slot
 labeled **M2_1**. These are connected to the CPU root complex whereas the other
 PCIe and M.2 slots are connected to the platform controller hub (PCH).
+
+(sec-env-dev-pc)=
+## Development PC
+
+A desktop PC used to trace how the kernel maps a GPU dma-buf into an NVMe
+device's IOMMU domain. Its Intel platform exposes VT-d, so the Intel IOMMU
+driver's mapping functions can be probed, and it supports both 2 MiB and 1 GiB
+pages.
+
+| Hardware | Details                                                    |
+| -------- | ---------------------------------------------------------- |
+| CPU      | 1x Intel® Core™ i9-14900K                                  |
+| GPU      | 1x NVIDIA RTX PRO 4000 Blackwell, 32 GiB BAR1              |
+| Storage  | 1x Samsung 980 PRO, spare disk used for the mapping test   |
+| IOMMU    | Intel VT-d, two units, 2 MiB and 1 GiB pages               |
+| Kernel   | 6.8.12-dmabuf, ``CONFIG_INTEL_IOMMU=y``, kprobes enabled   |
+
+The measurement used a cijoe configuration without ssh and a copy of the task
+retargeted to the spare NVMe, so mappings created and removed during the test
+did not touch the system disk. Unlike the other environments, this PC boots
+with the IOMMU off or on depending on the measurement step.
 
 (sec-env-legacy)=
 ## Legacy GPU Server

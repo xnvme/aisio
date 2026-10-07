@@ -255,6 +255,30 @@ cijoe --monitor \
     tasks/bench_cuda_qdepth.yaml
 ```
 
+#### CPU-initiated I/O: IOMMU Translation Overhead (``bench_iommu_overhead_host.yaml``, ``bench_iommu_overhead_gpu.yaml``)
+
+Compares an IOMMU-off run (``uio_pci_generic``) with an IOMMU-on run
+(``vfio-pci``) using **xnvmeperf** and **fio**, with the data buffers in host
+memory or in GPU memory. Each workflow rewrites ``/etc/default/grub`` on the
+target and reboots it twice, once into each IOMMU mode, and leaves it in the
+IOMMU-on boot. The task files describe how to restore the original grub
+configuration. The IOMMU-on half needs Linux 6.13 or newer, which the workflow
+checks before the first reboot. The benchmark parameters live in
+``configs/iommu_overhead.toml``. Described in detail in
+{ref}`sec-experiments-iommu-overhead`.
+
+```
+cijoe --monitor \
+    -c configs/transport.toml \
+    -c configs/aisio.toml \
+    -c configs/devices_16.toml \
+    -c configs/iommu_overhead.toml \
+    tasks/bench_iommu_overhead_host.yaml
+```
+
+The GPU-memory run uses ``tasks/bench_iommu_overhead_gpu.yaml`` with the same
+configs.
+
 ### File-based
 
 File-based benchmarks load datasets from an XFS filesystem on a dedicated

@@ -161,6 +161,11 @@ def make_plots(build_dir: str) -> None:
             archive, build_dir, "cuda", "qdepth-occupancy", colormap="plasma"
         )
 
+    with plots.artifacts_from_archive(artifacts / "iommu-overhead.tar.gz") as archive:
+        plots.iommu_overhead(archive, build_dir)
+        plots.iommu_overhead_delta(archive, build_dir)
+        plots.iommu_overhead_latency(archive, build_dir)
+
 
 # ---------------------------------------------------------------------------
 # Extract latex_documents from latex_theme.py
