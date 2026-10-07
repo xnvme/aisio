@@ -12,9 +12,11 @@ CPU-initiated IOPS ceiling and the optimal system configuration. The second
 quantifies the software abstraction overhead at each layer of the CPU-initiated
 I/O stack and shows how much of that overhead the uPCIe path eliminates. The
 third identifies where the I/O size crosses from IOPS-bound to bandwidth-bound
-operation. The final two examine device-initiated I/O, first varying I/O size to
+operation. The next two examine device-initiated I/O, first varying I/O size to
 find the saturation boundary, then varying queue depth and queue count to find
-the combination that reaches device saturation.
+the combination that reaches device saturation. The last measures what turning
+the IOMMU on costs CPU-initiated I/O, with the data buffers in host memory and
+in GPU memory.
 
 ```{toctree}
 :maxdepth: 1
@@ -23,4 +25,5 @@ tool_comparison
 pcie_saturation
 device_initiated_iosize
 device_initiated_qdepth
+iommu_overhead
 ```

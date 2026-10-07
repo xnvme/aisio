@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import json
 import re
 import tarfile
 import tempfile
@@ -15,7 +16,7 @@ import yaml
 from matplotlib.colors import to_rgb
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
-from matplotlib.ticker import LogLocator, ScalarFormatter
+from matplotlib.ticker import FuncFormatter, LogLocator, NullLocator, ScalarFormatter
 
 
 @contextmanager
@@ -64,12 +65,13 @@ def mathtt(s: str):
         # if there is not an uneven length, there has not been an even amount of "`" in the original string
         return s
 
-    latex = [r"$\mathtt{", "}$"]
     out = [s[0]]
     for idx in range(1, len(s)):
-        out.append(latex[(idx - 1) % 2])
         if idx % 2 == 1:
-            out.append(s[idx].replace("_", r"\_"))
+            # Mathtext sets "-" as a minus sign, so each hyphen is left as plain
+            # text between two monospace spans.
+            parts = [part.replace("_", r"\_") for part in s[idx].split("-")]
+            out.append("-".join(rf"$\mathtt{{{part}}}$" for part in parts))
         else:
             out.append(s[idx])
     return "".join(out)
@@ -645,3 +647,296 @@ def lineplot(artifacts, output, driver, xaxis="ncpus", colormap=None):
     fig.subplots_adjust(top=0.83)
     plt.savefig(out_file, dpi=150)
     plt.close(fig)
+
+
+# IOMMU off and on are told apart by marker and line style as well as by color,
+# so a figure still reads in grayscale.
+IOMMU_SIDES = {
+    "uio": {
+        "label": "IOMMU off (uio_pci_generic)",
+        "color": COLOR_SCHEME[0],
+        "marker": "o",
+        "linestyle": "-",
+    },
+    "vfio": {
+        "label": "IOMMU on (vfio-pci)",
+        "color": COLOR_SCHEME[5],
+        "marker": "s",
+        "linestyle": "--",
+    },
+}
+IOMMU_MEMORY = {
+    "host": {"label": "Host memory", "color": COLOR_SCHEME[0]},
+    "gpu": {"label": "GPU memory", "color": COLOR_SCHEME[3]},
+}
+IOMMU_RUNNERS = {
+    "xnvmeperf": {"marker": "o", "linestyle": "-"},
+    "fio": {"marker": "^", "linestyle": "--"},
+}
+IOMMU_WORKLOADS = [
+    ("randread", "4 KiB random read"),
+    ("read", "128 KiB sequential read"),
+]
+IOMMU_SUBTITLE = (
+    "{devcount} PCIe Gen4 NVMe SSDs, host memory via `upcie`, "
+    "GPU memory via `upcie-cuda`"
+)
+IOMMU_FOOTNOTE = "Mean of 5 runs of 30 s per point"
+# PCIe Gen4 x16 after 128b/130b encoding, the line rate of the GPU's link.
+PCIE_GEN4_X16_GBS = 16e9 * 16 * 128 / 130 / 8 / 1e9
+# A run within this share of its buffer location's peak bandwidth counts as
+# sitting at the ceiling, where a translation cost could be hidden.
+IOMMU_CEILING_SHARE = 0.97
+
+
+def _iommu_pairs(artifacts):
+    in_file = Path(artifacts) / "benchmark-results.json"
+    with open(in_file) as file:
+        return next(iter(json.load(file).values()))
+
+
+def _iommu_series(pairs, memory, runner, rw):
+    rows = sorted(
+        (
+            p
+            for p in pairs
+            if (p["memory"], p["runner"], p["rw"]) == (memory, runner, rw)
+        ),
+        key=lambda p: p["iodepth"],
+    )
+    return [p["iodepth"] for p in rows], rows
+
+
+def _iommu_below_ceiling(pairs, rw):
+    """How many of the lowest queue depths sit below the ceiling for every buffer."""
+    below = None
+    for memory in IOMMU_MEMORY:
+        peak = max(p["uio"]["mibs"] for p in pairs if p["memory"] == memory)
+        _, rows = _iommu_series(pairs, memory, "xnvmeperf", rw)
+        count = 0
+        for row in rows:
+            if row["uio"]["mibs"] >= IOMMU_CEILING_SHARE * peak:
+                break
+            count += 1
+        below = count if below is None else min(below, count)
+    return below or 0
+
+
+def _iommu_axes(ax, depths):
+    x = np.arange(len(depths))
+    ax.set_xticks(x)
+    ax.set_xticklabels([str(d) for d in depths], fontsize=9)
+    ax.set_xlim(x[0] - 0.4, x[-1] + 0.4)
+    ax.yaxis.grid(True, color="#e0e0e0", linewidth=0.5, zorder=0)
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="y", labelsize=9)
+    return x
+
+
+def _iommu_header(fig, title, subtitle, footnote):
+    """Title, subtitle and footnote placed as setup_figure places them."""
+    fit_to_width(
+        fig, fig.suptitle(mathtt(title), fontsize=11, fontweight="bold", y=0.97)
+    )
+    fit_to_width(
+        fig,
+        fig.text(
+            0.5,
+            0.92,
+            mathtt(subtitle),
+            ha="center",
+            va="top",
+            fontsize=9,
+            color="#555555",
+        ),
+    )
+    fig.text(
+        0.99,
+        0.01,
+        mathtt(footnote),
+        ha="right",
+        va="bottom",
+        fontsize=7,
+        fontstyle="italic",
+        color="#999999",
+    )
+
+
+def _iommu_legend(ax, loc, ncol=1):
+    ax.legend(loc=loc, ncol=ncol, fontsize=8, framealpha=0.9, edgecolor="#cccccc")
+
+
+def _iommu_save(fig, out_file, top, bottom=0.11):
+    plt.tight_layout()
+    fig.subplots_adjust(top=top, bottom=bottom)
+    plt.savefig(out_file, dpi=150)
+    plt.close(fig)
+
+
+def iommu_overhead(artifacts, output, runner="xnvmeperf"):
+    """Throughput with the IOMMU off and on, one panel per buffer and workload."""
+    pairs = _iommu_pairs(artifacts)
+    devcount = pairs[0]["devcount"]
+    out_file = Path(output) / "iommu-overhead-throughput.png"
+
+    # Each column shares its y-axis, so host and GPU memory are read on one scale
+    # and the lower GPU ceiling shows as a lower curve.
+    fig, axes = plt.subplots(2, 2, figsize=(9, 6.6), sharex=True, sharey="col")
+    col_top = [0.0, 0.0]
+    for row, memory in enumerate(IOMMU_MEMORY):
+        for col, (rw, title) in enumerate(IOMMU_WORKLOADS):
+            ax = axes[row][col]
+            depths, rows = _iommu_series(pairs, memory, runner, rw)
+            x = _iommu_axes(ax, depths)
+            # Small I/O is bounded by command rate and large I/O by bytes moved,
+            # so each workload is read in the unit it saturates in.
+            if rw == "randread":
+                values = lambda side: [r[side]["iops"] / 1e6 for r in rows]
+                ax.set_ylabel("IOPS (Millions)", fontsize=10)
+            else:
+                values = lambda side: [r[side]["mibs"] * 2**20 / 1e9 for r in rows]
+                ax.set_ylabel("Bandwidth (GB/s)", fontsize=10)
+            for side, style in IOMMU_SIDES.items():
+                ax.plot(
+                    x,
+                    values(side),
+                    color=style["color"],
+                    marker=style["marker"],
+                    linestyle=style["linestyle"],
+                    linewidth=2,
+                    markersize=4,
+                    label=style["label"],
+                )
+            col_top[col] = max(col_top[col], *values("uio"), *values("vfio"))
+            if memory == "gpu" and rw == "read":
+                col_top[col] = max(col_top[col], PCIE_GEN4_X16_GBS)
+                ax.axhline(
+                    PCIE_GEN4_X16_GBS,
+                    color=COLOR_SCHEME[3],
+                    linestyle=":",
+                    linewidth=1.5,
+                    label=f"PCIe Gen4 x16 line-rate ({PCIE_GEN4_X16_GBS:.1f} GB/s)",
+                    zorder=1,
+                )
+                _iommu_legend(ax, "lower right")
+            ax.set_title(f"{IOMMU_MEMORY[memory]['label']}, {title}", fontsize=10)
+            if row == 1:
+                ax.set_xlabel("Queue Depth", fontsize=10)
+
+    # Headroom keeps a line that sits flat at its ceiling off the frame.
+    for col, top in enumerate(col_top):
+        axes[0][col].set_ylim(0, top * 1.15)
+    _iommu_legend(axes[0][0], "lower right")
+
+    _iommu_header(
+        fig,
+        f"Throughput with the IOMMU off and on using `{runner}` with CPU-initiated I/O",
+        IOMMU_SUBTITLE.format(devcount=devcount),
+        IOMMU_FOOTNOTE,
+    )
+    _iommu_save(fig, out_file, top=0.83)
+
+
+def iommu_overhead_delta(artifacts, output):
+    """Throughput change from turning the IOMMU on, for every buffer and runner."""
+    pairs = _iommu_pairs(artifacts)
+    devcount = pairs[0]["devcount"]
+    out_file = Path(output) / "iommu-overhead-delta.png"
+
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4.6), sharey=True)
+    for ax, (rw, title) in zip(axes, IOMMU_WORKLOADS):
+        # Only points below the ceiling for every buffer location can show a
+        # translation cost, so they are shaded.
+        below = _iommu_below_ceiling(pairs, rw)
+        if below:
+            ax.axvspan(-0.4, below - 0.5, color="#f0f0f0", zorder=0)
+            ax.text(
+                (below - 1) / 2,
+                0.96,
+                "below the ceiling",
+                ha="center",
+                va="top",
+                fontsize=8,
+                color="#666666",
+                transform=ax.get_xaxis_transform(),
+            )
+        x = None
+        for memory, mstyle in IOMMU_MEMORY.items():
+            for runner, rstyle in IOMMU_RUNNERS.items():
+                depths, rows = _iommu_series(pairs, memory, runner, rw)
+                if not rows:
+                    continue
+                if x is None:
+                    x = _iommu_axes(ax, depths)
+                ax.plot(
+                    x,
+                    [r["iops_delta_pct"] for r in rows],
+                    color=mstyle["color"],
+                    marker=rstyle["marker"],
+                    linestyle=rstyle["linestyle"],
+                    linewidth=2,
+                    markersize=4,
+                    label=f"{mstyle['label']}, {runner}",
+                )
+        ax.axhline(0, color="#999999", linewidth=1, zorder=1)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Queue Depth", fontsize=10)
+    axes[0].set_ylabel("IOPS change, on vs. off (%)", fontsize=10)
+    # Headroom above the highest line holds the legend clear of every series.
+    low, high = axes[0].get_ylim()
+    axes[0].set_ylim(low, high + 0.45 * (high - low))
+    _iommu_legend(axes[1], "upper center", ncol=2)
+
+    _iommu_header(
+        fig,
+        "Throughput change from turning the IOMMU on with CPU-initiated I/O",
+        IOMMU_SUBTITLE.format(devcount=devcount),
+        IOMMU_FOOTNOTE,
+    )
+    _iommu_save(fig, out_file, top=0.80, bottom=0.15)
+
+
+def iommu_overhead_latency(artifacts, output):
+    """fio's mean latency with the IOMMU off and on, one panel per buffer and workload."""
+    pairs = _iommu_pairs(artifacts)
+    devcount = pairs[0]["devcount"]
+    out_file = Path(output) / "iommu-overhead-latency.png"
+
+    # Laid out like the throughput figure, and each column shares its y-axis, so
+    # host and GPU memory are still read on one scale.
+    fig, axes = plt.subplots(2, 2, figsize=(9, 6.6), sharex=True, sharey="col")
+    for row, memory in enumerate(IOMMU_MEMORY):
+        for col, (rw, title) in enumerate(IOMMU_WORKLOADS):
+            ax = axes[row][col]
+            depths, rows = _iommu_series(pairs, memory, "fio", rw)
+            x = _iommu_axes(ax, depths)
+            for side, style in IOMMU_SIDES.items():
+                ax.plot(
+                    x,
+                    [r[side]["lat_ns"] / 1000 for r in rows],
+                    color=style["color"],
+                    marker=style["marker"],
+                    linestyle=style["linestyle"],
+                    linewidth=2,
+                    markersize=4,
+                    label=style["label"],
+                )
+            # Latency spans from microseconds at low depth to milliseconds once
+            # the ceiling is reached, so a log scale keeps both ends readable.
+            ax.set_yscale("log")
+            ax.yaxis.set_major_locator(LogLocator(base=10, subs=(1, 2, 5)))
+            ax.yaxis.set_minor_locator(NullLocator())
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}"))
+            ax.set_ylabel("Mean Latency (µs)", fontsize=10)
+            ax.set_title(f"{IOMMU_MEMORY[memory]['label']}, {title}", fontsize=10)
+            if row == 1:
+                ax.set_xlabel("Queue Depth", fontsize=10)
+    _iommu_legend(axes[0][0], "upper left")
+
+    _iommu_header(
+        fig,
+        "Mean latency with the IOMMU off and on using `fio` with CPU-initiated I/O",
+        IOMMU_SUBTITLE.format(devcount=devcount),
+        IOMMU_FOOTNOTE,
+    )
+    _iommu_save(fig, out_file, top=0.83)
