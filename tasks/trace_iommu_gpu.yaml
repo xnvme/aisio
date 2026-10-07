@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Trace how the kernel maps a GPU dma-buf for an NVMe
+  ===================================================
+
+  Runs the dma-buf probe with ``--bdf``, so the GPU buffer is imported on
+  behalf of a real NVMe, and records the ``iommu:map``/``iommu:unmap``
+  tracepoints and two kprobes around it. The tracepoints give the size of
+  each ``iommu_map`` call. The kprobes on ``intel_iommu_map_pages`` and
+  ``pfn_to_dma_pte`` give the page size and count the kernel split that call
+  into, and the page-table level the Intel driver wrote.
+
+  The console shows the probe output, the map and unmap events of 2 MiB or
+  more, and findings on the probe's ``--bdf`` mapping. The findings check
+  the kprobe records against the tracepoint and the probe output, and the
+  step fails when they disagree. They then name the page size the mapping got
+  and what capped it. The full trace lands in
+  ``artifacts/iommu-trace-gpu/trace.txt``.
+
+  Requirements
+  ------------
+  The target must boot with the IOMMU enforcing (``intel_iommu=on`` without
+  ``iommu=pt``), because ``iommu:map`` does not fire otherwise. The NVMe must
+  be bound to the ``nvme`` driver. The script checks these and stops with a
+  reason before tracing. The kprobe symbols are Linux 6.8's, and where they do
+  not resolve only the findings are missing.
+
+  The NVMe is the dataset device, ``filesystems.dset.pci_addr`` in
+  ``configs/datasets.toml``, which normally stays on the ``nvme`` driver
+  because its filesystem is mounted. A benchmark that takes it into
+  userspace, as the IOMMU overhead benchmark does on sid, leaves it on vfio
+  or uio, and the task then stops and asks to rebind it. The probe only maps
+  the GPU buffer into its IOMMU domain and removes it again, with no I/O to
+  the disk.
+
+  The trace runs in a tracefs instance of its own, which is removed with its
+  kprobes afterward, so the global tracing state is left alone.
+
+  Example:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/datasets.toml \
+      tasks/trace_iommu_gpu.yaml
+
+  Recovery
+  --------
+  If the probe fails to open /dev/dmabuf_import with -ENOMEM/-ESTALE, the
+  module may hold a leaked import; recover with
+  ``rmmod dmabuf_import && modprobe dmabuf_import``.
+
+steps:
+  - name: trace
+    uses: iommu_trace_gpu
+    with:
+      bdf: "{{ config.filesystems.dset.pci_addr }}"
+      size_mib: 1024
+      gpu_id: 0
