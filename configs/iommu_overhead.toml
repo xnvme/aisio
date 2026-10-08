@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+[iommu_overhead]
+runtime = 30
+repeat = 5
+fio_ramp_time = 10
+fio_size = "100%"
+workload_pause = 10
+hugepages = 1024
+# iommu.strict=1 only reaches devices on the kernel DMA API. vfio invalidates on
+# every unmap anyway and uPCIe maps its buffers once, so the measured path is
+# the same either way.
+iommu_strict = false
+
+# Multi-device mode is enabled by adding a config with [[devices]] entries,
+# such as configs/devices_16.toml. An entry may name the CPU it pins to, and
+# without one it falls back to its position in the list (device 0 -> CPU 0):
+#
+#   [[devices]]
+#   pci_addr = "0000:4a:00.0"
+#   cpu = 24
+
+[[iommu_overhead.workloads]]
+rw = "randread"
+iosize = 4096
+iodepths = [1, 2, 4, 8, 16, 32]
+
+[[iommu_overhead.workloads]]
+rw = "read"
+iosize = 131072
+iodepths = [1, 2, 4, 8, 16, 32]

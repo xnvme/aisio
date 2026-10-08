@@ -1,0 +1,206 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Benchmark uPCIe IOMMU overhead, GPU-memory buffers
+  ==================================================
+
+  Measures what an enforcing IOMMU costs when the data buffers live in GPU
+  memory (`--be upcie-cuda`), which is the case the architecture is built for:
+  an NVMe reading straight into GPU VRAM.
+
+    1. boot with IOMMU disabled and collect uio_pci_generic results
+    2. boot with IOMMU enabled and collect vfio-pci results
+    3. combine both result sets and generate an HTML report
+
+  It modifies `/etc/default/grub` on the target, reboots the machine twice, and
+  waits for the CIJOE transport to return after each reboot.
+
+  Both runners cover the condition. The backend follows `memory`, and fio's
+  xNVMe ioengine allocates its data buffers through that backend, so it puts
+  them in the CUDA heap the same way xnvmeperf does. Latency and tail latency
+  come from fio.
+
+  The GPU path needs every device opened from one process: the CUDA heap is
+  per-process, and the vfio path refuses the shared-memory mode that would let
+  separate processes share a controller. xnvmeperf opens them all itself, and
+  fio runs with `--thread=1` so its per-device jobs are threads.
+
+  Run `tasks/bench_iommu_overhead_host.yaml` for the same measurement with the
+  buffers in host hugepages. An IOMMU delta is only meaningful between two runs
+  whose buffers lived in the same kind of memory, so the two workflows collect
+  and report separately. To read both in one report, point
+  `iommu_overhead_combine --results-dir` at a directory holding both result
+  sets: the report keys on `memory` and charts the two apart.
+
+  Requirements
+  ------------
+  Reaching GPU memory needs both uPCIe DKMS modules, so run
+  `tasks/setup_upcie_modules.yaml` before `tasks/setup_aisio.yaml` builds xNVMe.
+  dmabuf_import serves both halves, while iommu_map_pa only matters for the vfio
+  half, where it installs the GPU pages into the NVMe's IOMMU domain. Their UAPI
+  headers are the build-time gate, and a build without them succeeds and fails
+  only once a GPU buffer is reached for. While an IOMMU enforces, the run
+  additionally asks for the iommufd path by name, since the legacy type1
+  fallback maps the IOVA window without reserving it.
+
+  The iommufd path maps uPCIe's heap with IOMMU_IOAS_MAP_FILE, which needs Linux
+  6.13 or newer. The first step checks the kernel and refuses before anything
+  reboots. Only GPU 0 is supported, since fio's xNVMe engine cannot select
+  another GPU.
+
+  Reading the results
+  -------------------
+  Buffers are imported as uPCIe's own misc device rather than on behalf of the
+  NVMe, which an exporter may answer by migrating them to system memory. The
+  IOMMU trace probe (`tasks/trace_iommu_gpu.yaml`, on the `gpu-iommu-map-size`
+  branch until it lands in main) measured this on the development PC and found
+  no migration: DMABUF_IMPORT_DESCRIBE reported all 16384 entries without a
+  kernel page structure. That was one machine and one driver version, so check
+  BAR1 usage with `nvidia-smi -q -d memory` against the achieved bandwidth
+  before reading these numbers as peer-to-peer.
+
+  How the GPU window is mapped, measured by the same probe: a 1 GiB buffer
+  became 512 entries of 2 MiB in the IOMMU page table, installed once at
+  bring-up rather than per I/O. The unit is 2 MiB because the GPU BAR1 physical
+  address is only aligned to 2 MiB, not because the hardware cannot do more.
+  Intel VT-d supports 1 GiB pages. The 64 KiB fragments the misc import path
+  reports are not an NVIDIA page size either, but the kernel default for a
+  device with no DMA maximum segment size set.
+
+  From that structure it is reasonable to infer that translation costs little
+  here, since no page walk happens during the run. That is an inference, not a
+  measurement. IOTLB misses were not measured, because the development PC's VT-d
+  reports no performance counters, and link saturation hiding the difference was
+  not ruled out.
+
+  A GPU's PCIe link is one link where the devices are many, so this workflow
+  saturates it at a handful of devices while the host workflow keeps scaling.
+  Where both sides of a pair are capped by that link, the IOMMU delta reads as
+  nothing: that is the link talking, not evidence that translation is free.
+  Read the deltas at the depths and sizes that stay below the ceiling.
+
+  Example:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/aisio.toml \
+      -c configs/datasets.toml \
+      -c configs/iommu_overhead.toml \
+      tasks/bench_iommu_overhead_gpu.yaml
+
+  Multi-device mode uses the same task and benchmark config, plus a config with
+  top-level `[[devices]]` entries such as `configs/devices_16.toml`. Devices are
+  pinned to the CPU an entry names with `cpu = N`, or to its position in the
+  list when it names none. A run refuses to start when a CPU it would pin to is
+  offline:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/aisio.toml \
+      -c configs/datasets.toml \
+      -c configs/devices_16.toml \
+      -c configs/iommu_overhead.toml \
+      tasks/bench_iommu_overhead_gpu.yaml
+
+  Keep the devices, the CPUs they pin to, and the GPU on one NUMA node. A
+  peer-to-peer transfer between a GPU and an NVMe on another socket crosses UPI,
+  which this workflow would then be measuring instead of the cost of
+  translation. A run warns about a device pinned to a CPU on another node, or
+  sitting on another node than the GPU.
+
+  Strict IOMMU invalidation is controlled by `iommu_strict` in
+  `configs/iommu_overhead.toml` and is off by default. When enabled, the
+  IOMMU-on boot uses `iommu.strict=1`. That only changes devices the kernel
+  drives through the DMA API: vfio invalidates on every unmap anyway, and uPCIe
+  maps its buffers once at bring-up, so the measured path does not see it.
+
+  Recovery
+  --------
+  Before the first edit, the original grub config is copied to
+  `/etc/default/grub.aisio-iommu-overhead.bak` on the target. If a reboot
+  fails or the workflow is aborted in an unwanted boot state, restore with:
+
+    cp /etc/default/grub.aisio-iommu-overhead.bak /etc/default/grub \
+      && update-grub  # or: grub2-mkconfig -o /boot/grub2/grub.cfg
+
+  and reboot.
+
+steps:
+  - name: check_kernel
+    uses: iommu_boot
+    with:
+      mode: check-kernel
+
+  - name: set_iommu_off
+    uses: iommu_boot
+    with:
+      mode: set-off
+
+  - name: reboot_iommu_off
+    run: systemd-run --on-active=2 systemctl reboot
+
+  - name: wait_down_iommu_off
+    uses: core.wait_for_transport
+    with:
+      state: down
+      timeout: 60
+
+  - name: wait_up_iommu_off
+    uses: core.wait_for_transport
+    with:
+      state: up
+      timeout: 600
+
+  - name: verify_iommu_off
+    uses: iommu_boot
+    with:
+      mode: verify-off
+
+  - name: benchmark_uio_gpu
+    uses: iommu_overhead
+    with:
+      driver: uio_pci_generic
+      label: uio
+      memory: gpu
+
+  - name: set_iommu_on
+    uses: iommu_boot
+    with:
+      mode: set-on
+
+  - name: reboot_iommu_on
+    run: systemd-run --on-active=2 systemctl reboot
+
+  - name: wait_down_iommu_on
+    uses: core.wait_for_transport
+    with:
+      state: down
+      timeout: 60
+
+  - name: wait_up_iommu_on
+    uses: core.wait_for_transport
+    with:
+      state: up
+      timeout: 600
+
+  - name: verify_iommu_on
+    uses: iommu_boot
+    with:
+      mode: verify-on
+
+  - name: benchmark_vfio_gpu
+    uses: iommu_overhead
+    with:
+      driver: vfio-pci
+      label: vfio
+      memory: gpu
+
+  - name: combine
+    uses: iommu_overhead_combine
+
+  - name: visualize
+    uses: bench_visualize
+    with:
+      template: iommu-overhead

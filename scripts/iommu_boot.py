@@ -18,7 +18,12 @@ from pathlib import Path
 
 from cijoe.core.resources import get_resources
 
-from iommu_common import cmdline_has_iommu_off, dmesg_indicates_iommu_enabled
+from iommu_common import (
+    IOMMU_SYSFS,
+    check_vfio_kernel,
+    cmdline_has_iommu_off,
+    iommu_units,
+)
 
 GRUB_UPDATE_REMOTE = "/tmp/aisio-iommu-grub-update.py"
 GRUB_UPDATE_RESOURCE = "iommu_grub_update"
@@ -27,7 +32,7 @@ GRUB_UPDATE_RESOURCE = "iommu_grub_update"
 def add_args(parser: ArgumentParser):
     parser.add_argument(
         "--mode",
-        choices=["set-off", "set-on", "verify-off", "verify-on"],
+        choices=["check-kernel", "set-off", "set-on", "verify-off", "verify-on"],
         required=True,
     )
 
@@ -35,6 +40,15 @@ def add_args(parser: ArgumentParser):
 def quote_shell_arg(value):
     """Return a shell-quoted string for remote command construction."""
     return shlex.quote(str(value))
+
+
+def conf(cijoe, key, default=None):
+    return cijoe.getconf(f"iommu_overhead.{key}", default)
+
+
+def iommu_strict(cijoe):
+    """Whether the IOMMU-on boot adds iommu.strict=1 for DMA API devices."""
+    return bool(conf(cijoe, "iommu_strict", False))
 
 
 def artifacts_path(args):
@@ -96,14 +110,16 @@ def set_mode(args, cijoe, mode):
         log.error("Failed transferring grub update script")
         return err
 
+    strict_arg = "1" if mode == "on" and iommu_strict(cijoe) else "0"
     cmd = (
         f"python3 {quote_shell_arg(GRUB_UPDATE_REMOTE)} "
-        f"{quote_shell_arg(mode)} && {grub_update}"
+        f"{quote_shell_arg(mode)} {strict_arg} && {grub_update}"
     )
     err, state = cijoe.run(cmd)
     (artifacts / f"update-grub-{mode}.txt").write_text(state.output())
     if err:
-        log.error(f"Failed updating grub for IOMMU {mode}: {state}")
+        tail = "\n".join(state.output().strip().splitlines()[-10:])
+        log.error(f"Failed updating grub for IOMMU {mode}:\n{tail}")
         return err
 
     err, after = read_target_file(cijoe, "/etc/default/grub")
@@ -121,35 +137,49 @@ def verify_mode(args, cijoe, mode):
 
     err, cmdline_state = cijoe.run("cat /proc/cmdline")
     if err:
-        log.error(f"Failed reading /proc/cmdline: {cmdline_state}")
+        log.error(f"Failed reading /proc/cmdline: {cmdline_state.output().strip()}")
         return err
     cmdline = cmdline_state.output()
 
-    err, dmesg_state = cijoe.run("dmesg | grep -i -E 'DMAR|IOMMU|AMD-Vi' || true")
-    if err:
-        log.error(f"Failed reading dmesg: {dmesg_state}")
-        return err
-    dmesg = dmesg_state.output()
+    units = iommu_units(cijoe)
 
     (artifacts / f"iommu-verify-{mode}.txt").write_text(
-        f"=== /proc/cmdline ===\n{cmdline}\n=== dmesg ===\n{dmesg}"
+        f"=== /proc/cmdline ===\n{cmdline}\n=== {IOMMU_SYSFS} ===\n{units}\n"
     )
 
     off_in_cmdline = cmdline_has_iommu_off(cmdline)
-    enabled_in_dmesg = dmesg_indicates_iommu_enabled(dmesg)
 
     if (mode == "off") != off_in_cmdline:
         log.error(f"Expected IOMMU-{mode}, but /proc/cmdline shows the opposite")
         return errno.EINVAL
 
-    if (mode == "on") != enabled_in_dmesg:
-        log.error(f"Expected IOMMU-{mode}, but dmesg indicates the opposite")
+    # The same test the benchmark step applies, so the two cannot disagree.
+    if (mode == "on") != bool(units):
+        log.error(f"Expected IOMMU-{mode}, but {IOMMU_SYSFS} shows the opposite")
         return errno.EINVAL
+
+    if mode == "on" and iommu_strict(cijoe) and "iommu.strict=1" not in cmdline:
+        log.error(
+            "Expected a strict IOMMU boot, but /proc/cmdline has no "
+            "iommu.strict=1 token"
+        )
+        return errno.EINVAL
+
+    # The grub rewrite only edits GRUB_CMDLINE_LINUX_DEFAULT. vfio devices still
+    # translate under iommu=pt, so this is worth a note but not a refusal.
+    if mode == "on" and "iommu=pt" in cmdline.split():
+        log.warning(
+            "/proc/cmdline has iommu=pt, likely from GRUB_CMDLINE_LINUX; devices "
+            "on the kernel DMA API bypass the IOMMU in this boot"
+        )
 
     return 0
 
 
 def main(args, cijoe):
+    # Runs before the first grub edit, so an unsupported kernel costs no reboot.
+    if args.mode == "check-kernel":
+        return check_vfio_kernel(cijoe)
     if args.mode == "set-off":
         return set_mode(args, cijoe, "off")
     if args.mode == "set-on":
