@@ -5,18 +5,20 @@
 # Ubuntu 26.04 QEMU guest with one emulated NVMe and no GPU. Pass it in place of
 # 'configs/transport.toml', after starting the guest with 'tasks/guest_start.yaml'.
 
-[cijoe.workflow]
+[cijoe]
+default_target = "root"
+
+[cijoe.task]
 fail_fast = true
 
-# The first transport, so workflows run as root
-[cijoe.transport.root]
+[cijoe.targets.root.ssh]
 username = "root"
 password = "root"
 hostname = "localhost"
 port = 4200
 
 # nosi operator account, used by root_unlock
-[cijoe.transport.odus]
+[cijoe.targets.odus.ssh]
 username = "odus"
 password = "odus.321"
 hostname = "localhost"

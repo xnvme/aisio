@@ -22,7 +22,7 @@ import tempfile
 from pathlib import Path
 
 from cijoe.cli.cli import create_combined_toml, parse_args
-from cijoe.core.resources import Config, Workflow, get_resources
+from cijoe.core.resources import Config, Task, get_resources
 
 
 def with_arguments(step):
@@ -53,7 +53,7 @@ def cijoe_arguments(path):
 def lint(path, config, resources):
     """Return the errors cijoe would raise loading the workflow at 'path'"""
 
-    workflow = Workflow(path)
+    workflow = Task(path)
     errors = workflow.load(cijoe_arguments(path), config)
     if errors:
         return errors

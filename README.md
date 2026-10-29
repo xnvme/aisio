@@ -37,10 +37,10 @@ in depth.
 
 ## Prerequisites
 
-Install `cijoe` on the host with `pipx`:
+Install `cijoe` on the host with `pipx`, at the version CI runs:
 
 ```
-pipx install cijoe
+pipx install cijoe==0.9.70
 ```
 
 ## Step 1: Install Ubuntu 26.04
@@ -83,10 +83,10 @@ Configure `configs/transport.toml` with the hostname and root credentials of
 your target machine:
 
 ```toml
-[cijoe.workflow]
+[cijoe.task]
 fail_fast=true
 
-[cijoe.transport.ssh]
+[cijoe.targets.machine.ssh]
 hostname = "aisio"
 username = "root"
 password = "<password>"

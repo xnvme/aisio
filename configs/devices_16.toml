@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-[cijoe.workflow]
+[cijoe.task]
 fail_fast=true
 
 [xnvme.driver]

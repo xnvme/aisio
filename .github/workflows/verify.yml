@@ -30,13 +30,20 @@ jobs:
   lint:
     runs-on: ubuntu-latest
 
-    # the cijoe that the provisioning jobs run
+    # the container the provisioning jobs run, with the cijoe they pin
     container:
       image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
 
     steps:
       - name: Grab source
         uses: actions/checkout@v7.0.0
+
+      # The image's cijoe moves with the image; the configs need 0.9.66 or later
+      - name: Pin cijoe
+        run: &cijoe |
+          cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
+          "$cijoe_python" -m ensurepip --upgrade >/dev/null
+          "$cijoe_python" -m pip install --quiet cijoe==0.9.70
 
       - name: Lint the cijoe workflows
         run: |
@@ -56,6 +63,9 @@ jobs:
     steps:
       - name: Grab source
         uses: actions/checkout@v7.0.0
+
+      - name: Pin cijoe
+        run: *cijoe
 
       - name: Prepare environment
         run: &prepare |
@@ -144,6 +154,9 @@ jobs:
     steps:
       - name: Grab source
         uses: actions/checkout@v7.0.0
+
+      - name: Pin cijoe
+        run: *cijoe
 
       - name: Prepare environment
         run: *prepare

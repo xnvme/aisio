@@ -7,7 +7,7 @@ Validate DcgmHelper against a live GPU: start monitoring, generate a GPU load
 with dcgmproftester, stop and parse, and print per-field stats.
 
 The load and the dcgmi monitoring both run on whatever target the given cijoe
-config points at: with a ``[cijoe.transport.ssh]`` section they run on the
+config points at: with a ``[cijoe.targets.<name>.ssh]`` section they run on the
 remote target, without one they run on this machine.
 
 Usage:

@@ -2,10 +2,10 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-[cijoe.workflow]
+[cijoe.task]
 fail_fast=true
 
-[cijoe.transport.ssh]
+[cijoe.targets.machine.ssh]
 hostname = "aisio"
 password = "odus.321"
 username = "root"
