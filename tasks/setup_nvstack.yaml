@@ -23,7 +23,10 @@ doc: |
   publishes only CUDA 13 (no 12.x) -- CUDA 13 satisfies xNVMe's '>=12.8'. CUDA
   installs under /usr/local/cuda-13.x; a /usr/local/cuda symlink and a
   /etc/profile.d/cuda.sh are wired up, and /etc/environment puts nvcc on the
-  PATH of non-interactive SSH commands too.
+  PATH of non-interactive SSH commands too. sshd reads /etc/environment only
+  when a connection opens, and cijoe keeps one connection for the whole task,
+  so each command of this task that needs nvcc sources /etc/profile.d/cuda.sh
+  on the same line, as cijoe runs every line of a step as a separate command.
 
   Run against a target whose default transport has root (e.g. via root_unlock):
 
@@ -85,7 +88,7 @@ steps:
 
   - name: check_toolkit
     run: |
-      nvcc --version | grep release
+      . /etc/profile.d/cuda.sh && nvcc --version | grep release
 
   - name: check_libs
     run: |
@@ -111,6 +114,6 @@ steps:
       rm -rf /root/git/nvbandwidth
       mkdir -p /root/git
       git clone --depth 1 https://github.com/NVIDIA/nvbandwidth.git /root/git/nvbandwidth
-      cmake -S /root/git/nvbandwidth -B /root/git/nvbandwidth/build -DCMAKE_BUILD_TYPE=Release
-      cmake --build /root/git/nvbandwidth/build -j "$(nproc)"
+      . /etc/profile.d/cuda.sh && cmake -S /root/git/nvbandwidth -B /root/git/nvbandwidth/build -DCMAKE_BUILD_TYPE=Release
+      . /etc/profile.d/cuda.sh && cmake --build /root/git/nvbandwidth/build -j "$(nproc)"
       ls -l /root/git/nvbandwidth/build/nvbandwidth
