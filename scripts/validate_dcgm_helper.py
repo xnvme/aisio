@@ -12,7 +12,7 @@ remote target, without one they run on this machine.
 
 Usage:
 
-  cijoe -c configs/local_gpu.toml scripts/validate_dcgm_helper.py
+  cijoe -c configs/<target>.toml scripts/validate_dcgm_helper.py
 
 Requirements on the target: dcgmi + running nv-hostengine, screen, and a
 dcgmproftester binary (name varies with the CUDA build, e.g. dcgmproftester13).
