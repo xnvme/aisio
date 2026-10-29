@@ -54,6 +54,7 @@ configuration pins; the ``poc`` tag pins its own.
 | AiSIO    | xNVMe                      | {{ ver_xnvme }}      | Source        | Unified NVMe command interface with uPCIe backend support                                                                           |
 | AiSIO    | xal                        | {{ ver_xal }}        | Source        | eXtent Access Library for file-to-block extent resolution                                                                           |
 | AiSIO    | fil                        | {{ ver_fil }}        | Source        | File Iterator Library; benchmark harness used to evaluate different I/O backends                                                    |
+| AiSIO    | OpenDS                     | {{ ver_opends }}     | Source        | Open accelerator direct storage, a vendor-neutral API modeled on cuFile; its reference backend is built where CUDA is absent        |
 | Tools    | devbind                    | —                    | pipx          | NVMe PCIe driver binding utility                                                                                                    |
 | Tools    | hugepages                  | —                    | pipx          | Huge page allocation management utility                                                                                             |
 

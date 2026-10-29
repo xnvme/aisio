@@ -54,6 +54,18 @@ steps:
       cd "{{ config.fil.repository.path }}"; meson setup builddir
       cd "{{ config.fil.repository.path }}"; meson install -C builddir
 
+  # Which backends it builds depends on what the system has, so it says;
+  # the reference one is checked on the root filesystem, as /tmp may be a
+  # tmpfs, which rejects O_DIRECT
+  - name: opends
+    run: |
+      rm -r "{{ config.opends.repository.path }}/builddir" || true
+      cd "{{ config.opends.repository.path }}"; meson setup builddir
+      cd "{{ config.opends.repository.path }}"; meson install -C builddir
+      ldconfig
+      ls "{{ config.opends.repository.path }}"/builddir/libopends_*.so
+      "{{ config.opends.repository.path }}/builddir/test_smoke_ref" /root
+
   - name: fio
     run: |
       cd "{{ config.fio.repository.path }}"; ./configure; make; make install

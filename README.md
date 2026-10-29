@@ -140,7 +140,7 @@ cijoe --monitor \
 
 ## Step 6: Set Up AiSIO Components
 
-Build and install the AiSIO software stack (xNVMe, SPDK, xal, fil):
+Build and install the AiSIO software stack (xNVMe, SPDK, xal, fil, OpenDS):
 
 ```
 cijoe --monitor \

@@ -36,6 +36,14 @@ remote = "https://github.com/xnvme/fil"
 tag = "v0.4.0"
 path = "/root/git/fil"
 
+# TEMPORARY: a commit on main, as OpenDS has no release yet. It builds
+# against the xNVMe above; its aisio backend needs CUDA and the homic
+# library as well, and without them only the reference backend is built
+[opends.repository]
+remote = "https://github.com/xnvme/opends"
+tag = "5c3c9517100333899ea2e2aee9079d8fd7e0c9da"
+path = "/root/git/opends"
+
 [spdk.repository]
 remote = "https://github.com/spdk/spdk"
 tag = "v26.01"
