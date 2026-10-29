@@ -124,6 +124,25 @@ jobs:
             -o cijoe-output/setup_dataset \
             tasks/setup_dataset.yaml
 
+      # Formats the dataset device again, so it runs last
+      - name: smoke_daemons.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/qemu_guest.toml \
+            -c configs/smoke.toml \
+            -o cijoe-output/smoke_daemons \
+            tasks/smoke_daemons.yaml
+
+      # A failed step leaves the daemons running with their logs unread
+      - name: Daemon logs
+        if: failure()
+        run: |
+          cijoe \
+            -c configs/qemu_guest.toml \
+            -c configs/smoke.toml \
+            -o cijoe-output/smoke_daemons_logs \
+            tasks/smoke_daemons.yaml logs || true
+
       - name: Guest serial console
         if: failure()
         run: &serial |
@@ -138,10 +157,10 @@ jobs:
           path: cijoe-output/
           if-no-files-found: warn
 
-  # setup_aisio.yaml on a system AiSIO did not set up: the xnvme-devenv guest,
-  # with ROCm installed and no CUDA, booted on xnvme-devenv's
-  # storage-node-emulated rig. It relies on the TEMPORARY fil pin in
-  # configs/aisio.toml and package script in configs/devenv_guest.toml.
+  # setup_aisio.yaml and smoke_daemons.yaml on a system AiSIO did not set up:
+  # the xnvme-devenv guest, with ROCm installed and no CUDA, booted on
+  # xnvme-devenv's storage-node-emulated rig. It relies on the TEMPORARY fil
+  # pin in configs/aisio.toml and package script in configs/devenv_guest.toml.
   devenv:
     needs: lint
     runs-on: ubuntu-latest
@@ -186,6 +205,23 @@ jobs:
             --facts cijoe-output/devenv_start/facts.toml \
             -o cijoe-output/setup_aisio \
             tasks/setup_aisio.yaml
+
+      - name: smoke_daemons.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/devenv_guest.toml \
+            -c configs/smoke.toml \
+            -o cijoe-output/smoke_daemons \
+            tasks/smoke_daemons.yaml
+
+      - name: Daemon logs
+        if: failure()
+        run: |
+          cijoe \
+            -c configs/devenv_guest.toml \
+            -c configs/smoke.toml \
+            -o cijoe-output/smoke_daemons_logs \
+            tasks/smoke_daemons.yaml logs || true
 
       - name: Guest serial console
         if: failure()
