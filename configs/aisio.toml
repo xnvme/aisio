@@ -15,7 +15,7 @@ path = "/root/git/xnvme"
 # with, so one value names both.
 [upcie.dkms]
 remote = "https://github.com/safl/upcie"
-version = "0.9.0"
+version = "0.10.4"
 
 [xal.repository]
 remote = "https://github.com/xnvme/xal"
