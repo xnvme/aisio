@@ -6,6 +6,10 @@
 distro = "ubuntu"
 version = "resolute"
 
+# The script in xNVMe's toolbox/pkgs that installs its dependencies on [os]
+[xnvme]
+pkgs = "ubuntu-resolute"
+
 # TEMPORARY: a commit, as no xNVMe release has the upcie backends AiSIO builds
 # on, and main cannot be followed: fil still calls the three-argument
 # xnvme_cuda_queue_create() that main has changed, and main builds its HIP

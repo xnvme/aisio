@@ -29,8 +29,8 @@ steps:
 
   - name: xnvme
     run: |
-      chmod +x "{{ config.xnvme.repository.path }}/toolbox/pkgs/{{ config.os.distro }}-{{ config.os.version }}.sh"
-      cd "{{ config.xnvme.repository.path }}"; ./toolbox/pkgs/{{ config.os.distro }}-{{ config.os.version }}.sh
+      chmod +x "{{ config.xnvme.repository.path }}/toolbox/pkgs/{{ config.xnvme.pkgs }}.sh"
+      cd "{{ config.xnvme.repository.path }}"; ./toolbox/pkgs/{{ config.xnvme.pkgs }}.sh
       DEBIAN_FRONTEND=noninteractive apt-get install -qy systemd-dev
       rm -r "{{ config.xnvme.repository.path }}/builddir" || true
       mkdir -p "{{ config.xnvme.repository.path }}/builddir"
