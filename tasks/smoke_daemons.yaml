@@ -1,0 +1,180 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Smoke-test the AiSIO daemons with CPU-initiated I/O
+  ===================================================
+
+  Brings up homi, qublk and xal-server on the NVMe controller at
+  [smoke].pci_addr, drives short xnvmeperf and filperf runs directly and
+  through them, then stops them, failing when a daemon does not come up, dies,
+  or does not exit cleanly. homi holds the controller, xnvmeperf and qublk
+  attach to it, qublk serves /dev/ublkb<ublk_id>, which carries a small XFS
+  dataset, and xal-server publishes its index. Nothing here needs a GPU.
+  This FORMATS the namespace of that controller. Run it after
+  'setup_aisio.yaml':
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/smoke.toml \
+      tasks/smoke_daemons.yaml
+
+  The daemons' logs land in their start and stop steps as <name>.log. When a
+  step fails, the daemons are left running; the 'logs' step on its own prints
+  what they logged:
+
+    cijoe -c configs/transport.toml -c configs/smoke.toml \
+      tasks/smoke_daemons.yaml logs
+
+steps:
+  - name: prepare
+    run: |
+      for t in homi qublk xnvmeperf filperf xal-server devbind hugepages mkfs.xfs stdbuf setsid journalctl; do command -v $t || { echo "missing: $t"; exit 1; }; done
+      umount {{ config.smoke.mountpoint }} 2>/dev/null || true
+      pkill -TERM -x 'homi|qublk|xal-server' || true
+      for i in $(seq 1 30); do pgrep -x 'homi|qublk|xal-server' > /dev/null || break; sleep 1; done
+      if [ -e /dev/ublkc{{ config.smoke.ublk_id }} ]; then qublk del --dev-id {{ config.smoke.ublk_id }}; fi
+      rm -f /dev/shm{{ config.smoke.xal_shm_name }}_*
+      rm -rf {{ config.smoke.rundir }} && mkdir -p {{ config.smoke.rundir }}
+      modprobe uio_pci_generic
+      modprobe ublk_drv && test -c /dev/ublk-control
+      mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+      hugepages setup --count {{ config.smoke.hugepages }}
+
+  # The kernel numbers the controller's namespaces as it likes, and with native
+  # multipath only the paths under /sys/block/<ns>/multipath lead to its PCI
+  # address, so the mounts to undo are found from that address
+  - name: bind_userspace
+    run: |
+      for blk in /sys/block/nvme*n*; do for dev in "$blk" "$blk"/multipath/*; do case "$(readlink -f "$dev/device")" in */{{ config.smoke.pci_addr }}/*) findmnt -rn -S "/dev/${blk##*/}" -o TARGET | xargs -r -n1 umount ;; esac; done; done
+      devbind --device {{ config.smoke.pci_addr }} --bind uio_pci_generic
+
+  - name: xnvmeperf_direct
+    uses: xnvmeperf
+    with: &xnvmeperf
+      backend: upcie
+      devices: ["{{ config.smoke.pci_addr }}"]
+      runtime: 3
+      iosize: 4096
+      qdepth: 32
+      iopattern: randread
+      check: true
+
+  - name: homi_start
+    uses: daemon
+    with:
+      command: start
+      name: homi
+      cmd: "homi serve {{ config.smoke.pci_addr }} --be upcie --homi-id {{ config.smoke.homi_id }}"
+      ready: "HOMI started successfully"
+      rundir: "{{ config.smoke.rundir }}"
+
+  - name: xnvmeperf_homi
+    uses: xnvmeperf
+    with:
+      <<: *xnvmeperf
+      homi_id: "{{ config.smoke.homi_id }}"
+
+  - name: qublk_start
+    uses: daemon
+    with:
+      command: start
+      name: qublk
+      cmd: "qublk serve {{ config.smoke.pci_addr }} --be upcie --homi-id {{ config.smoke.homi_id }} --dev-id {{ config.smoke.ublk_id }} --qdepth 64"
+      ready: "ready (Ctrl-C to stop)"
+      rundir: "{{ config.smoke.rundir }}"
+
+  # Written through qublk, and remounted so that filperf, which decodes the XFS
+  # metadata on the device rather than asking the kernel, finds all of it there
+  - name: dataset
+    run: |
+      mkfs.xfs -f -K -m reflink=0 /dev/ublkb{{ config.smoke.ublk_id }}
+      mkdir -p {{ config.smoke.mountpoint }}
+      mount -o noatime /dev/ublkb{{ config.smoke.ublk_id }} {{ config.smoke.mountpoint }}
+      for c in 0 1 2 3; do mkdir -p {{ config.smoke.mountpoint }}/smoke/c$c; for f in 0 1 2 3 4 5 6 7; do head -c 131072 /dev/urandom > {{ config.smoke.mountpoint }}/smoke/c$c/f$f || exit 1; done; done
+      umount {{ config.smoke.mountpoint }}
+      mount -o noatime /dev/ublkb{{ config.smoke.ublk_id }} {{ config.smoke.mountpoint }}
+      df -h {{ config.smoke.mountpoint }}
+      printf '%s\n' 'log_level = 3' 'devices = [' '  { uri = "/dev/ublkb{{ config.smoke.ublk_id }}", shm_name = "{{ config.smoke.xal_shm_name }}", mountpoint = "{{ config.smoke.mountpoint }}" },' ']' '[xal]' 'watchmode = 2' > {{ config.smoke.rundir }}/xal-server.conf
+
+  - name: xal_start
+    uses: daemon
+    with:
+      command: start
+      name: xal-server
+      cmd: "xal-server --config {{ config.smoke.rundir }}/xal-server.conf"
+      ready: "serving 1 device(s)"
+      journal: true
+      rundir: "{{ config.smoke.rundir }}"
+
+  - name: daemons_check
+    run: |
+      test -b /dev/ublkb{{ config.smoke.ublk_id }}
+      ls -l /dev/shm{{ config.smoke.xal_shm_name }}_state
+
+  - name: xnvmeperf_ublk
+    uses: xnvmeperf
+    with:
+      <<: *xnvmeperf
+      backend: io_uring_bdev
+      devices: ["/dev/ublkb{{ config.smoke.ublk_id }}"]
+
+  - name: filperf_ublk
+    uses: filperf
+    with:
+      backend: posix
+      device: "/dev/ublkb{{ config.smoke.ublk_id }}"
+      mnt: "{{ config.smoke.mountpoint }}"
+      dataset: smoke
+      batch_size: 8
+      batches: 2
+      copy_to_gpu: false
+
+  - name: xal_stop
+    uses: daemon
+    with:
+      command: stop
+      name: xal-server
+      journal: true
+      rundir: "{{ config.smoke.rundir }}"
+
+  - name: unmount
+    run: |
+      umount {{ config.smoke.mountpoint }}
+      if ls /dev/shm{{ config.smoke.xal_shm_name }}_*; then echo "xal-server left its index behind"; exit 1; fi
+
+  - name: qublk_stop
+    uses: daemon
+    with:
+      command: stop
+      name: qublk
+      rundir: "{{ config.smoke.rundir }}"
+
+  - name: homi_stop
+    uses: daemon
+    with:
+      command: stop
+      name: homi
+      rundir: "{{ config.smoke.rundir }}"
+
+  # Reads what was written through qublk straight from the controller
+  - name: filperf_direct
+    uses: filperf
+    with:
+      backend: aisio-cpu
+      device: "{{ config.smoke.pci_addr }}"
+      dataset: smoke
+      batch_size: 8
+      batches: 2
+      max_file_size: 131072
+      copy_to_gpu: false
+
+  - name: bind_kernel
+    run: |
+      devbind --device {{ config.smoke.pci_addr }} --bind nvme
+
+  - name: logs
+    run: |
+      tail -n +1 {{ config.smoke.rundir }}/*.log || true
+      journalctl --no-pager -b -t xal-server || true

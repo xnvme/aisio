@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# The NVMe controller 'tasks/smoke_daemons.yaml' serves and FORMATS, by PCI
+# address, since the kernel's nvme<N> numbering changes from boot to boot. Both
+# CI guests have a scratch NVM controller here: the one of
+# 'configs/qemu_guest.toml', and nvme0 of xnvme-devenv's storage-node-emulated
+# rig.
+[smoke]
+pci_addr = "0000:01:00.0"
+mountpoint = "/mnt/smoke"
+rundir = "/tmp/aisio-smoke"
+homi_id = 1
+ublk_id = 0
+xal_shm_name = "/xal_smoke"
+hugepages = 512
