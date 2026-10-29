@@ -38,7 +38,7 @@ jobs:
       - name: Grab source
         uses: actions/checkout@v7.0.0
 
-      # The image's cijoe moves with the image; the configs need 0.9.66 or later
+      # The image's cijoe moves with the image; the configs need 0.9.69 or later
       - name: Pin cijoe
         run: &cijoe |
           cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
@@ -70,10 +70,7 @@ jobs:
       - name: Prepare environment
         run: &prepare |
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-          # stage_nosi_guest needs withcache, and the cijoe venv has no pip
           cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
-          "$cijoe_python" -m ensurepip --upgrade >/dev/null
-          "$cijoe_python" -m pip install --quiet withcache
           echo "CIJOE_PYTHON=$cijoe_python" >> $GITHUB_ENV
           # the guest images overflow the container overlay
           mkdir -p /mnt/system_imaging /mnt/guests
