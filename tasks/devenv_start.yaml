@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Start the xnvme-devenv guest with a rig as the target
+  =====================================================
+
+  Boots the guest that 'configs/devenv_guest.toml' pins with the PCIe topology
+  and devices of the rig given as a further config, using xnvme-devenv's rig
+  scripts, which only its host container has. Ends by recording what the guest
+  has as facts, so a later run started with '--facts' knows the OS, kernel,
+  NVMe controllers and GPUs it ran on. Needs KVM, and 'withcache' in the cijoe
+  environment.
+
+    cijoe --monitor \
+      -c configs/devenv_guest.toml \
+      -c /opt/xnvme-devenv/rigs/storage-node-emulated.toml \
+      tasks/devenv_start.yaml
+
+steps:
+  - name: guest_kill
+    uses: xnvme_devenv.rig_guest_kill
+    with:
+      guest_name: "{{ config.qemu.default_guest }}"
+
+  - name: stage_nosi_guest
+    uses: stage_nosi_guest
+
+  - name: guest_initialize
+    uses: qemu.guest_initialize
+    with:
+      guest_name: "{{ config.qemu.default_guest }}"
+      system_image_name: "{{ config.qemu.default_systemimage }}"
+
+  - name: guest_start
+    uses: xnvme_devenv.rig_guest_start
+    with:
+      guest_name: "{{ config.qemu.default_guest }}"
+
+  - name: root_unlock
+    uses: root_unlock
+
+  - name: guest_check
+    run: |
+      hostname
+      uname -a
+      df -h /
+      lspci | grep -i 'non-volatile'
+
+  - name: facts
+    uses: core.facts_gather

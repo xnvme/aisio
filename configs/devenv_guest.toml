@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# The xnvme-devenv guest, Ubuntu 26.10 with ROCm, upcie and kernel 7.3 already
+# installed, as a system AiSIO did not set up. Takes a rig from xnvme-devenv's
+# host container as a further config, and is started with
+# 'tasks/devenv_start.yaml' in that container, which has the rig scripts:
+#
+#   cijoe -c configs/devenv_guest.toml \
+#     -c /opt/xnvme-devenv/rigs/storage-node-emulated.toml \
+#     tasks/devenv_start.yaml
+
+[cijoe.workflow]
+fail_fast = true
+
+# The first transport, so workflows run as root
+[cijoe.transport.root]
+username = "root"
+password = "root"
+hostname = "localhost"
+port = 4200
+
+# nosi operator account, used by root_unlock
+[cijoe.transport.odus]
+username = "odus"
+password = "odus.321"
+hostname = "localhost"
+port = 4200
+
+[os]
+distro = "ubuntu"
+version = "stonking"
+
+[qemu]
+img_bin = "qemu-img"
+default_guest = "ubuntu_2610_rocm_amd64"
+default_systemimage = "ubuntu-2610-rocm-x86_64"
+
+[qemu.systems.x86_64]
+bin = "qemu-system-x86_64"
+
+[qemu.guests.ubuntu_2610_rocm_amd64]
+path = "{{ local.env.HOME }}/guests/ubuntu-2610-rocm-amd64"
+system_label = "x86_64"
+system_args.kwa = {cpu = "host", smp = 4, m = "12G", accel = "kvm"}
+system_args.raw = """\
+-M "type=q35" \
+"""
+system_args.tcp_forward = {host = 4200, guest = 22}
+
+# xnvme-devenv v0.8.0, by the layer digest its release names; 'grow' leaves
+# room for the SPDK build
+[guest_image]
+url = "oras://ghcr.io/xnvme/xnvme-devenv/guest-ubuntu-2610@sha256:d24b26bed2d361936f1344922c7235c248e21a8974717feab4131075d2b3bbbb"
+grow = "32G"
+
+[system-imaging.images.ubuntu-2610-rocm-x86_64]
+system_label = "x86_64"
+disk.path = "{{ local.env.HOME }}/system_imaging/disk/ubuntu-2610-rocm-amd64.qcow2"

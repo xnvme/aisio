@@ -41,7 +41,7 @@ jobs:
       - name: Lint the cijoe workflows
         run: |
           cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
-          "$cijoe_python" .github/scripts/cijoe_lint.py
+          "$cijoe_python" .github/scripts/cijoe_lint.py -x tasks/devenv_start.yaml
 
   # README.md Steps 2-7 in a QEMU guest, less the steps that need a GPU
   provision:
@@ -128,6 +128,70 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: provision-cijoe-output
+          path: cijoe-output/
+          if-no-files-found: warn
+
+  # setup_aisio.yaml on a system AiSIO did not set up: the xnvme-devenv guest,
+  # with ROCm installed, booted on xnvme-devenv's storage-node-emulated rig.
+  # Not yet required: xNVMe has no package script for its Ubuntu 26.10 yet, and
+  # fil does not build without CUDA.
+  devenv:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    continue-on-error: true
+
+    # xnvme-devenv v0.8.0, whose guest configs/devenv_guest.toml pins
+    container:
+      image: ghcr.io/xnvme/xnvme-devenv/host@sha256:56303852d53a06aee45ceed984961df0aa30f8ac3120b7afdc6617626e3f5fb8
+      options: --privileged -v /mnt:/mnt
+
+    env:
+      RIG: /opt/xnvme-devenv/rigs/storage-node-emulated.toml
+
+    steps:
+      - name: Grab source
+        uses: actions/checkout@v7.0.0
+
+      - name: Prepare environment
+        run: *prepare
+
+      # The general lint runs where xnvme-devenv's scripts are not installed
+      - name: Lint devenv_start.yaml
+        run: |
+          "$CIJOE_PYTHON" .github/scripts/cijoe_lint.py \
+            -c configs/devenv_guest.toml -c "$RIG" \
+            tasks/devenv_start.yaml
+
+      - name: devenv_start.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/devenv_guest.toml \
+            -c "$RIG" \
+            -o cijoe-output/devenv_start \
+            tasks/devenv_start.yaml
+
+      # configs/devenv_guest.toml last, so its [os] is the guest's own
+      - name: setup_aisio.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/aisio.toml \
+            -c configs/devenv_guest.toml \
+            --facts cijoe-output/devenv_start/facts.toml \
+            -o cijoe-output/setup_aisio \
+            tasks/setup_aisio.yaml
+
+      - name: Guest serial console
+        if: failure()
+        run: |
+          tail -c 20000 "$HOME/guests/ubuntu-2610-rocm-amd64/serial.output" 2>/dev/null \
+            || echo "no guest serial output"
+
+      - name: Upload cijoe output
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: devenv-cijoe-output
           path: cijoe-output/
           if-no-files-found: warn
 
