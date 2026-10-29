@@ -32,7 +32,7 @@ jobs:
 
     # the cijoe that the provisioning jobs run
     container:
-      image: ghcr.io/safl/nosi/ubuntu-2604-docker:latest
+      image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
 
     steps:
       - name: Grab source
@@ -50,7 +50,7 @@ jobs:
     timeout-minutes: 90
 
     container:
-      image: ghcr.io/safl/nosi/ubuntu-2604-docker:latest
+      image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
       options: --privileged -v /mnt:/mnt
 
     steps:
@@ -63,7 +63,7 @@ jobs:
           # stage_nosi_guest needs withcache, and the cijoe venv has no pip
           cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
           "$cijoe_python" -m ensurepip --upgrade >/dev/null
-          "$cijoe_python" -m pip install --quiet withcache
+          "$cijoe_python" -m pip install --quiet withcache==0.13.3
           echo "CIJOE_PYTHON=$cijoe_python" >> $GITHUB_ENV
           # the guest images overflow the container overlay
           mkdir -p /mnt/system_imaging /mnt/guests
@@ -138,7 +138,7 @@ jobs:
     timeout-minutes: 60
 
     container:
-      image: ghcr.io/safl/nosi/ubuntu-2604-docker:latest
+      image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
       options: --privileged -v /mnt:/mnt
 
     steps:
