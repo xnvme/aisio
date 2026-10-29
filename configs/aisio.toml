@@ -6,9 +6,11 @@
 distro = "ubuntu"
 version = "resolute"
 
+# A commit on main, as no xNVMe release has the upcie backends AiSIO builds on;
+# core.repository_prep checks out whatever 'tag' names
 [xnvme.repository]
 remote = "https://github.com/xnvme/xnvme"
-branch = "main"
+tag = "6a194b7a1b5a636c2e68170c9105b66f31b659e0"
 path = "/root/git/xnvme"
 
 # The experimental package carries the version of the uPCIe release it ships
