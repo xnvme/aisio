@@ -22,11 +22,10 @@ that point.
 This experiment fixes CPU threads at 1 and devices at 4, then sweeps I/O size
 across three points (512, 4096, and 8192 bytes), measuring both the payload
 bandwidth reported by xnvmeperf and the total PCIe receive traffic observed by
-DCGM at the GPU endpoint. The gap between the two reveals the share of the link
-consumed by NVMe and PCIe protocol traffic rather than payload: Submission and
-Completion Queue Entries, PRP list transfers, and framing. A reference
-host-to-device bandwidth from ``nvbandwidth`` establishes the practical ceiling
-of the link under sustained transfers into GPU memory.
+DCGM at the GPU endpoint. The gap between the two is the traffic the link
+carries on top of the payload. A reference host-to-device bandwidth from
+``nvbandwidth``, which like xnvmeperf counts payload only, establishes the
+practical ceiling of the link under sustained transfers into GPU memory.
 
 ## Independent Variables
 
@@ -40,11 +39,11 @@ The experiment fixes all parameters except NVMe command data payload size:
 | Number of devices     | 4                      |
 | I/O size              | { 512, 4096, 8192 }    |
 
-Four devices were selected to ensure that the PCIe link, rather than aggregate
-device capacity, is the binding constraint at large I/O sizes. The Samsung PM1753
-is rated at 14.5 GB/s bandwidth, and four devices therefore provide up to
-4 × 14.5 GB/s = 58 GB/s aggregate, which is sufficient to stress the PCIe Gen5 x16
-link (64 GB/s line rate) rather than leave it underutilized.
+Four devices were selected so that their aggregate bandwidth approaches the
+capacity of the GPU's link at large I/O sizes. The Samsung PM1753 is rated at
+14.5 GB/s bandwidth, and four devices therefore provide up to
+4 × 14.5 GB/s = 58 GB/s aggregate, close to the 64 GB/s line rate of the PCIe
+Gen5 x16 link.
 
 ## Metrics Collected
 
@@ -103,17 +102,16 @@ observed in the {ref}`software abstraction overhead results
 <sec-experiments-tool-comparison-results>`: at small I/O sizes the constraint is
 NVMe command throughput, not PCIe link capacity.
 
-### Large I/O: Link Approaches Saturation
+### Large I/O: Bandwidth Plateau
 
-With 4096- and 8192-byte payloads, DCGM measures approximately 57.8 GB/s in both
-cases, exceeding the ``nvbandwidth`` reference of 53.3 GB/s and
-reaching approximately 90% of the 64.0 GB/s line rate. The identical result at
-both I/O sizes indicates that the PCIe link, rather than NVMe command throughput,
-is the binding constraint at these I/O sizes. xnvmeperf reports approximately
-45 GB/s of payload bandwidth at both sizes. This saturation is achieved
-with a single CPU thread and only four NVMe devices, demonstrating that the
-uPCIe-cuda path requires minimal CPU and device resources to fully utilize the
-PCIe link at larger I/O sizes.
+With 4096- and 8192-byte payloads, xnvmeperf reports approximately 45 GB/s of
+payload bandwidth in both cases, 84% of the 53.3 GB/s that ``nvbandwidth``
+reaches on the same link. DCGM measures approximately 57.8 GB/s of total receive
+traffic, approximately 90% of the 64.0 GB/s line rate. The identical result at
+both I/O sizes shows that NVMe command throughput is no longer the constraint.
+This setup cannot separate whether the limit is the GPU's link, the four
+devices, or the path between them. The plateau is reached with a single CPU
+thread and only four NVMe devices.
 
 ### Run Validity
 
@@ -122,7 +120,7 @@ CPU-initiated P2P path consumes no GPU compute.
 
 Between 78% and 81% of each monitoring window qualified as transferring.
 DRAM_ACTIVE (1005) stays below 0.002% on average and peaks at 0.1%, so the HBM
-write drain is nowhere near a constraint and the limit sits on the link.
+write drain is nowhere near a constraint.
 
 The guard fields agree that the runs are comparable. The SM and memory clocks
 hold at 1755 MHz and 1593 MHz with the throttle reason bits clear, the replay
@@ -139,13 +137,19 @@ differ by an order of magnitude. This indicates that the excess scales with byte
 transferred rather than with operation count, making the 28% overhead a stable
 characterization of the P2P data path regardless of operating regime.
 
+On this path the submission and completion queues and the PRP lists reside in
+host memory, so command traffic does not cross the GPU's link and is not counted
+in field 1010. A per-byte excess is instead consistent with PCIe packet framing:
+each write packet carries headers alongside a payload no larger than the link's
+maximum payload size, so the cost per byte is constant.
+
 ## Summary
 
 At small I/O sizes the P2P link operates far below capacity. At 4 KiB and above,
-a single CPU thread driving four NVMe devices is sufficient to push total PCIe
-traffic to approximately 57.8 GB/s, exceeding the practical host-to-device
-ceiling of 53.3 GB/s and reaching approximately 90% of the Gen5 x16 line rate.
-Protocol overhead accounts for a consistent 28% above payload bandwidth across
-all tested I/O sizes, indicating it scales with bytes transferred rather than
-operation count. Throughout, SM activity remains at zero, so the path reaches
+a single CPU thread driving four NVMe devices reaches a plateau of approximately
+45 GB/s of payload, 84% of the 53.3 GB/s ``nvbandwidth`` reference, with total
+PCIe traffic at approximately 57.8 GB/s, 90% of the Gen5 x16 line rate. Total
+traffic exceeds payload by a consistent 28% across all tested I/O sizes, which
+scales with bytes transferred rather than operation count and is consistent
+with PCIe packet framing. Throughout, SM activity remains at zero, so the path reaches
 this bandwidth without consuming any GPU compute.
