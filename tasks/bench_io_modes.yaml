@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Measure xnvmeperf in its I/O modes through homi
+  ===============================================
+
+  Random reads of 512 B, 10 s each, three times per mode, through homi started
+  as the xnvme-homi@<homi_id> unit on every drive in [io_modes].devices:
+
+  - CPU-initiated into host memory, on every drive, then on the drives of the
+    GPU's NUMA node, [io_modes].devices_gpu
+  - P2P: CPU-initiated into VRAM, on those drives
+  - P2P with the completion queue mirrored into VRAM
+  - GPU-initiated, with the submission queue in host memory, after
+    cuda-verify has checked the data
+
+  Every command is its own entry in the report, with all it printed, so the
+  figures are read from there rather than filtered here. The drives are bound
+  to vfio-pci, and every CPU is held at [io_modes].frequency_khz while
+  measuring; 'restore' stops homi and puts the frequency range back. The
+  drives are only read, and should be formatted beforehand, so every block
+  is deallocated; the IOMMU mode is whatever the machine booted with, which
+  'iommu' shows first:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/io_modes_dellr760.toml \
+      tasks/bench_io_modes.yaml
+
+steps:
+  - name: system
+    run: |
+      iommu show
+      xnvme library-info
+      nvidia-smi -L
+
+  - name: bind
+    run: |
+      modprobe vfio-pci
+      for device in {{ config.io_modes.devices | join(" ") }}; do devbind --device $device --bind vfio-pci || exit 1; done
+      lspci -Dk -d ::0108
+
+  - name: frequency
+    run: |
+      for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq; do echo {{ config.io_modes.frequency_khz }} > $f; done
+      for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq; do echo {{ config.io_modes.frequency_khz }} > $f; done
+      for c in $(echo {{ config.io_modes.cpulist }} | tr , ' '); do grep -H . /sys/devices/system/cpu/cpu$c/cpufreq/scaling_min_freq /sys/devices/system/cpu/cpu$c/cpufreq/scaling_max_freq || exit 1; done
+
+  - name: homi_start
+    run: |
+      hugepages setup --count {{ config.io_modes.hugepages }}
+      mkdir -p /usr/local/etc/xnvme
+      printf '%s\n' 'HOMI_DEVICES={{ config.io_modes.devices | join(" ") }}' 'HOMI_OPTS=--be upcie' > /usr/local/etc/xnvme/homi-{{ config.io_modes.homi_id }}.conf
+      systemctl reset-failed xnvme-homi@{{ config.io_modes.homi_id }} || true
+      systemctl start xnvme-homi@{{ config.io_modes.homi_id }}
+      systemctl status --no-pager xnvme-homi@{{ config.io_modes.homi_id }}
+
+  - name: cpu_initiated_all
+    run: |
+      xnvmeperf run {{ config.io_modes.devices | join(" ") }} --cpulist {{ config.io_modes.cpulist }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvmeperf run {{ config.io_modes.devices | join(" ") }} --cpulist {{ config.io_modes.cpulist }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvmeperf run {{ config.io_modes.devices | join(" ") }} --cpulist {{ config.io_modes.cpulist }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie --homi-id {{ config.io_modes.homi_id }}
+
+  - name: cpu_initiated_gpu_node
+    run: |
+      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie --homi-id {{ config.io_modes.homi_id }}
+
+  - name: p2p
+    run: |
+      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }}
+      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }}
+      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }}
+
+  - name: p2p_cq_mirror
+    run: |
+      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --p2p-cq-mirror
+      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --p2p-cq-mirror
+      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize 512 --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --p2p-cq-mirror
+
+  - name: gpu_initiated
+    run: |
+      xnvmeperf cuda-verify {{ config.io_modes.devices_gpu | join(" ") }} --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --iosize 4096 --qdepth 32 --nqueues 1
+      xnvmeperf cuda-run {{ config.io_modes.devices_gpu | join(" ") }} --iopattern randread --qdepth 256 --nqueues 1 --runtime 10 --iosize 512 --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --sq-hostmem
+      xnvmeperf cuda-run {{ config.io_modes.devices_gpu | join(" ") }} --iopattern randread --qdepth 256 --nqueues 1 --runtime 10 --iosize 512 --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --sq-hostmem
+      xnvmeperf cuda-run {{ config.io_modes.devices_gpu | join(" ") }} --iopattern randread --qdepth 256 --nqueues 1 --runtime 10 --iosize 512 --be upcie-cuda --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --sq-hostmem
+
+  - name: restore
+    run: |
+      systemctl stop xnvme-homi@{{ config.io_modes.homi_id }}
+      systemctl show -p Result xnvme-homi@{{ config.io_modes.homi_id }}
+      for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq; do echo {{ config.io_modes.frequency_restore_min_khz }} > $f; done
+      for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq; do echo {{ config.io_modes.frequency_restore_max_khz }} > $f; done
+      for c in $(echo {{ config.io_modes.cpulist }} | tr , ' '); do grep -H . /sys/devices/system/cpu/cpu$c/cpufreq/scaling_min_freq /sys/devices/system/cpu/cpu$c/cpufreq/scaling_max_freq || exit 1; done
