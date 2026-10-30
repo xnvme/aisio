@@ -87,10 +87,10 @@ drops from >128 at 512 B to 2 at 64 KiB.
 
 The queue depth required to saturate the PCIe link decreases monotonically as
 I/O size grows. At 512-byte I/O, even the maximum configuration of 2048 CUDA
-threads (``qdepth=128``, 16 devices) delivers only 21.6 GB/s. The workload is
-constrained by per-device IOPS limits, not by available PCIe bandwidth. As I/O
-size increases, each command carries more payload, and the saturation threshold
-drops accordingly.
+threads (``qdepth=128``, 16 devices) delivers only 21.6 GB/s. With a single
+queue per device, the workload is limited by how fast that queue submits and
+completes commands. As I/O size increases, each command carries more payload,
+and the saturation threshold drops accordingly.
 
 All lines converge at a practical ceiling of approximately 44–45 GB/s, which
 falls roughly 84% of the way to the 53.7 GB/s ``nvbandwidth`` reference. This
@@ -169,9 +169,10 @@ counter stays at zero, and the link fields report Gen5 x16 throughout.
 ## Summary
 
 The minimum thread count required to saturate the PCIe link decreases
-monotonically with I/O size. At small I/O sizes the constraint is per-device
-IOPS rather than link capacity, and even 2048 CUDA threads across 16 devices
-cannot saturate the link at 512 or 1024 bytes. At 64 KiB, just 32 threads
+monotonically with I/O size. At small I/O sizes a single queue per device
+limits the workload by how fast it submits and completes commands, and even
+2048 CUDA threads across 16 devices cannot saturate the link at 512 or 1024
+bytes. At 64 KiB, just 32 threads
 suffice. The practical bandwidth ceiling for device-initiated I/O is
 approximately 44–45 GB/s, consistent with the ~28% protocol overhead
 characterized in the preceding bandwidth experiment.

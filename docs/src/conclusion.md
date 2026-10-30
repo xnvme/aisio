@@ -40,12 +40,13 @@ The device-initiated experiments examined how GPU threads can drive NVMe I/O
 directly. The {ref}`sec-experiments-cuda-iosize` experiment showed that the
 thread count required to saturate the PCIe link decreases monotonically with
 I/O size: at 64 KiB just 32 CUDA threads across 16 devices suffice, while at
-512 bytes the constraint shifts to device IOPS rather than link capacity. The
-{ref}`sec-experiments-cuda-qdepth` experiment showed that a single queue per
-device cannot reach the device IOPS roofline regardless of queue depth, and that
-adding a second queue breaks this ceiling. With 4096 total CUDA threads, the
-61.7 million IOPS roofline is reached under 512-byte device-initiated I/O, and
-additional queues beyond four per device add thread count without further gain.
+512 bytes a single queue per device limits the workload by how fast it submits
+and completes commands. The {ref}`sec-experiments-cuda-qdepth` experiment showed
+that a single queue per device cannot reach the device IOPS roofline regardless
+of queue depth, and that adding a second queue breaks this ceiling. With 4096
+total CUDA threads, the 61.7 million IOPS roofline is reached under 512-byte
+device-initiated I/O, and additional queues beyond four per device add thread
+count without further gain.
 
 Taken together, these results demonstrate that eliminating software abstraction
 layers from the I/O path enables full hardware utilization with a fraction of the
