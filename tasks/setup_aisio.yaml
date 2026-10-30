@@ -34,8 +34,8 @@ steps:
       DEBIAN_FRONTEND=noninteractive apt-get install -qy systemd-dev
       rm -r "{{ config.xnvme.repository.path }}/builddir" || true
       mkdir -p "{{ config.xnvme.repository.path }}/builddir"
-      cd "{{ config.xnvme.repository.path }}"; meson setup builddir {{ config.xnvme.setup_args }}
-      cd "{{ config.xnvme.repository.path }}"; meson install -C builddir
+      [ ! -f /etc/profile.d/cuda.sh ] || . /etc/profile.d/cuda.sh; cd "{{ config.xnvme.repository.path }}"; meson setup builddir {{ config.xnvme.setup_args }}
+      [ ! -f /etc/profile.d/cuda.sh ] || . /etc/profile.d/cuda.sh; cd "{{ config.xnvme.repository.path }}"; meson install -C builddir
 
   - name: xal
     run: |
@@ -51,8 +51,8 @@ steps:
     run: |
       rm -r "{{ config.fil.repository.path }}/builddir" || true
       mkdir -p "{{ config.fil.repository.path }}/builddir"
-      cd "{{ config.fil.repository.path }}"; meson setup builddir
-      cd "{{ config.fil.repository.path }}"; meson install -C builddir
+      [ ! -f /etc/profile.d/cuda.sh ] || . /etc/profile.d/cuda.sh; cd "{{ config.fil.repository.path }}"; meson setup builddir
+      [ ! -f /etc/profile.d/cuda.sh ] || . /etc/profile.d/cuda.sh; cd "{{ config.fil.repository.path }}"; meson install -C builddir
 
   # Which backends it builds depends on what the system has, so it says;
   # the reference one is checked on the root filesystem, as /tmp may be a
@@ -60,8 +60,8 @@ steps:
   - name: opends
     run: |
       rm -r "{{ config.opends.repository.path }}/builddir" || true
-      cd "{{ config.opends.repository.path }}"; meson setup builddir
-      cd "{{ config.opends.repository.path }}"; meson install -C builddir
+      [ ! -f /etc/profile.d/cuda.sh ] || . /etc/profile.d/cuda.sh; cd "{{ config.opends.repository.path }}"; meson setup builddir
+      [ ! -f /etc/profile.d/cuda.sh ] || . /etc/profile.d/cuda.sh; cd "{{ config.opends.repository.path }}"; meson install -C builddir
       ldconfig
       ls "{{ config.opends.repository.path }}"/builddir/libopends_*.so
       "{{ config.opends.repository.path }}/builddir/test_smoke_ref" /root
