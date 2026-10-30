@@ -50,6 +50,14 @@ total CUDA threads, the 61.7 million IOPS roofline is reached under 512-byte
 device-initiated I/O, and additional queues beyond two per device add GPU cost
 without further gain.
 
+The {ref}`sec-experiments-iommu-overhead` experiment, run on the
+{ref}`sec-env-storage-server`, measured what turning the IOMMU on costs
+CPU-initiated I/O. Below the throughput ceiling, enabling the IOMMU made I/O at
+most 0.6% slower, with the data buffers in host memory and in GPU memory alike.
+The small cost is consistent with GPU memory being mapped once, before any I/O,
+in 2 MiB pages. Because the GPU's link saturates early on that platform, the
+range in which a translation cost could show is narrow.
+
 Taken together, these results demonstrate that eliminating software abstraction
 layers from the I/O path enables full hardware utilization with a fraction of the
 CPU resources required by conventional approaches, and that the P2P data path to
