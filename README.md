@@ -6,9 +6,34 @@ SPDX-License-Identifier: BSD-3-Clause
 
 # aisio: Accelerator-integrated Storage I/O
 
-This repository provides documentation, tools, and scripts for setting up and
-exploring Accelerator-integrated Storage I/O. The guide below walks through the
+Accelerator-integrated Storage I/O (AiSIO) moves data between NVMe SSDs and GPU
+memory at high bandwidth, while the file system on the SSD stays mounted and
+usable by the rest of the host. This repository provides documentation, tools,
+and scripts for setting up and exploring it. The guide below walks through the
 full setup from a fresh Ubuntu installation to running `bench_aisio.yaml`.
+
+## The Software Stack
+
+| Component                                          | Role                                                                |
+| -------------------------------------------------- | ------------------------------------------------------------------- |
+| [xNVMe](https://github.com/xnvme/xnvme)            | NVMe library with the user-space uPCIe driver, and `xnvmeperf`      |
+| [uPCIe](https://github.com/safl/upcie)             | Kernel modules giving that driver access to GPU memory              |
+| [`homi`](https://xnvme.io/tools/homi/index.html)   | Control plane in xNVMe, holding a controller and sharing it         |
+| [`qublk`](https://xnvme.io/tools/qublk/index.html) | ublk server in xNVMe, offering the controller as a block device     |
+| [`xal-server`](https://github.com/xnvme/xal)       | Publishes the extents of a mounted XFS file system in shared memory |
+| [fil](https://github.com/xnvme/fil)                | Dataset reader, and the `filperf` benchmark                         |
+
+`homi`, `qublk` and `xal-server` are independent daemons, and they meet in one
+read path. `homi` holds the NVMe controller, so several processes can use it at
+once. `qublk` is one of those processes, and the kernel mounts the dataset
+volume from its `/dev/ublkb1`. `xal-server` indexes that file system, so a
+reader can find a file's blocks without going through the kernel. `filperf`
+looks up the file in the index and reads its blocks from the controller through
+`homi`, driven by the CPU (`aisio-cpu`), by the GPU (`aisio-gpu`), or peer to
+peer into GPU memory (`aisio-p2p`).
+
+[docs/src/architecture.md](docs/src/architecture.md) describes the architecture
+in depth.
 
 ## Prerequisites
 
