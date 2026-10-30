@@ -88,7 +88,9 @@ steps:
       unit: xnvme-qublk@{{ config.smoke.ublk_id }}
 
   # Written through qublk, and remounted so that filperf, which decodes the XFS
-  # metadata on the device rather than asking the kernel, finds all of it there
+  # metadata on the device rather than asking the kernel, finds all of it there.
+  # Nothing changes it while xal-server runs, so the index is made once, with
+  # no watch mode
   - name: dataset
     run: |
       mkfs.xfs -f -K -m reflink=0 /dev/ublkb{{ config.smoke.ublk_id }}
@@ -98,7 +100,7 @@ steps:
       umount {{ config.smoke.mountpoint }}
       mount -o noatime /dev/ublkb{{ config.smoke.ublk_id }} {{ config.smoke.mountpoint }}
       df -h {{ config.smoke.mountpoint }}
-      printf '%s\n' 'log_level = 3' 'devices = [' '  { uri = "/dev/ublkb{{ config.smoke.ublk_id }}", shm_name = "{{ config.smoke.xal_shm_name }}", mountpoint = "{{ config.smoke.mountpoint }}" },' ']' '[xal]' 'watchmode = 2' > {{ config.smoke.xal_conf }}
+      printf '%s\n' 'log_level = 3' 'devices = [' '  { uri = "/dev/ublkb{{ config.smoke.ublk_id }}", shm_name = "{{ config.smoke.xal_shm_name }}", mountpoint = "{{ config.smoke.mountpoint }}" },' ']' '[xal]' 'watchmode = 0' > {{ config.smoke.xal_conf }}
 
   # Its unit reports started when the process starts, before it has indexed
   - name: xal_start
