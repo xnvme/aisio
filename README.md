@@ -190,6 +190,32 @@ cijoe --monitor \
     tasks/bench_aisio.yaml
 ```
 
+## Develop in the xnvme-devenv guest
+
+Without the hardware, AiSIO is developed and tested in a QEMU guest from
+[xnvme-devenv](https://github.com/xnvme/xnvme-devenv): Ubuntu 26.10 with ROCm,
+an emulated AMD GPU, and an NVMe controller behind the same PCIe switch, so
+the controller can move data to and from the GPU's VRAM. CI runs the same
+make targets. It needs Docker and KVM on the host:
+
+```
+make devenv
+```
+
+That starts a shell in xnvme-devenv's host container, with this checkout
+mounted at `/aisio`. In it, boot the guest, set up the AiSIO components with
+`setup_aisio.yaml`, and run the smoke tests, which drive the daemons with I/O
+and do peer-to-peer I/O between the controller and VRAM:
+
+```
+make guest-start guest-provision guest-test
+```
+
+Run `make guest-test` again after changing a task or script. The guest's SSH
+is on port 4200 of the host, as `root` with password `root`. `make guest-stop`
+stops it. `RIG` layers further rig files on the default
+`compute-node-emulated`, for example `RIG="compute-node-emulated my.toml"`.
+
 ## License
 
 AiSIO is licensed under the BSD 3-Clause License; see [LICENSE](LICENSE) for the

@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Smoke-test peer-to-peer I/O between NVMe and an AMD GPU
+  =======================================================
+
+  Drives a short xnvmeperf run with xNVMe's upcie-hip backend on the NVMe
+  controller at [smoke].pci_addr: the CPU submits the commands and the
+  controller moves the data straight to and from buffers in the GPU's VRAM.
+  Fails when no I/O completes or any I/O fails. Needs an AMD GPU whose
+  peer-to-peer DMA the controller can reach, such as the one of xnvme-devenv's
+  compute-node-emulated rig, and xNVMe built with HIP by 'setup_aisio.yaml':
+
+    cijoe --monitor \
+      -c configs/smoke.toml \
+      -c configs/devenv_guest.toml \
+      tasks/smoke_p2p.yaml
+
+steps:
+  - name: prepare
+    run: |
+      for t in xnvmeperf devbind hugepages; do command -v $t || { echo "missing: $t"; exit 1; }; done
+      test -e /dev/kfd && ls /dev/dri | grep -q renderD
+      modprobe uio_pci_generic
+      mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+      hugepages setup --count {{ config.smoke.hugepages }}
+      devbind --device {{ config.smoke.pci_addr }} --bind uio_pci_generic
+
+  - name: xnvmeperf_vram_read
+    uses: xnvmeperf
+    with: &xnvmeperf
+      backend: upcie-hip
+      devices: ["{{ config.smoke.pci_addr }}"]
+      runtime: 3
+      iosize: 4096
+      qdepth: 32
+      iopattern: randread
+      check: true
+
+  - name: xnvmeperf_vram_write
+    uses: xnvmeperf
+    with:
+      <<: *xnvmeperf
+      iopattern: randwrite
+
+  - name: bind_kernel
+    run: |
+      devbind --device {{ config.smoke.pci_addr }} --bind nvme

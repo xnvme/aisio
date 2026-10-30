@@ -3,12 +3,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 # The xnvme-devenv guest, Ubuntu 26.10 with ROCm, upcie and kernel 7.3 already
-# installed, as a system AiSIO did not set up. Takes a rig from xnvme-devenv's
-# host container as a further config, and is started with
-# 'tasks/devenv_start.yaml' in that container, which has the rig scripts:
+# installed, as a system AiSIO did not set up. Takes xnvme-devenv's
+# compute-node-emulated rig from its host container as a further config, and
+# is started with 'tasks/devenv_start.yaml' in that container, which has the
+# rig scripts. The Makefile's guest-* targets run it all:
 #
 #   cijoe -c configs/devenv_guest.toml \
-#     -c /opt/xnvme-devenv/rigs/storage-node-emulated.toml \
+#     -c /opt/xnvme-devenv/rigs/compute-node-emulated.toml \
 #     tasks/devenv_start.yaml
 
 [cijoe.task]
@@ -29,6 +30,11 @@ username = "odus"
 password = "odus.321"
 hostname = "localhost"
 port = 4200
+
+# The rig's NVMe controller, behind the switch it shares with the GPU, so
+# peer-to-peer DMA between them is allowed; given after configs/smoke.toml
+[smoke]
+pci_addr = "0000:03:00.0"
 
 [os]
 distro = "ubuntu"
