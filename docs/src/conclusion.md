@@ -24,9 +24,10 @@ layers of the SPDK stack each impose measurable overhead, and that replacing the
 SPDK driver with the leaner uPCIe driver yields approximately 2.5 times the IOPS
 when the benchmark tool and xNVMe abstraction layer are held constant. More
 significantly, the uPCIe path reaches the device IOPS roofline with only three CPU
-threads, fewer than half the cores required by the SPDK baseline. Routing the
-data path through P2P DMA to GPU device memory via upcie-cuda does not measurably
-affect command throughput, validating a core assumption of the AiSIO design.
+threads across two cores, where eight cores were required by the SPDK baseline.
+Routing the data path through P2P DMA to GPU device memory via upcie-cuda does not
+measurably affect command throughput, validating a core assumption of the AiSIO
+design.
 
 The {ref}`sec-experiments-pcie-bandwidth` experiment showed that a single CPU
 thread driving four NVMe devices is sufficient to saturate the PCIe Gen5 x16 link
