@@ -22,7 +22,8 @@ The configurations reflect practical system builds intended to support
 architectural exploration, implementation, and comparative evaluation, rather
 than prescribing production deployment guidelines.
 
-All environments are configured with the platform prerequisites for P2P DMA:
+Unless otherwise stated, all environments are configured with the platform
+prerequisites for P2P DMA:
 Resizable BAR enabled, Above 4G Decoding enabled, IOMMU disabled, and ACS
 disabled. Note that the availability and naming of these options varies across
 BIOS vendors; for example, Resizable BAR may appear as "ReBAR", "Resizable BAR

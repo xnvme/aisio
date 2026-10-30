@@ -9,9 +9,10 @@ SPDX-License-Identifier: BSD-3-Clause
 
 This work introduced AiSIO as a class of system software architectures and HOMI
 as a reference architecture within it, and presented a reference implementation.
-The experimental evaluation to date covers five synthetic benchmark studies in a
-single hardware environment, structured to characterize the resource efficiency
-of the uPCIe and uPCIe-cuda data paths from the ground up.
+The experimental evaluation to date covers six synthetic benchmark studies on
+two hardware environments, structured to characterize the resource efficiency
+of the uPCIe and uPCIe-cuda data paths from the ground up, and what enabling the
+IOMMU costs them.
 
 The {ref}`sec-experiments-cpu-initiated` experiment established a ceiling of
 approximately 61.7 million IOPS across 16 NVMe devices, requiring 8 physical cores
@@ -46,8 +47,8 @@ and completes commands. The {ref}`sec-experiments-cuda-qdepth` experiment showed
 that a single queue per device cannot reach the device IOPS roofline regardless
 of queue depth, and that adding a second queue breaks this ceiling. With 4096
 total CUDA threads, the 61.7 million IOPS roofline is reached under 512-byte
-device-initiated I/O, and additional queues beyond four per device add thread
-count without further gain.
+device-initiated I/O, and additional queues beyond two per device add GPU cost
+without further gain.
 
 Taken together, these results demonstrate that eliminating software abstraction
 layers from the I/O path enables full hardware utilization with a fraction of the

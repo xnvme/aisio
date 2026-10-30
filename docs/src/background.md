@@ -941,7 +941,7 @@ NVMe command submission and completion across operating systems and backends
 NVMe command interfaces, queue management, and completion handling, allowing
 NVMe interactions to be expressed through a consistent programming model.
 
-**XAL (eXtents Access Library)**
+**XAL (eXtent Access Library)**
 : A library for retrieving file extent information from file systems
 {cite}`xal`. XAL obtains logical-to-physical block mappings either through
 kernel-provided interfaces, such as the FIEMAP ioctl {cite}`linux-fiemap`, or
