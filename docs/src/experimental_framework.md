@@ -329,15 +329,16 @@ sufficient for the benchmarks in this suite.
 
 #### AiSIO / uPCIe (``bench_aisio.yaml``)
 
-This benchmark consists of two parts. First, all three datasets
-(tiktokish, imagenetish, filesize8gib) are loaded through FIL over the
-AiSIO path using the ``aisio-cpu``, ``aisio-gpu``, and ``aisio-p2p``
-backends, measuring end-to-end dataset-loading performance for
-CPU-driven, GPU-driven, and peer-to-peer transfers. Second, synthetic
-random-read benchmarks are run with xnvmeperf using the ``upcie`` (buffers
-in host memory) and ``upcie-cuda`` (buffers in GPU memory, via P2P)
-backends, both CPU-initiated, measuring raw I/O throughput on the uPCIe
-path.
+The workflow starts ``homi``, ``qublk`` and ``xal-server``, and the
+benchmark then consists of two parts. First, synthetic random-read
+benchmarks are run with xnvmeperf through ``homi`` using the ``upcie``
+(buffers in host memory) and ``upcie-cuda`` (buffers in GPU memory, via
+P2P) backends, both CPU-initiated, measuring raw I/O throughput on the
+uPCIe path. Second, all three datasets (tiktokish, imagenetish,
+filesize8gib) are loaded through FIL over the AiSIO path using the
+``aisio-cpu``, ``aisio-gpu``, and ``aisio-p2p`` backends, measuring
+end-to-end dataset-loading performance for CPU-driven, GPU-driven, and
+peer-to-peer transfers.
 
 ```
 cijoe --monitor \

@@ -147,24 +147,15 @@ cijoe --monitor \
 
 ## Step 8: Run Benchmarks
 
-`bench_aisio.yaml` uses the xNVMe uPCIe path, so the NVMe device must be
-unbound from the kernel driver before running. SSH into the target and unmount
-the dataset volume, rebind the device, and allocate hugepages:
+`bench_aisio.yaml` moves the NVMe device from the kernel driver to `homi`,
+allocates hugepages, and starts `qublk` and `xal-server` through the systemd
+units `setup_aisio.yaml` installs. The dataset volume is then mounted from
+`/dev/ublkb1` instead of the kernel's NVMe block device. Nothing is formatted,
+and the daemons are stopped at the end. The device stays bound to
+`uio_pci_generic`, so bind it back to `nvme` before running `setup_dataset.yaml`
+again.
 
-```
-modprobe uio_pci_generic
-umount /mnt/datasets
-devbind --device '0000:01:00.0' --bind uio_pci_generic  # pci_addr from datasets.toml
-hugepages setup --count 5120
-```
-
-The count must be large enough to fit the biggest batch of I/O buffers. The
-`filesize8gib` dataset drives this requirement — 5120 pages (10 GiB) is
-sufficient for the benchmarks in this suite.
-
-`devbind` and `hugepages` are installed on the target as part of `setup_aisio.yaml`.
-
-Then run the AiSIO benchmark suite:
+Run the AiSIO benchmark suite:
 
 ```
 cijoe --monitor \
