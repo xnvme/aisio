@@ -266,11 +266,12 @@ I/O. These queues are used exclusively by accelerators to submit NVMe
 commands directly, allowing data-path execution to bypass host memory and CPU
 involvement.
 
-Queue ownership is static for the lifetime of the system configuration. Kernel
-I/O paths, user space processes, and accelerator-initiated I/O paths do not
-share queues, and none can access the queue resources of another. Concurrency
-is provided by the NVMe controller’s native support for multiple queue pairs,
-eliminating the need for software arbitration on the data path.
+Each initiator requests its queue pairs from the control plane at runtime and
+holds them until it frees them or disconnects. Kernel I/O paths, user space
+processes, and accelerator-initiated I/O paths do not share queues, and none
+can access the queue resources of another. Concurrency is provided by the NVMe
+controller’s native support for multiple queue pairs, eliminating the need for
+software arbitration on the data path.
 
 This configuration requires no specialized hardware support and allows
 AiSIO systems to operate on commodity platforms. The trade-off is that queue
