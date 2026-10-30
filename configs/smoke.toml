@@ -14,3 +14,5 @@ homi_id = 1
 ublk_id = 0
 xal_shm_name = "/xal_smoke"
 hugepages = 512
+# Where 'setup_aisio.yaml' builds it; meson does not install examples
+opends_demo = "/root/git/opends/builddir/aisio_homi_demo"

@@ -11,9 +11,10 @@ doc: |
   through them, then stops them, failing when a daemon does not come up, dies,
   or does not exit cleanly. homi holds the controller, xnvmeperf and qublk
   attach to it, qublk serves /dev/ublkb<ublk_id>, which carries a small XFS
-  dataset, and xal-server publishes its index. Nothing here needs a GPU.
-  This FORMATS the namespace of that controller. Run it after
-  'setup_aisio.yaml':
+  dataset, and xal-server publishes its index. Where there is an NVIDIA GPU,
+  OpenDS's aisio_homi_demo then reads a dataset file into GPU memory through
+  them; nothing else here needs a GPU. This FORMATS the namespace of that
+  controller. Run it after 'setup_aisio.yaml':
 
     cijoe --monitor \
       -c configs/transport.toml \
@@ -130,6 +131,15 @@ steps:
       batch_size: 8
       batches: 2
       copy_to_gpu: false
+
+  # OpenDS's aisio backend reads a dataset file into GPU memory over the
+  # controller homi holds, finding its extents in xal-server's index, and the
+  # demo compares that with what the kernel reads. It needs CUDA, so it runs
+  # only where there is an NVIDIA GPU
+  - name: opends_demo
+    run: |
+      if [ -z "$(lspci -d 10de::0300; lspci -d 10de::0302)" ]; then echo "no NVIDIA GPU, skipping"; exit 0; fi
+      OPENDS_AISIO_HOMI_ID={{ config.smoke.homi_id }} OPENDS_XAL_SHM={{ config.smoke.xal_shm_name }} {{ config.smoke.opends_demo }} {{ config.smoke.mountpoint }}/smoke/c0/f0
 
   - name: xal_stop
     uses: daemon
