@@ -315,14 +315,8 @@ files.
 All datasets are generated with a fixed random seed to ensure
 reproducibility across systems.
 
-The AiSIO benchmark uses the xNVMe uPCIe path and requires the device bound
-to ``uio_pci_generic`` with hugepages allocated:
-
-```
-umount /mnt/datasets
-devbind --device '<pci_addr>' --bind uio_pci_generic
-hugepages setup --count 5120
-```
+The AiSIO benchmark uses the xNVMe uPCIe path. ``configure_daemons.yaml``
+binds the device to ``uio_pci_generic`` and allocates the hugepages it needs.
 
 The count must be large enough to fit the biggest batch of I/O buffers. The
 ``filesize8gib`` dataset drives this requirement, and 5120 pages (10 GiB) is
@@ -330,18 +324,24 @@ sufficient for the benchmarks in this suite.
 
 #### AiSIO / uPCIe (``bench_aisio.yaml``)
 
-The workflow starts ``homi``, ``qublk`` and ``xal-server``, and the
-benchmark then consists of two parts. First, synthetic random-read
-benchmarks are run with xnvmeperf through ``homi`` using the ``upcie``
-(buffers in host memory) and ``upcie-cuda`` (buffers in GPU memory, via
-P2P) backends, both CPU-initiated, measuring raw I/O throughput on the
-uPCIe path. Second, all three datasets (tiktokish, imagenetish,
-filesize8gib) are loaded through FIL over the AiSIO path using the
-``aisio-cpu``, ``aisio-gpu``, and ``aisio-p2p`` backends, measuring
+``configure_daemons.yaml`` prepares the system once. The workflow then starts
+``homi``, ``qublk`` and ``xal-server``, and the benchmark consists of two
+parts. First, synthetic random-read benchmarks are run with xnvmeperf through
+``homi`` using the ``upcie`` (buffers in host memory) and ``upcie-cuda``
+(buffers in GPU memory, via P2P) backends, both CPU-initiated, measuring raw
+I/O throughput on the uPCIe path. Second, all three datasets (tiktokish,
+imagenetish, filesize8gib) are loaded through FIL over the AiSIO path using
+the ``aisio-cpu``, ``aisio-gpu``, and ``aisio-p2p`` backends, measuring
 end-to-end dataset-loading performance for CPU-driven, GPU-driven, and
 peer-to-peer transfers.
 
 ```
+cijoe --monitor \
+    -c configs/transport.toml \
+    -c configs/aisio.toml \
+    -c configs/datasets.toml \
+    tasks/configure_daemons.yaml
+
 cijoe --monitor \
     -c configs/transport.toml \
     -c configs/aisio.toml \

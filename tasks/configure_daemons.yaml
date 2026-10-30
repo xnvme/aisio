@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Configure the AiSIO daemons
+  ===========================
+
+  Stops any daemons left running, binds the NVMe controller to uio_pci_generic,
+  allocates hugepages, and writes the configuration of the homi, qublk and
+  xal-server units, as [aisio] names them. It does not start the daemons, that
+  is left to 'bench_aisio.yaml', and it does not format anything. Run it after
+  'setup_dataset.yaml', and again after a reboot or a change to the configs:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/aisio.toml \
+      -c configs/datasets.toml \
+      tasks/configure_daemons.yaml
+
+steps:
+  - name: prepare
+    run: |
+      umount {{ config.filesystems.dset.mountpoint }} || true
+      systemctl stop xal-server xnvme-qublk@{{ config.aisio.ublk_id }} xnvme-homi@{{ config.aisio.homi_id }}
+      if [ -e /dev/ublkc{{ config.aisio.ublk_id }} ]; then qublk del --dev-id {{ config.aisio.ublk_id }}; fi
+      rm -f /dev/shm{{ config.aisio.xal_shm_name }}_*
+      modprobe uio_pci_generic
+      modprobe ublk_drv
+      devbind --device {{ config.filesystems.dset.pci_addr }} --bind uio_pci_generic
+      hugepages setup --count {{ config.aisio.hugepages }}
+
+  - name: units_configure
+    run: |
+      mkdir -p "$(dirname {{ config.aisio.homi_conf }})" "$(dirname {{ config.aisio.xal_conf }})"
+      echo 'HOMI_DEVICES={{ config.filesystems.dset.pci_addr }}' > {{ config.aisio.homi_conf }}
+      echo 'HOMI_OPTS=--be upcie --host-heap-size {{ config.aisio.homi_heap_size }}' >> {{ config.aisio.homi_conf }}
+      echo 'QUBLK_URI={{ config.filesystems.dset.pci_addr }}' > {{ config.aisio.qublk_conf }}
+      echo 'QUBLK_OPTS=--be upcie --homi-id {{ config.aisio.homi_id }}' >> {{ config.aisio.qublk_conf }}
+      echo 'log_level = 3' > {{ config.aisio.xal_conf }}
+      echo 'devices = [{ uri = "/dev/ublkb{{ config.aisio.ublk_id }}", shm_name = "{{ config.aisio.xal_shm_name }}", mountpoint = "{{ config.filesystems.dset.mountpoint }}" }]' >> {{ config.aisio.xal_conf }}
+      echo '[xal]' >> {{ config.aisio.xal_conf }}
+      echo 'watchmode = 0' >> {{ config.aisio.xal_conf }}

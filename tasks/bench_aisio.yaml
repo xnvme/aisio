@@ -11,10 +11,10 @@ doc: |
   - reading 3 datasets: tiktokish, imagenetish, filesize8gib
 
   The task starts homi on the controller, qublk serving the dataset volume,
-  mounted, and xal-server publishing its index as /xal_dev0. xnvmeperf and FIL's
-  aisio backends then read through homi, and the task stops the daemons again.
-  It leaves the controller bound to uio_pci_generic. This assumes you already
-  ran 'setup_aisio.yaml' and 'setup_dataset.yaml', and it does not format
+  mounted, and xal-server publishing its index, as [aisio] names them. xnvmeperf
+  and FIL's aisio backends then read through homi, and the task stops the
+  daemons again. This assumes you already ran 'setup_aisio.yaml',
+  'setup_dataset.yaml' and 'configure_daemons.yaml', and it does not format
   anything:
 
     cijoe --monitor \
@@ -23,37 +23,17 @@ doc: |
       -c configs/datasets.toml \
       tasks/bench_aisio.yaml
 
-  When a step fails, the daemons are left running, and a new run stops them
-  first.
+  When a step fails, the daemons are left running, and 'configure_daemons.yaml'
+  stops them.
 
 steps:
-  - name: prepare
-    run: |
-      umount {{ config.filesystems.dset.mountpoint }} || true
-      systemctl stop xal-server xnvme-qublk@1 xnvme-homi@1
-      if [ -e /dev/ublkc1 ]; then qublk del --dev-id 1; fi
-      rm -f /dev/shm/xal_dev0_*
-      modprobe uio_pci_generic
-      modprobe ublk_drv
-      devbind --device {{ config.filesystems.dset.pci_addr }} --bind uio_pci_generic
-      hugepages setup --count 5120
-
-  # The heap holds the buffers of aisio-cpu, a batch of them, each the size of
-  # the largest file, so filesize8gib drives it to 9 GiB
-  - name: units_configure
-    run: |
-      mkdir -p /usr/local/etc/xnvme /usr/local/etc/xal
-      printf '%s\n' 'HOMI_DEVICES={{ config.filesystems.dset.pci_addr }}' 'HOMI_OPTS=--be upcie --host-heap-size 9663676416' > /usr/local/etc/xnvme/homi-1.conf
-      printf '%s\n' 'QUBLK_URI={{ config.filesystems.dset.pci_addr }}' 'QUBLK_OPTS=--be upcie --homi-id 1' > /usr/local/etc/xnvme/qublk-1.conf
-      printf '%s\n' 'log_level = 3' 'devices = [' '  { uri = "/dev/ublkb1", shm_name = "/xal_dev0", mountpoint = "{{ config.filesystems.dset.mountpoint }}" },' ']' '[xal]' 'watchmode = 0' > /usr/local/etc/xal/xal-server.conf
-
   # xal-server's unit reports started when the process starts, before it has
   # indexed
   - name: daemons_start
     run: |
-      systemctl start xnvme-homi@1
-      systemctl start xnvme-qublk@1
-      mount -o noatime /dev/ublkb1 {{ config.filesystems.dset.mountpoint }}
+      systemctl start xnvme-homi@{{ config.aisio.homi_id }}
+      systemctl start xnvme-qublk@{{ config.aisio.ublk_id }}
+      mount -o noatime /dev/ublkb{{ config.aisio.ublk_id }} {{ config.filesystems.dset.mountpoint }}
       df -h {{ config.filesystems.dset.mountpoint }}
       systemctl start xal-server
       timeout 60 sh -c 'until journalctl --no-pager _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value xal-server) | grep -q "serving 1 device"; do sleep 1; done'
@@ -67,7 +47,7 @@ steps:
       iosize: 512
       qdepth: 128
       iopattern: randread
-      homi_id: 1
+      homi_id: "{{ config.aisio.homi_id }}"
 
   - name: p2p
     uses: xnvmeperf
@@ -78,7 +58,7 @@ steps:
       iosize: 512
       qdepth: 128
       iopattern: randread
-      homi_id: 1
+      homi_id: "{{ config.aisio.homi_id }}"
 
   - name: dev-initiated
     uses: xnvmeperf
@@ -91,7 +71,7 @@ steps:
       iosize: 512
       qdepth: 512
       iopattern: randread
-      homi_id: 1
+      homi_id: "{{ config.aisio.homi_id }}"
 
   - name: tiktokish
     uses: filperf
@@ -99,6 +79,8 @@ steps:
       backend: "aisio-cpu"
       dataset: "tiktokish"
       device: "{{ config.filesystems.dset.pci_addr }}"
+      homi_id: "{{ config.aisio.homi_id }}"
+      xal_shm: "{{ config.aisio.xal_shm_name }}"
       batch_size: 26
       batches: 1
 
@@ -108,6 +90,8 @@ steps:
       backend: "aisio-gpu"
       dataset: "tiktokish"
       device: "{{ config.filesystems.dset.pci_addr }}"
+      homi_id: "{{ config.aisio.homi_id }}"
+      xal_shm: "{{ config.aisio.xal_shm_name }}"
       batch_size: 26
       batches: 1
       queue_depth: 512
@@ -118,6 +102,8 @@ steps:
       backend: "aisio-p2p"
       dataset: "tiktokish"
       device: "{{ config.filesystems.dset.pci_addr }}"
+      homi_id: "{{ config.aisio.homi_id }}"
+      xal_shm: "{{ config.aisio.xal_shm_name }}"
       batch_size: 26
       batches: 1
 
@@ -127,6 +113,8 @@ steps:
       backend: "aisio-cpu"
       dataset: "imagenetish"
       device: "{{ config.filesystems.dset.pci_addr }}"
+      homi_id: "{{ config.aisio.homi_id }}"
+      xal_shm: "{{ config.aisio.xal_shm_name }}"
       batch_size: 1024
       batches: 300
 
@@ -136,6 +124,8 @@ steps:
       backend: "aisio-gpu"
       dataset: "imagenetish"
       device: "{{ config.filesystems.dset.pci_addr }}"
+      homi_id: "{{ config.aisio.homi_id }}"
+      xal_shm: "{{ config.aisio.xal_shm_name }}"
       batch_size: 1024
       batches: 300
       queue_depth: 512
@@ -146,6 +136,8 @@ steps:
       backend: "aisio-p2p"
       dataset: "imagenetish"
       device: "{{ config.filesystems.dset.pci_addr }}"
+      homi_id: "{{ config.aisio.homi_id }}"
+      xal_shm: "{{ config.aisio.xal_shm_name }}"
       batch_size: 1024
       batches: 300
 
@@ -155,6 +147,8 @@ steps:
       backend: "aisio-cpu"
       dataset: "filesize8gib"
       device: "{{ config.filesystems.dset.pci_addr }}"
+      homi_id: "{{ config.aisio.homi_id }}"
+      xal_shm: "{{ config.aisio.xal_shm_name }}"
       batch_size: 1
       batches: 10
 
@@ -164,6 +158,8 @@ steps:
       backend: "aisio-gpu"
       dataset: "filesize8gib"
       device: "{{ config.filesystems.dset.pci_addr }}"
+      homi_id: "{{ config.aisio.homi_id }}"
+      xal_shm: "{{ config.aisio.xal_shm_name }}"
       batch_size: 1
       batches: 10
       queue_depth: 512
@@ -174,6 +170,8 @@ steps:
       backend: "aisio-p2p"
       dataset: "filesize8gib"
       device: "{{ config.filesystems.dset.pci_addr }}"
+      homi_id: "{{ config.aisio.homi_id }}"
+      xal_shm: "{{ config.aisio.xal_shm_name }}"
       batch_size: 1
       batches: 10
 
@@ -181,5 +179,5 @@ steps:
     run: |
       systemctl stop xal-server
       umount {{ config.filesystems.dset.mountpoint }}
-      systemctl stop xnvme-qublk@1
-      systemctl stop xnvme-homi@1
+      systemctl stop xnvme-qublk@{{ config.aisio.ublk_id }}
+      systemctl stop xnvme-homi@{{ config.aisio.homi_id }}

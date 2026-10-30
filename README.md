@@ -179,13 +179,25 @@ cijoe --monitor \
 
 ## Step 8: Run Benchmarks
 
-`bench_aisio.yaml` moves the NVMe device from the kernel driver to `homi`,
-allocates hugepages, and starts `qublk` and `xal-server` through the systemd
-units `setup_aisio.yaml` installs. The dataset volume is then mounted from
-`/dev/ublkb1` instead of the kernel's NVMe block device. Nothing is formatted,
-and the daemons are stopped at the end. The device stays bound to
+`configure_daemons.yaml` moves the NVMe device from the kernel driver to
+`uio_pci_generic`, allocates hugepages, and writes the configuration of the
+systemd units `setup_aisio.yaml` installs. Run it once, and again after a reboot
+or a change to `[aisio]` in `configs/aisio.toml`:
+
+```
+cijoe --monitor \
+    -c configs/transport.toml \
+    -c configs/aisio.toml \
+    -c configs/datasets.toml \
+    tasks/configure_daemons.yaml
+```
+
+`bench_aisio.yaml` starts `homi`, `qublk` and `xal-server`, mounts the dataset
+volume from `/dev/ublkb1` instead of the kernel's NVMe block device, and stops
+them at the end. Nothing is formatted. The device stays bound to
 `uio_pci_generic`, so bind it back to `nvme` before running `setup_dataset.yaml`
-again.
+again. If a run fails, run `configure_daemons.yaml` to stop what it left
+running.
 
 Run the AiSIO benchmark suite:
 
