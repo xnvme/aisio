@@ -53,9 +53,10 @@ desired amount for this specific run.
 
 To construct the CPU mask, logical CPUs were added depending on their ID in
 increasing order until the desired amount of cores was reached. NUMA nodes were
-not considered, as experiments showed it did not have a significant impact on the
-results. When using thread siblings, the amount of logical CPUs used are doubled,
-as there are two threads on each of the cores.
+not considered, as preliminary experiments with the drivers used at the time
+showed no significant impact on the results. When using thread siblings, the
+amount of logical CPUs used are doubled, as there are two threads on each of
+the cores.
 
 The complete list of independent variables and the values for the variables are:
 
