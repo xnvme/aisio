@@ -883,8 +883,9 @@ explicit responsibility of the I/O stack.
 For device-initiated I/O, accelerators cannot perform pathname resolution or
 query kernel metadata structures at runtime. The logical-to-physical block
 mapping must therefore be extracted on the host in advance and made available
-to the initiating device. **Extents** express this mapping: each extent
-identifies a contiguous file region by its starting logical block and length. A
+to the initiating device. **Extents** express this mapping: each extent maps a
+contiguous file region, given by its starting logical block and length, to the
+physical block on the device where that region starts. A
 complete extent tree covers a file's full address space and is the primary
 structure used to translate file offsets into physical block ranges without
 kernel involvement.
