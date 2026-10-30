@@ -651,11 +651,11 @@ capabilities, as covered in {ref}`sec-pcie`.
 ## NVMe Controllers
 
 All NVMe specification documents are freely available upon ratification and
-distributed via the nvme express website. For details please to look in the
-specification documents, however, since these have now grown into many thousands
-of pages spread upon multiple documents, then see these subsections as a brief
-overview on theory of operations and NVMe initialization and command processing
-flows.
+distributed via the NVM Express website. Since these have now grown into many
+thousands of pages spread across multiple documents, this section will give an
+overview of the theory of operations and NVMe initialization and command
+processing flows. For details on any subject, please refer to the specification
+documents.
 
 An NVMe controller is the entity accessible via a transport. Transports include
 PCIe, TCP, and RDMA. We currently focus on locally attached storage devices over PCIe, with the
