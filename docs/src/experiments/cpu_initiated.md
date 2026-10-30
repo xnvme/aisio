@@ -79,13 +79,13 @@ individually expanded the set of values for each variable to explore the results
 beyond the initial selection. The expanded parameter set is listed below. Note
 that not all combinations in the expanded parameter set were tested.
 
-| Variable                 | Expanded Parameter Set                 |
-| ------------------------ | -------------------------------------- |
-| CPU frequency / governor | { powersave, performance }             |
-| Queue depth              | { 8, 16, 32, 64, 128, 256, 512, 1024 } |
-| I/O size                 | { 512, 1024, 2048, 4096, 8192 }        |
-| Number of cores          | { 1, 2, ..., 16 }                      |
-| Number of devices        | { 1, 2, ..., 16 }                      |
+| Variable                 | Expanded Parameter Set                            |
+| ------------------------ | ------------------------------------------------- |
+| CPU frequency / governor | { powersave, performance, userspace at 3.0 GHz }  |
+| Queue depth              | { 8, 16, 32, 64, 128, 256, 512, 1024 }            |
+| I/O size                 | { 512, 1024, 2048, 4096, 8192 }                   |
+| Number of cores          | { 1, 2, ..., 16 }                                 |
+| Number of devices        | { 1, 2, ..., 16 }                                 |
 
 ## Metrics Collected
 
@@ -163,8 +163,8 @@ million IOPS using 8 physical cores. The parameterization to achieve this was:
 | CPU frequency / governor | performance        |
 | Turbo boost              | on                 |
 | SMT                      | on                 |
-| Thread siblings          | { used, not used } |
-| Stress                   | { on, off }        |
+| Thread siblings          | used (A, B) or not used (C) |
+| Stress                   | off (A, C) or on (B)        |
 | Queue depth              | 128                |
 | I/O size                 | 512                |
 | Number of cores          | 8                  |
@@ -295,7 +295,7 @@ Results of parameterization C with different queue depths.
 
 Increasing the I/O size to 4096 results in each operation taking more time, so the
 reached IOPS decreases as seen in the graph. However, the bandwidth tells a
-different story: it scales roughly proportionally with I/O size, doubling from
+different story: it scales roughly proportionally with I/O size, rising from
 approximately 30 GiB/s at 512 bytes to approximately 215 GiB/s at 4096 bytes, where
 it plateaus. This plateau coincides with the point at which IOPS drops sharply,
 suggesting a bandwidth ceiling is reached rather than a CPU-side bottleneck.

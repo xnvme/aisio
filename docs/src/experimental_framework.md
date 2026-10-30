@@ -30,19 +30,21 @@ in the ``README.md`` of the AiSIO repository. The table below lists all
 software components installed on each system, in installation order.
 It covers both the proof-of-concept stack (proprietary NVIDIA
 GPUDirect-Storage / BaM, reproducible at the ``poc`` tag) and the
-current 26.04 open stack (NVIDIA and AMD over the dma-buf import path);
-rows specific to the latter are tagged "26.04 stack" in the description.
+current 26.04 open stack (NVIDIA and AMD over the dma-buf import path).
+Rows specific to one stack are tagged "PoC stack" or "26.04 stack" in the
+description. Untagged rows apply to both, at the versions the current
+configuration pins; the ``poc`` tag pins its own.
 
 | Category | Component                  | Version              | Install       | Description                                                                                                                         |
 | -------- | -------------------------- | -------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| OS       | Ubuntu Server              | 24.04.4              | ISO           | Base operating system; GA kernel required (HWE must be disabled)                                                                    |
-| Kernel   | Linux + udmabuf-import     | 6.8 GA + patch       | Source        | Ubuntu GA kernel patched to add DMA-buf importer support to UDMABUF, enabling physical address resolution of device memory from user space |
-| NVIDIA   | MLNX\_OFED                 | 24.10-3.2.5.0        | Source        | Mellanox OFED with NVMe-oF, NFS-RDMA, and GPUDirect Storage support                                                                |
-| NVIDIA   | Open Kernel Modules        | 570.x                | APT           | NVIDIA open-source GPU kernel driver                                                                                                |
-| NVIDIA   | CUDA Toolkit               | 12.8.x               | APT           | CUDA compiler, runtime, and libraries                                                                                               |
-| NVIDIA   | nvidia-fs                  | 12.8.x               | APT           | GPUDirect Storage kernel module                                                                                                     |
+| OS       | Ubuntu Server              | 24.04.4              | ISO           | PoC stack: base operating system; GA kernel required (HWE must be disabled)                                                         |
+| Kernel   | Linux + udmabuf-import     | 6.8 GA + patch       | Source        | PoC stack: Ubuntu GA kernel patched to add DMA-buf importer support to UDMABUF, enabling physical address resolution of device memory from user space |
+| NVIDIA   | MLNX\_OFED                 | 24.10-3.2.5.0        | Source        | PoC stack: Mellanox OFED with NVMe-oF, NFS-RDMA, and GPUDirect Storage support                                                      |
+| NVIDIA   | Open Kernel Modules        | 570.x                | APT           | PoC stack: NVIDIA open-source GPU kernel driver                                                                                     |
+| NVIDIA   | CUDA Toolkit               | 12.8.x               | APT           | PoC stack: CUDA compiler, runtime, and libraries                                                                                    |
+| NVIDIA   | nvidia-fs                  | 12.8.x               | APT           | PoC stack: GPUDirect Storage kernel module                                                                                          |
 | OS       | Ubuntu Server              | 26.04                | ISO           | 26.04 stack: current base OS (GA 7.0 kernel)                                                                                        |
-| Kernel   | upcie-experimental         | {{ ver_upcie_experimental }} | DKMS  | 26.04 stack: out-of-tree modules released by uPCIe; the dma-buf importer and the IOMMU physical-address mapper                       |
+| Kernel   | upcie-experimental         | {{ ver_upcie_experimental }} | DKMS  | 26.04 stack: out-of-tree modules released by uPCIe; the dma-buf importer and the IOMMU physical-address mapper                      |
 | NVIDIA   | nvidia-driver-580-open     | 580 (open)           | APT           | 26.04 stack: open-kernel-module driver from the distro 'restricted' repo                                                            |
 | NVIDIA   | CUDA Toolkit               | 13                   | APT           | 26.04 stack: CUDA from NVIDIA's ubuntu2604 repo                                                                                     |
 | NVIDIA   | DCGM                       | 4.x (cuda13)         | APT           | 26.04 stack: GPU telemetry (nv-hostengine + dcgmi); collects the GPU metrics reported by the benchmark workflows                    |
@@ -50,7 +52,7 @@ rows specific to the latter are tagged "26.04 stack" in the description.
 | AiSIO    | fio                        | {{ ver_fio }}        | Source        | I/O benchmark tool; built from source for SPDK plugin integration                                                                   |
 | AiSIO    | SPDK                       | {{ ver_spdk }}       | Source        | Storage Performance Development Kit; provides the user space NVMe driver and bdevperf                                              |
 | AiSIO    | xNVMe                      | {{ ver_xnvme }}      | Source        | Unified NVMe command interface with uPCIe backend support                                                                           |
-| AiSIO    | xal                        | {{ ver_xal }}        | Source        | XFS Abstraction Library for file-to-block extent resolution                                                                         |
+| AiSIO    | xal                        | {{ ver_xal }}        | Source        | eXtent Access Library for file-to-block extent resolution                                                                           |
 | AiSIO    | fil                        | {{ ver_fil }}        | Source        | File Iterator Library; benchmark harness used to evaluate different I/O backends                                                    |
 | Tools    | devbind                    | —                    | pipx          | NVMe PCIe driver binding utility                                                                                                    |
 | Tools    | hugepages                  | —                    | pipx          | Huge page allocation management utility                                                                                             |
@@ -318,8 +320,12 @@ to ``uio_pci_generic`` with hugepages allocated:
 ```
 umount /mnt/datasets
 devbind --device '<pci_addr>' --bind uio_pci_generic
-hugepages setup --count 1024
+hugepages setup --count 5120
 ```
+
+The count must be large enough to fit the biggest batch of I/O buffers. The
+``filesize8gib`` dataset drives this requirement, and 5120 pages (10 GiB) is
+sufficient for the benchmarks in this suite.
 
 #### AiSIO / uPCIe (``bench_aisio.yaml``)
 
@@ -328,9 +334,10 @@ This benchmark consists of two parts. First, all three datasets
 AiSIO path using the ``aisio-cpu``, ``aisio-gpu``, and ``aisio-p2p``
 backends, measuring end-to-end dataset-loading performance for
 CPU-driven, GPU-driven, and peer-to-peer transfers. Second, synthetic
-random-read benchmarks are run with xnvmeperf using the ``upcie`` (CPU
-completion) and ``upcie-cuda`` (GPU completion) backends, measuring raw
-I/O throughput on the uPCIe path.
+random-read benchmarks are run with xnvmeperf using the ``upcie`` (buffers
+in host memory) and ``upcie-cuda`` (buffers in GPU memory, via P2P)
+backends, both CPU-initiated, measuring raw I/O throughput on the uPCIe
+path.
 
 ```
 cijoe --monitor \
