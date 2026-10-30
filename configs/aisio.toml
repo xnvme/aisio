@@ -19,12 +19,12 @@ version = "0.10.4"
 
 [xal.repository]
 remote = "https://github.com/xnvme/xal"
-tag = "v0.3.3"
+tag = "v0.3.4"
 path = "/root/git/xal"
 
 [fil.repository]
 remote = "https://github.com/xnvme/fil"
-tag = "v0.3.4"
+tag = "v0.4.0"
 path = "/root/git/fil"
 
 [spdk.repository]

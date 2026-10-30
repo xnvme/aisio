@@ -28,6 +28,7 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--cpumask", type=str, default="0x1")
     parser.add_argument("--backend", type=str, default="upcie")
     parser.add_argument("--nqueues", type=int, default=1)
+    parser.add_argument("--homi_id", type=int, default=0)
 
 
 def xnvmeperf_cmd(bin: str, args: dict) -> str:
@@ -48,6 +49,8 @@ def xnvmeperf_cmd(bin: str, args: dict) -> str:
     # underscore where it spells --homi-id with a hyphen.
     if args.get("gpu_id") is not None:
         parameters.append(f"--gpu_id {args['gpu_id']}")
+    if args.get("homi_id"):
+        parameters.append(f"--homi-id {args['homi_id']}")
     parameters.append(" ".join(args["devices"]))
     return " ".join(parameters)
 
@@ -66,8 +69,10 @@ def xnvmeperf_cuda_cmd(bin: str, args: dict) -> str:
         f"--iopattern {args['iopattern']}",
         f"--be {args['backend']}",
         f"--nqueues {args['nqueues']}",
-        " ".join(args["devices"]),
     ]
+    if args.get("homi_id"):
+        parameters.append(f"--homi-id {args['homi_id']}")
+    parameters.append(" ".join(args["devices"]))
     return " ".join(parameters)
 
 
