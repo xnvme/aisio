@@ -8,6 +8,11 @@ fail_fast=true
 [xnvme.driver]
 prefix = "PCI_BLACKLIST=\"0000:01:00.0\""
 
+# Benchmark only the devices on the GPU's NUMA node, as data between a device
+# and the GPU then stays on one socket
+[bench]
+gpu_local = false
+
 [[devices]]
 pci_addr = "0000:4a:00.0"
 
