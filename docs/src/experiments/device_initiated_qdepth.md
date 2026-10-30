@@ -8,8 +8,9 @@ SPDX-License-Identifier: BSD-3-Clause
 # Device-initiated I/O: Queue Depth Scaling
 
 The previous experiment showed that at 512-byte I/O the PCIe link cannot be
-saturated regardless of thread count, and that the constraint is device IOPS,
-which was established to be 61.7 M IOPS in the {ref}`sec-experiments-cpu-initiated` experiment.
+saturated with a single queue per device, which limits the workload by how fast
+it submits and completes commands, short of the 61.7 M IOPS device roofline
+established in the {ref}`sec-experiments-cpu-initiated` experiment.
 This experiment holds I/O size fixed at 512 bytes and sweeps queue depth across
 a wide range, with the number of queues per device as the secondary variable.
 The aim is to identify the queue depth at which each queue-count configuration
