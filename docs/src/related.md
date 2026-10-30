@@ -32,9 +32,9 @@ near–line-rate performance by removing kernel and OS involvement from the
 fast path, but does so by abandoning file systems, POSIX semantics, and
 interoperability with OS-managed storage.
 
-**uGDS** re-exposes this user-space, GPU-direct lineage behind an interface
+**uGDS** re-exposes this user space, GPU-direct lineage behind an interface
 that mirrors a subset of NVIDIA's cuFile/GDS API {cite}`ugds`. It builds on
-the user-space NVMe and peer-to-peer DMA mechanisms established by BaM and
+the user space NVMe and peer-to-peer DMA mechanisms established by BaM and
 its antecedents, but, unlike BaM, retains a CPU-initiated control model: the
 host constructs and submits NVMe commands and polls for completions, while
 data is DMA'd directly between the SSD and GPU memory. It thus inherits BaM's
@@ -46,7 +46,7 @@ file, or path support, and no integration with OS-managed storage; its
 compatibility is therefore confined to matching call signatures rather than
 file-level semantics. The drop-in claim consequently holds only in the narrow
 case of block-device access without file-system interoperability, and, as in
-BaM, the short user-space fast path is obtained by forgoing POSIX semantics
+BaM, the short user space fast path is obtained by forgoing POSIX semantics
 and OS-managed storage abstractions.
 
 **GeminiFS** introduces a GPU-centric companion file system that integrates
