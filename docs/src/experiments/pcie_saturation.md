@@ -69,6 +69,9 @@ arithmetic means.
 The namespaces are formatted before the run, as described in
 {ref}`sec-device-fill-state`.
 
+NUMA placement was not controlled: CPUs, devices and buffers were used
+regardless of the node they belong to.
+
 ## Execution of the Experiment
 
 Instructions for running ``bench_pcie.yaml`` are provided in

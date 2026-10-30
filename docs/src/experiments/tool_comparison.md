@@ -128,6 +128,9 @@ as arithmetic means.
 The namespaces are formatted before the run, as described in
 {ref}`sec-device-fill-state`.
 
+NUMA placement was not controlled: CPUs, devices and buffers were used
+regardless of the node they belong to.
+
 The independent variables are:
 
 | Variable              | Parameter Set                                                             |

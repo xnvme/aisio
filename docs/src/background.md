@@ -255,19 +255,20 @@ CPU only when the entire operation is complete.
 
 ### Non-Uniform Memory Access (NUMA)
 
-Non-uniform memory access (NUMA) <REF linux-numa> is a design for computer
+Non-uniform memory access (NUMA) {cite}`linux-numa` is a design for computer
 memory when multiple processors are available in a system and memory location
 affects the memory access time.  NUMA nodes are an abstraction of the system's
 hardware resources and represent groups of hardware that are physically closer
 to each other than to the rest of the system. Memory access to memory within the
 same node will often experience faster access time than to memory across nodes.
 
-In high-throughput storage benchmarks the penalty of accessing memory across
-NUMA nodes becomes negligible. When using multiple queues and threads most of
-the time is spent moving data through the device’s internal parallel engines,
-through PCIe, and on the CPUs that poll the queues. Under these conditions
-the latency difference between local and remote NUMA access is hidden by the
-concurrency of the system.
+NUMA also applies to I/O. Each PCIe root port belongs to one socket, so every
+NVMe device and GPU has a home node, as do the memory holding its queues and
+buffers and the CPU that polls it. When these sit on different nodes, DMA
+transfers, doorbell writes and peer-to-peer traffic cross the link between the
+sockets, which adds latency and shares that link's bandwidth with all other
+cross-node traffic. Linux reports a PCI device's node in
+/sys/bus/pci/devices/<bdf>/numa_node.
 
 ### Memory-Mapped I/O (MMIO)
 
