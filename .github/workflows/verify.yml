@@ -161,7 +161,7 @@ jobs:
   # did not set up: the xnvme-devenv guest, with ROCm installed and no CUDA,
   # booted on xnvme-devenv's compute-node-emulated rig, an emulated AMD GPU and
   # an NVMe controller behind one switch. It relies on the TEMPORARY fil pin in
-  # configs/aisio.toml and package script in configs/devenv_guest.toml.
+  # configs/aisio.toml, which builds without CUDA.
   devenv:
     needs: lint
     runs-on: ubuntu-latest

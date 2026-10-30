@@ -65,8 +65,8 @@ oras.url = "oras://ghcr.io/xnvme/xnvme-devenv/guest-ubuntu-2610:v0.15.0"
 disk.path = "{{ local.env.HOME }}/system_imaging/disk/ubuntu-2610-rocm-amd64.qcow2"
 disk.grow = "32G"
 
-# TEMPORARY: xNVMe's package script for Ubuntu 26.10, ubuntu-stonking.sh, is
-# not at the commit configs/aisio.toml pins; the 26.04 one installs the same
-# packages. Drop this once the pin has ubuntu-stonking.sh
+# xNVMe's package script for Ubuntu 26.10, and its HIP kernels built for
+# rocjitsu's GPU, as the guest has no GPU when it builds
 [xnvme]
-pkgs = "ubuntu-resolute"
+pkgs = "ubuntu-stonking"
+setup_args = "-Dhip_offload_arch=gfx1250"

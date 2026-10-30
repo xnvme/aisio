@@ -47,10 +47,9 @@ def xnvmeperf_cmd(bin: str, args: dict) -> str:
         f"--iopattern {args['iopattern']}",
         f"--be {args['backend']}",
     ]
-    # Only the GPU-memory backends read it, and xnvmeperf spells it with an
-    # underscore where it spells --homi-id with a hyphen.
+    # Only the GPU-memory backends read it
     if args.get("gpu_id") is not None:
-        parameters.append(f"--gpu_id {args['gpu_id']}")
+        parameters.append(f"--gpu-id {args['gpu_id']}")
     if args.get("homi_id"):
         parameters.append(f"--homi-id {args['homi_id']}")
     parameters.append(" ".join(args["devices"]))

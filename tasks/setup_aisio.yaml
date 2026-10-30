@@ -34,7 +34,7 @@ steps:
       DEBIAN_FRONTEND=noninteractive apt-get install -qy systemd-dev
       rm -r "{{ config.xnvme.repository.path }}/builddir" || true
       mkdir -p "{{ config.xnvme.repository.path }}/builddir"
-      cd "{{ config.xnvme.repository.path }}"; meson setup builddir
+      cd "{{ config.xnvme.repository.path }}"; meson setup builddir {{ config.xnvme.setup_args }}
       cd "{{ config.xnvme.repository.path }}"; meson install -C builddir
 
   - name: xal

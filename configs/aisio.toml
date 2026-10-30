@@ -10,14 +10,15 @@ version = "resolute"
 [xnvme]
 pkgs = "ubuntu-resolute"
 
-# TEMPORARY: a commit, as no xNVMe release has the upcie backends AiSIO builds
-# on, and main cannot be followed: fil still calls the three-argument
-# xnvme_cuda_queue_create() that main has changed, and main builds its HIP
-# completion-mirror kernel for the build machine's own GPU, which fails where
-# there is none. core.repository_prep checks out whatever 'tag' names
+# Meson options for xNVMe, which a system's own config may set
+setup_args = ""
+
+# TEMPORARY: a commit on main, as no xNVMe release has the upcie backends, the
+# homi control plane AiSIO builds on, OpenDS's aisio backend among them, or the
+# io_uring_dmabuf backend. core.repository_prep checks out whatever 'tag' names
 [xnvme.repository]
 remote = "https://github.com/xnvme/xnvme"
-tag = "6a194b7a1b5a636c2e68170c9105b66f31b659e0"
+tag = "3b79ab10d14bcc580e4aa9ce6d1b4cc5679d0de9"
 path = "/root/git/xnvme"
 
 # The experimental package carries the version of the uPCIe release it ships
@@ -36,12 +37,13 @@ remote = "https://github.com/xnvme/fil"
 tag = "v0.4.0"
 path = "/root/git/fil"
 
-# TEMPORARY: a commit on main, as OpenDS has no release yet. It builds
-# against the xNVMe above; its aisio backend needs CUDA and the homic
-# library as well, and without them only the reference backend is built
+# TEMPORARY: a commit on fmma/opends-fork's next, as OpenDS has no release
+# yet. It builds against the xNVMe above; its aisio backend and the
+# aisio_homi_demo example need CUDA as well, and without it only the reference
+# backend is built
 [opends.repository]
-remote = "https://github.com/xnvme/opends"
-tag = "5c3c9517100333899ea2e2aee9079d8fd7e0c9da"
+remote = "https://github.com/fmma/opends-fork"
+tag = "480d7786ebd4c7c6465094a3a9a9432b247e63f2"
 path = "/root/git/opends"
 
 [spdk.repository]

@@ -43,7 +43,7 @@ steps:
   - name: units_configure
     run: |
       mkdir -p /usr/local/etc/xnvme /usr/local/etc/xal
-      printf '%s\n' 'HOMI_DEVICES={{ config.filesystems.dset.pci_addr }}' 'HOMI_OPTS=--be upcie --host_heap_size 9663676416' > /usr/local/etc/xnvme/homi-1.conf
+      printf '%s\n' 'HOMI_DEVICES={{ config.filesystems.dset.pci_addr }}' 'HOMI_OPTS=--be upcie --host-heap-size 9663676416' > /usr/local/etc/xnvme/homi-1.conf
       printf '%s\n' 'QUBLK_URI={{ config.filesystems.dset.pci_addr }}' 'QUBLK_OPTS=--be upcie --homi-id 1' > /usr/local/etc/xnvme/qublk-1.conf
       printf '%s\n' 'log_level = 3' 'devices = [' '  { uri = "/dev/ublkb1", shm_name = "/xal_dev0", mountpoint = "{{ config.filesystems.dset.mountpoint }}" },' ']' '[xal]' 'watchmode = 2' > /usr/local/etc/xal/xal-server.conf
 
