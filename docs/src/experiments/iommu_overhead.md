@@ -8,7 +8,7 @@ SPDX-License-Identifier: BSD-3-Clause
 # CPU-initiated I/O: IOMMU Translation Overhead
 
 AiSIO drives NVMe devices from user space. A device moves data into memory by
-DMA, and a user-space driver can handle that DMA in one of two ways.
+DMA, and a user space driver can handle that DMA in one of two ways.
 
 | Driver              | IOMMU | Memory the device can write             |
 | ------------------- | ----- | --------------------------------------- |

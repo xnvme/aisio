@@ -166,7 +166,7 @@ through composable, upstream kernel interfaces (dma-buf for GPU memory sharing
 and io_uring for asynchronous NVMe command submission) without requiring
 proprietary driver modifications.
 
-### CPU-Initiated I/O with P2P Memory and User-Space Infrastructure
+### CPU-Initiated I/O with P2P Memory and User Space Infrastructure
 
 The host CPU constructs and submits NVMe commands through a user space NVMe
 driver. xNVMe provides unified NVMe command construction and submission, while
@@ -183,7 +183,7 @@ no longer mediates access to the NVMe device: queue isolation, P2P memory
 safety, and coexistence with OS-managed storage must be handled by the
 user space runtime or by a host-resident control plane such as HOMI.
 
-### Device-Initiated I/O with P2P Memory and User-Space Infrastructure
+### Device-Initiated I/O with P2P Memory and User Space Infrastructure
 
 The accelerator itself constructs and submits NVMe commands from GPU-resident
 driver code. As in the CPU-initiated user space configuration, xNVMe and uPCIe
