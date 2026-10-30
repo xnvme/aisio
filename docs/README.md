@@ -47,7 +47,7 @@ aisio-docs-serve
 
 Then whenever the documentation sources ``aisio/docs/src/`` change, then the
 **HTML** and **PDF** version of the docs are rebuilt. point your browser to:
-https://localhost:8000
+http://localhost:8000
 
 It has a status page of the build-process along with links to **HTML** and
 **PDF**. To explicitly build only **HTML** or **PDF** then run:
