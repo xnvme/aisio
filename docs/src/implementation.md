@@ -101,13 +101,24 @@ memory, with data transferred between the NVMe controller and GPU device memory
 via peer-to-peer PCIe DMA. In the **device-initiated mode**, CUDA kernels submit
 and complete NVMe commands directly, without any CPU involvement.
 
+In the CPU-initiated P2P mode the queues and PRP lists stay in host memory. The
+``XNVME_QUEUE_P2P_CQ_MIRROR`` queue option instead places the CQ in GPU memory,
+where a resident kernel mirrors it into the host CQ, so that the controller's
+completion writes travel the same path as its data writes. The [xNVMe uPCIe
+backend documentation](https://xnvme.io/en/next/background/backends/upcie/index.html)
+describes when this matters.
+
 For device-initiated I/O, ``xnvme_cuda_queue_create()`` allocates a GPU-resident
-NVMe queue pair in CUDA device memory using ``cuMemAlloc``. The queue pair
+NVMe queue pair structure in CUDA device memory using ``cuMemAlloc``. The
 structure holds virtual-address pointers to the submission queue (SQ) and
-completion queue (CQ) — allocated from the GPU's DMA-capable heap — along with
-a mapping of the NVMe doorbell registers from PCIe BAR0 into the GPU's address
-space. It also tracks the SQ tail, CQ head, phase bit, and a clock-based timeout
-derived from the GPU's SM clock rate.
+completion queue (CQ), along with a mapping of the NVMe doorbell registers from
+PCIe BAR0 into the GPU's address space. It also tracks the SQ tail, CQ head,
+phase bit, and a clock-based timeout derived from the GPU's SM clock rate.
+
+By default both the SQ and the CQ are allocated from the GPU's DMA-capable
+heap, so the controller fetches commands from and writes completions to GPU
+memory over P2P. With the ``XNVME_QUEUE_SQ_HOSTMEM`` queue option, the SQ is
+placed in host memory instead, while the CQ stays in GPU memory.
 
 CUDA kernels call ``xnvme_cuda_cmd_io()`` collectively across all threads
 in a block, with the block size equal to the queue depth. A batch size sets how
@@ -115,15 +126,16 @@ many threads take part in a round. The remaining threads join the barriers
 without submitting, which allows rounds with fewer commands than the queue
 holds. The flow proceeds in six stages:
 
-1. Each active thread enqueues its NVMe command into the SQ using word-by-word
-   volatile pointer writes, bypassing the per-SM L1 cache so writes reach
-   system DRAM and become visible to the NVMe DMA engine without waiting for
-   cache eviction.
+1. Each active thread writes its 64-byte NVMe command into the SQ as four
+   16-byte ``__stcg`` stores, which are cached in L2 only. The L2 combines them
+   into whole sectors, so a command bound for a host-memory SQ crosses PCIe as
+   full sectors rather than as many narrow writes.
 2. A ``__syncthreads()`` barrier ensures all commands are written before the
    doorbell is rung.
-3. Thread 0 issues a ``__threadfence_system()`` fence and writes the updated SQ
-   tail to the MMIO doorbell register, triggering the controller to fetch and
-   execute the queued commands.
+3. Thread 0 issues a ``__threadfence_system()`` fence, which makes the SQ
+   writes visible to the controller, and writes the updated SQ tail to the MMIO
+   doorbell register, triggering the controller to fetch and execute the queued
+   commands.
 4. Each active thread polls its CQ entry using the phase bit to detect
    completion, with timeout tracked in GPU clock cycles.
 5. A second barrier ensures all completions are reaped.

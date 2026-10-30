@@ -55,7 +55,8 @@ The DCGM fields are collected as described in {ref}`sec-dcgm-sampling`.
 The benchmarks were run on the {ref}`sec-env-hpc-server`. NVMe devices are bound
 to user space drivers. The CPU governor is set to ``performance`` with turbo
 boost and SMT enabled. Each configuration is run five times and results are
-reported as arithmetic means.
+reported as arithmetic means. The queues use the default placement, with both
+the SQ and the CQ in GPU memory.
 
 The namespaces are formatted before the run, as described in
 {ref}`sec-device-fill-state`.
