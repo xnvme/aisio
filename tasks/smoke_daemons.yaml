@@ -124,8 +124,22 @@ steps:
     uses: filperf
     with:
       backend: posix
-      device: "/dev/ublkb{{ config.smoke.ublk_id }}"
       mnt: "{{ config.smoke.mountpoint }}"
+      dataset: smoke
+      batch_size: 8
+      batches: 2
+      copy_to_gpu: false
+
+  # Reads what was written through qublk straight from the controller, through
+  # homi, finding the files in xal-server's index
+  - name: filperf_direct
+    uses: filperf
+    with:
+      backend: aisio-cpu
+      device: "{{ config.smoke.pci_addr }}"
+      mnt: "{{ config.smoke.mountpoint }}"
+      homi_id: "{{ config.smoke.homi_id }}"
+      xal_shm: "{{ config.smoke.xal_shm_name }}"
       dataset: smoke
       batch_size: 8
       batches: 2
@@ -161,18 +175,6 @@ steps:
     with:
       command: stop
       unit: xnvme-homi@{{ config.smoke.homi_id }}
-
-  # Reads what was written through qublk straight from the controller
-  - name: filperf_direct
-    uses: filperf
-    with:
-      backend: aisio-cpu
-      device: "{{ config.smoke.pci_addr }}"
-      dataset: smoke
-      batch_size: 8
-      batches: 2
-      max_file_size: 131072
-      copy_to_gpu: false
 
   - name: bind_kernel
     run: |
