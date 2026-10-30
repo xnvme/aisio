@@ -22,6 +22,7 @@ full setup from a fresh Ubuntu installation to running `bench_aisio.yaml`.
 | [`qublk`](https://xnvme.io/tools/qublk/index.html) | ublk server in xNVMe, offering the controller as a block device     |
 | [`xal-server`](https://github.com/xnvme/xal)       | Publishes the extents of a mounted XFS file system in shared memory |
 | [fil](https://github.com/xnvme/fil)                | Dataset reader, and the `filperf` benchmark                         |
+| [OpenDS](https://github.com/fmma/opends-fork)      | Vendor-neutral accelerator storage API, modeled on cuFile           |
 
 `homi`, `qublk` and `xal-server` are independent daemons, and they meet in one
 read path. `homi` holds the NVMe controller, so several processes can use it at
