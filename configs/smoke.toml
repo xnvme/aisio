@@ -15,7 +15,7 @@ ublk_id = 1
 xal_shm_name = "/xal_smoke"
 hugepages = 512
 # Where 'setup_aisio.yaml' builds it; meson does not install examples
-opends_demo = "/root/git/opends/builddir/aisio_homi_demo"
+opends_demo = "/root/aisio/opends/builddir/aisio_homi_demo"
 # Where the units of xNVMe and xal, installed under meson's default prefix,
 # read their configuration
 xnvme_confdir = "/usr/local/etc/xnvme"

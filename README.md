@@ -149,6 +149,13 @@ cijoe --monitor \
     tasks/setup_aisio.yaml
 ```
 
+The sources are checked out under `/root/aisio`, so checkouts the system has
+elsewhere, such as in `/root/git`, are left alone; a later config can set each
+`[<name>.repository].path`. The stack installs under `/usr/local`, replacing any
+xNVMe, xal or fil installed there before. The dependencies are installed without
+upgrading the system, so packages the system holds, such as the NVIDIA driver's,
+keep their versions.
+
 ## Step 7: Set Up Datasets
 
 Update `configs/datasets.toml` with the correct device information for your

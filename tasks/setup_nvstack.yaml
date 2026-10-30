@@ -10,7 +10,7 @@ doc: |
   apt. Deliberately NOT installed: MLNX_OFED, nvidia-gds / nvidia-peermem,
   nvidia-fs, and the BAM kernel-source build; AiSIO drives GPU-initiated NVMe
   I/O over the open dma-buf import path, not the proprietary GPUDirect-Storage
-  / DOCA / BaM stack. nvbandwidth is built to /root/git/nvbandwidth to provide
+  / DOCA / BaM stack. nvbandwidth is built to /root/aisio/nvbandwidth to provide
   the PCIe peak-bandwidth reference used by the bench_pcie / bench_cuda_iosize
   experiments. DCGM (from the same NVIDIA CUDA repo) provides the GPU metric
   collection backend for the bench workflows; scripts/dcgm_helper.py talks to
@@ -111,9 +111,9 @@ steps:
   - name: nvbandwidth
     run: |
       DEBIAN_FRONTEND=noninteractive apt-get -qy install git cmake build-essential libboost-program-options-dev
-      rm -rf /root/git/nvbandwidth
-      mkdir -p /root/git
-      git clone --depth 1 https://github.com/NVIDIA/nvbandwidth.git /root/git/nvbandwidth
-      . /etc/profile.d/cuda.sh && cmake -S /root/git/nvbandwidth -B /root/git/nvbandwidth/build -DCMAKE_BUILD_TYPE=Release
-      . /etc/profile.d/cuda.sh && cmake --build /root/git/nvbandwidth/build -j "$(nproc)"
-      ls -l /root/git/nvbandwidth/build/nvbandwidth
+      rm -rf /root/aisio/nvbandwidth
+      mkdir -p /root/aisio
+      git clone --depth 1 https://github.com/NVIDIA/nvbandwidth.git /root/aisio/nvbandwidth
+      . /etc/profile.d/cuda.sh && cmake -S /root/aisio/nvbandwidth -B /root/aisio/nvbandwidth/build -DCMAKE_BUILD_TYPE=Release
+      . /etc/profile.d/cuda.sh && cmake --build /root/aisio/nvbandwidth/build -j "$(nproc)"
+      ls -l /root/aisio/nvbandwidth/build/nvbandwidth
