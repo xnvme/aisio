@@ -45,10 +45,18 @@ steps:
       apt-get -qy update
       DEBIAN_FRONTEND=noninteractive apt-get -qy install /tmp/upcie-experimental-dkms_{{ config.upcie.dkms.version }}_all.deb
 
+  # Installing builds the modules but leaves loaded ones in place, which may be
+  # of an older version; nothing may hold them, as the check would then fail
+  - name: reload_modules
+    run: |
+      for m in dmabuf_import iommu_map_pa; do if [ -d /sys/module/$m ]; then rmmod $m || exit 1; fi; done
+      modprobe dmabuf_import
+      modprobe iommu_map_pa
+
   - name: check_modules
     run: |
       dkms status | grep upcie-experimental/{{ config.upcie.dkms.version }}
-      lsmod | grep dmabuf_import
-      lsmod | grep iommu_map_pa
+      for m in dmabuf_import iommu_map_pa; do test "$(cat /sys/module/$m/srcversion)" = "$(modinfo -F srcversion $m)" || { echo "$m: loaded is not the installed one"; exit 1; }; done
+      for m in dmabuf_import iommu_map_pa; do modinfo -F version $m | grep -x {{ config.upcie.dkms.version }}; done
       ls -l /dev/dmabuf_import /dev/iommu_map_pa
       ls -l /usr/include/linux/dmabuf_import.h /usr/include/linux/iommu_map_pa.h
