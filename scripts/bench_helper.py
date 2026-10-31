@@ -43,6 +43,43 @@ from spdk_nvme_perf import spdk_nvme_perf_cmd
 from version_helper import target_versions
 from xnvmeperf import xnvmeperf_cmd, xnvmeperf_cuda_cmd
 
+# The PCI classes of display controllers, as sysfs writes them
+GPU_CLASSES = ("0x0300", "0x0302", "0x0380")
+
+
+def gpu_local_devices(cijoe: Cijoe, devices: list) -> list:
+    """
+    The devices on the NUMA node of the first NVIDIA or AMD GPU, in their order,
+    for runs whose data moves between the devices and the GPU; all of them when
+    there is no GPU or the node is unknown
+    """
+
+    patterns = " | ".join(
+        f'"{v} {c}"*' for v in ("0x10de", "0x1002") for c in GPU_CLASSES
+    )
+    err, state = cijoe.run(
+        "for d in /sys/bus/pci/devices/*; do"
+        f' case "$(cat $d/vendor) $(cat $d/class)" in {patterns})'
+        " cat $d/numa_node; break ;; esac; done"
+    )
+    node = state.output().strip() if not err else ""
+    if node in ("", "-1"):
+        log.info("No GPU, or its NUMA node is unknown; using every device")
+        return devices
+
+    local = []
+    for device in devices:
+        err, state = cijoe.run(
+            f"cat /sys/bus/pci/devices/{device['pci_addr']}/numa_node"
+        )
+        if not err and state.output().strip() == node:
+            local.append(device)
+
+    log.info(
+        f"{len(local)} of {len(devices)} devices are on the GPU's NUMA node {node}"
+    )
+    return local
+
 
 class BenchHelper:
     def __init__(
@@ -79,6 +116,8 @@ class BenchHelper:
 
         self.remote_config = Path("/tmp/bdevperf-config.json")
         self.devices: list = cijoe.getconf("devices")
+        if cijoe.getconf("bench.gpu_local", False):
+            self.devices = gpu_local_devices(cijoe, self.devices)
 
         if tool in ["bdevperf", "spdk_nvme_perf"]:
             spdk_path = self.cijoe.getconf("spdk.repository.path", None)

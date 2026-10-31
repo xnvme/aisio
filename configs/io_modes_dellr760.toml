@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# 'tasks/bench_io_modes.yaml' on a Dell R760 with an H100 PCIe and sixteen NVMe
+# drives, eight on each NUMA node; the GPU is on node 0. The drives are listed
+# node 0 first, and the CPU lists put node 0's cores first, as xnvmeperf gives
+# each thread a contiguous slice of the device list in CPU order.
+[io_modes]
+devices = [
+  "0000:4a:00.0", "0000:4b:00.0", "0000:4c:00.0", "0000:4d:00.0",
+  "0000:61:00.0", "0000:62:00.0", "0000:63:00.0", "0000:64:00.0",
+  "0000:ca:00.0", "0000:cb:00.0", "0000:cc:00.0", "0000:cd:00.0",
+  "0000:e1:00.0", "0000:e2:00.0", "0000:e3:00.0", "0000:e4:00.0",
+]
+# The drives on the GPU's NUMA node
+devices_gpu = [
+  "0000:4a:00.0", "0000:4b:00.0", "0000:4c:00.0", "0000:4d:00.0",
+  "0000:61:00.0", "0000:62:00.0", "0000:63:00.0", "0000:64:00.0",
+]
+cpulist = "2,4,3,5"
+cpulist_gpu = "2,4"
+gpu_id = 0
+homi_id = 1
+hugepages = 12288
+# Every CPU held at this frequency while measuring, and the range put back after
+frequency_khz = 3000000
+frequency_restore_min_khz = 800000
+frequency_restore_max_khz = 4000000

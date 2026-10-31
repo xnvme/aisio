@@ -12,7 +12,7 @@ doc: |
   multiarch dir, so no PATH/LD_LIBRARY_PATH setup is needed and the HIP host API
   builds with plain gcc (as the CUDA host stack builds against the driver API).
 
-  Run with a config whose default transport points at the target:
+  Run with a config whose default target points at the machine:
 
     cijoe tasks/setup_amdstack.yaml --config configs/<target>.toml
 

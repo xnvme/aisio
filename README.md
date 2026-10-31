@@ -6,16 +6,42 @@ SPDX-License-Identifier: BSD-3-Clause
 
 # aisio: Accelerator-integrated Storage I/O
 
-This repository provides documentation, tools, and scripts for setting up and
-exploring Accelerator-integrated Storage I/O. The guide below walks through the
+Accelerator-integrated Storage I/O (AiSIO) moves data between NVMe SSDs and GPU
+memory at high bandwidth, while the file system on the SSD stays mounted and
+usable by the rest of the host. This repository provides documentation, tools,
+and scripts for setting up and exploring it. The guide below walks through the
 full setup from a fresh Ubuntu installation to running `bench_aisio.yaml`.
+
+## The Software Stack
+
+| Component                                          | Role                                                                |
+| -------------------------------------------------- | ------------------------------------------------------------------- |
+| [xNVMe](https://github.com/xnvme/xnvme)            | NVMe library with the user-space uPCIe driver, and `xnvmeperf`      |
+| [uPCIe](https://github.com/safl/upcie)             | Kernel modules giving that driver access to GPU memory              |
+| [`homi`](https://xnvme.io/tools/homi/index.html)   | Control plane in xNVMe, holding a controller and sharing it         |
+| [`qublk`](https://xnvme.io/tools/qublk/index.html) | ublk server in xNVMe, offering the controller as a block device     |
+| [`xal-server`](https://github.com/xnvme/xal)       | Publishes the extents of a mounted XFS file system in shared memory |
+| [fil](https://github.com/xnvme/fil)                | Dataset reader, and the `filperf` benchmark                         |
+| [OpenDS](https://github.com/fmma/opends-fork)      | Vendor-neutral accelerator storage API, modeled on cuFile           |
+
+`homi`, `qublk` and `xal-server` are independent daemons, and they meet in one
+read path. `homi` holds the NVMe controller, so several processes can use it at
+once. `qublk` is one of those processes, and the kernel mounts the dataset
+volume from its `/dev/ublkb1`. `xal-server` indexes that file system, so a
+reader can find a file's blocks without going through the kernel. `filperf`
+looks up the file in the index and reads its blocks from the controller through
+`homi`, driven by the CPU (`aisio-cpu`), by the GPU (`aisio-gpu`), or peer to
+peer into GPU memory (`aisio-p2p`).
+
+[docs/src/architecture.md](docs/src/architecture.md) describes the architecture
+in depth.
 
 ## Prerequisites
 
-Install `cijoe` on the host with `pipx`:
+Install `cijoe` on the host with `pipx`, at the version CI runs:
 
 ```
-pipx install cijoe
+pipx install cijoe==0.9.70
 ```
 
 ## Step 1: Install Ubuntu 26.04
@@ -58,10 +84,10 @@ Configure `configs/transport.toml` with the hostname and root credentials of
 your target machine:
 
 ```toml
-[cijoe.workflow]
+[cijoe.task]
 fail_fast=true
 
-[cijoe.transport.ssh]
+[cijoe.targets.machine.ssh]
 hostname = "aisio"
 username = "root"
 password = "<password>"
@@ -115,7 +141,7 @@ cijoe --monitor \
 
 ## Step 6: Set Up AiSIO Components
 
-Build and install the AiSIO software stack (xNVMe, SPDK, xal, fil):
+Build and install the AiSIO software stack (xNVMe, SPDK, xal, fil, OpenDS):
 
 ```
 cijoe --monitor \
@@ -123,6 +149,13 @@ cijoe --monitor \
     -c configs/aisio.toml \
     tasks/setup_aisio.yaml
 ```
+
+The sources are checked out under `/root/aisio`, so checkouts the system has
+elsewhere, such as in `/root/git`, are left alone; a later config can set each
+`[<name>.repository].path`. The stack installs under `/usr/local`, replacing any
+xNVMe, xal or fil installed there before. The dependencies are installed without
+upgrading the system, so packages the system holds, such as the NVIDIA driver's,
+keep their versions.
 
 ## Step 7: Set Up Datasets
 
@@ -147,24 +180,27 @@ cijoe --monitor \
 
 ## Step 8: Run Benchmarks
 
-`bench_aisio.yaml` uses the xNVMe uPCIe path, so the NVMe device must be
-unbound from the kernel driver before running. SSH into the target and unmount
-the dataset volume, rebind the device, and allocate hugepages:
+`configure_daemons.yaml` moves the NVMe device from the kernel driver to
+`uio_pci_generic`, allocates hugepages, and writes the configuration of the
+systemd units `setup_aisio.yaml` installs. Run it once, and again after a reboot
+or a change to `[aisio]` in `configs/aisio.toml`:
 
 ```
-modprobe uio_pci_generic
-umount /mnt/datasets
-devbind --device '0000:01:00.0' --bind uio_pci_generic  # pci_addr from datasets.toml
-hugepages setup --count 5120
+cijoe --monitor \
+    -c configs/transport.toml \
+    -c configs/aisio.toml \
+    -c configs/datasets.toml \
+    tasks/configure_daemons.yaml
 ```
 
-The count must be large enough to fit the biggest batch of I/O buffers. The
-`filesize8gib` dataset drives this requirement — 5120 pages (10 GiB) is
-sufficient for the benchmarks in this suite.
+`bench_aisio.yaml` starts `homi`, `qublk` and `xal-server`, mounts the dataset
+volume from `/dev/ublkb1` instead of the kernel's NVMe block device, and stops
+them at the end. Nothing is formatted. The device stays bound to
+`uio_pci_generic`, so bind it back to `nvme` before running `setup_dataset.yaml`
+again. If a run fails, run `configure_daemons.yaml` to stop what it left
+running.
 
-`devbind` and `hugepages` are installed on the target as part of `setup_aisio.yaml`.
-
-Then run the AiSIO benchmark suite:
+Run the AiSIO benchmark suite:
 
 ```
 cijoe --monitor \
@@ -173,6 +209,32 @@ cijoe --monitor \
     -c configs/datasets.toml \
     tasks/bench_aisio.yaml
 ```
+
+## Develop in the xnvme-devenv guest
+
+Without the hardware, AiSIO is developed and tested in a QEMU guest from
+[xnvme-devenv](https://github.com/xnvme/xnvme-devenv): Ubuntu 26.10 with ROCm,
+an emulated AMD GPU, and an NVMe controller behind the same PCIe switch, so
+the controller can move data to and from the GPU's VRAM. CI runs the same
+make targets. It needs Docker and KVM on the host:
+
+```
+make devenv
+```
+
+That starts a shell in xnvme-devenv's host container, with this checkout
+mounted at `/aisio`. In it, boot the guest, set up the AiSIO components with
+`setup_aisio.yaml`, and run the smoke tests, which drive the daemons with I/O
+and do peer-to-peer I/O between the controller and VRAM:
+
+```
+make guest-start guest-provision guest-test
+```
+
+Run `make guest-test` again after changing a task or script. The guest's SSH
+is on port 4200 of the host, as `root` with password `root`. `make guest-stop`
+stops it. `RIG` layers further rig files on the default
+`compute-node-emulated`, for example `RIG="compute-node-emulated my.toml"`.
 
 ## License
 

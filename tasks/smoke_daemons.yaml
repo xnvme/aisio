@@ -1,0 +1,188 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Smoke-test the AiSIO daemons with CPU-initiated I/O
+  ===================================================
+
+  Brings up homi, qublk and xal-server, through the systemd units they install,
+  on the NVMe controller at [smoke].pci_addr, drives short xnvmeperf and filperf
+  runs directly and through them, then stops them, failing when a unit does not
+  come up, dies, or does not stop cleanly. homi holds the controller, xnvmeperf
+  and qublk attach to it, qublk serves /dev/ublkb<ublk_id>, which carries a
+  small XFS dataset, and xal-server publishes its index. Where there is an
+  NVIDIA GPU, OpenDS's aisio_homi_demo then reads a dataset file into GPU
+  memory through them; nothing else here needs a GPU. This FORMATS the
+  namespace of that controller, and writes the units' configuration files.
+  Run it after 'setup_aisio.yaml':
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/smoke.toml \
+      tasks/smoke_daemons.yaml
+
+  The units' journals land in their start and stop steps as <unit>.log. When a
+  step fails, the units are left running; the 'logs' step on its own prints
+  what they logged:
+
+    cijoe -c configs/transport.toml -c configs/smoke.toml \
+      tasks/smoke_daemons.yaml logs
+
+steps:
+  - name: prepare
+    run: |
+      for t in homi qublk xnvmeperf filperf xal-server devbind hugepages mkfs.xfs journalctl; do command -v $t || { echo "missing: $t"; exit 1; }; done
+      systemctl cat xnvme-homi@{{ config.smoke.homi_id }} xnvme-qublk@{{ config.smoke.ublk_id }} xal-server > /dev/null
+      umount {{ config.smoke.mountpoint }} 2>/dev/null || true
+      systemctl stop xal-server xnvme-qublk@{{ config.smoke.ublk_id }} xnvme-homi@{{ config.smoke.homi_id }}
+      if [ -e /dev/ublkc{{ config.smoke.ublk_id }} ]; then qublk del --dev-id {{ config.smoke.ublk_id }}; fi
+      rm -f /dev/shm{{ config.smoke.xal_shm_name }}_*
+      modprobe uio_pci_generic
+      modprobe ublk_drv && test -c /dev/ublk-control
+      mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+      hugepages setup --count {{ config.smoke.hugepages }}
+
+  # The kernel numbers the controller's namespaces as it likes, and with native
+  # multipath only the paths under /sys/block/<ns>/multipath lead to its PCI
+  # address, so the mounts to undo are found from that address
+  - name: bind_userspace
+    run: |
+      for blk in /sys/block/nvme*n*; do for dev in "$blk" "$blk"/multipath/*; do case "$(readlink -f "$dev/device")" in */{{ config.smoke.pci_addr }}/*) findmnt -rn -S "/dev/${blk##*/}" -o TARGET | xargs -r -n1 umount ;; esac; done; done
+      devbind --device {{ config.smoke.pci_addr }} --bind uio_pci_generic
+
+  - name: xnvmeperf_direct
+    uses: xnvmeperf
+    with: &xnvmeperf
+      backend: upcie
+      devices: ["{{ config.smoke.pci_addr }}"]
+      runtime: 3
+      iosize: 4096
+      qdepth: 32
+      iopattern: randread
+      check: true
+
+  # The units read these; qublk's instance id is its ublk device id
+  - name: units_configure
+    run: |
+      mkdir -p {{ config.smoke.xnvme_confdir }}
+      printf '%s\n' 'HOMI_DEVICES={{ config.smoke.pci_addr }}' 'HOMI_OPTS=--be upcie --host-heap-size 1073741824' > {{ config.smoke.xnvme_confdir }}/homi-{{ config.smoke.homi_id }}.conf
+      printf '%s\n' 'QUBLK_URI={{ config.smoke.pci_addr }}' 'QUBLK_OPTS=--be upcie --homi-id {{ config.smoke.homi_id }} --qdepth 64' > {{ config.smoke.xnvme_confdir }}/qublk-{{ config.smoke.ublk_id }}.conf
+
+  - name: homi_start
+    uses: daemon
+    with:
+      command: start
+      unit: xnvme-homi@{{ config.smoke.homi_id }}
+
+  - name: xnvmeperf_homi
+    uses: xnvmeperf
+    with:
+      <<: *xnvmeperf
+      homi_id: "{{ config.smoke.homi_id }}"
+
+  - name: qublk_start
+    uses: daemon
+    with:
+      command: start
+      unit: xnvme-qublk@{{ config.smoke.ublk_id }}
+
+  # Written through qublk, and remounted so that filperf, which decodes the XFS
+  # metadata on the device rather than asking the kernel, finds all of it there.
+  # Nothing changes it while xal-server runs, so the index is made once, with
+  # no watch mode
+  - name: dataset
+    run: |
+      mkfs.xfs -f -K -m reflink=0 /dev/ublkb{{ config.smoke.ublk_id }}
+      mkdir -p {{ config.smoke.mountpoint }}
+      mount -o noatime /dev/ublkb{{ config.smoke.ublk_id }} {{ config.smoke.mountpoint }}
+      for c in 0 1 2 3; do mkdir -p {{ config.smoke.mountpoint }}/smoke/c$c; for f in 0 1 2 3 4 5 6 7; do head -c 131072 /dev/urandom > {{ config.smoke.mountpoint }}/smoke/c$c/f$f || exit 1; done; done
+      umount {{ config.smoke.mountpoint }}
+      mount -o noatime /dev/ublkb{{ config.smoke.ublk_id }} {{ config.smoke.mountpoint }}
+      df -h {{ config.smoke.mountpoint }}
+      printf '%s\n' 'log_level = 3' 'devices = [' '  { uri = "/dev/ublkb{{ config.smoke.ublk_id }}", shm_name = "{{ config.smoke.xal_shm_name }}", mountpoint = "{{ config.smoke.mountpoint }}" },' ']' '[xal]' 'watchmode = 0' > {{ config.smoke.xal_conf }}
+
+  # Its unit reports started when the process starts, before it has indexed
+  - name: xal_start
+    uses: daemon
+    with:
+      command: start
+      unit: xal-server
+      ready: "serving 1 device(s)"
+
+  - name: daemons_check
+    run: |
+      test -b /dev/ublkb{{ config.smoke.ublk_id }}
+      ls -l /dev/shm{{ config.smoke.xal_shm_name }}_state
+
+  - name: xnvmeperf_ublk
+    uses: xnvmeperf
+    with:
+      <<: *xnvmeperf
+      backend: io_uring_bdev
+      devices: ["/dev/ublkb{{ config.smoke.ublk_id }}"]
+
+  - name: filperf_ublk
+    uses: filperf
+    with:
+      backend: posix
+      mnt: "{{ config.smoke.mountpoint }}"
+      dataset: smoke
+      batch_size: 8
+      batches: 2
+      copy_to_gpu: false
+
+  # Reads what was written through qublk straight from the controller, through
+  # homi, finding the files in xal-server's index
+  - name: filperf_direct
+    uses: filperf
+    with:
+      backend: aisio-cpu
+      device: "{{ config.smoke.pci_addr }}"
+      mnt: "{{ config.smoke.mountpoint }}"
+      homi_id: "{{ config.smoke.homi_id }}"
+      xal_shm: "{{ config.smoke.xal_shm_name }}"
+      dataset: smoke
+      batch_size: 8
+      batches: 2
+      copy_to_gpu: false
+
+  # OpenDS's aisio backend reads a dataset file into GPU memory over the
+  # controller homi holds, finding its extents in xal-server's index, and the
+  # demo compares that with what the kernel reads. It needs CUDA, so it runs
+  # only where there is an NVIDIA GPU; one line, as each line runs on its own
+  - name: opends_demo
+    run: |
+      if [ -z "$(lspci -d 10de::0300; lspci -d 10de::0302)" ]; then echo "no NVIDIA GPU, skipping"; else OPENDS_AISIO_HOMI_ID={{ config.smoke.homi_id }} OPENDS_XAL_SHM={{ config.smoke.xal_shm_name }} {{ config.smoke.opends_demo }} {{ config.smoke.mountpoint }}/smoke/c0/f0; fi
+
+  - name: xal_stop
+    uses: daemon
+    with:
+      command: stop
+      unit: xal-server
+
+  - name: unmount
+    run: |
+      umount {{ config.smoke.mountpoint }}
+      if ls /dev/shm{{ config.smoke.xal_shm_name }}_*; then echo "xal-server left its index behind"; exit 1; fi
+
+  - name: qublk_stop
+    uses: daemon
+    with:
+      command: stop
+      unit: xnvme-qublk@{{ config.smoke.ublk_id }}
+
+  - name: homi_stop
+    uses: daemon
+    with:
+      command: stop
+      unit: xnvme-homi@{{ config.smoke.homi_id }}
+
+  - name: bind_kernel
+    run: |
+      devbind --device {{ config.smoke.pci_addr }} --bind nvme
+
+  - name: logs
+    run: |
+      systemctl status --no-pager xnvme-homi@{{ config.smoke.homi_id }} xnvme-qublk@{{ config.smoke.ublk_id }} xal-server || true
+      journalctl --no-pager -b -u xnvme-homi@{{ config.smoke.homi_id }} -u xnvme-qublk@{{ config.smoke.ublk_id }} -u xal-server || true

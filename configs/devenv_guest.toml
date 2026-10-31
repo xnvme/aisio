@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# The xnvme-devenv guest, Ubuntu 26.10 with ROCm, upcie and kernel 7.3 already
+# installed, as a system AiSIO did not set up. Takes xnvme-devenv's
+# compute-node-emulated rig from its host container as a further config, and
+# is started with 'tasks/devenv_start.yaml' in that container, which has the
+# rig scripts. The Makefile's guest-* targets run it all:
+#
+#   cijoe -c configs/devenv_guest.toml \
+#     -c /opt/xnvme-devenv/rigs/compute-node-emulated.toml \
+#     tasks/devenv_start.yaml
+
+[cijoe.task]
+fail_fast = true
+
+[cijoe]
+default_target = "root"
+
+[cijoe.targets.root.ssh]
+username = "root"
+password = "root"
+hostname = "localhost"
+port = 4200
+
+# nosi operator account, used by xnvme_devenv.root_unlock
+[cijoe.targets.odus.ssh]
+username = "odus"
+password = "odus.321"
+hostname = "localhost"
+port = 4200
+
+# The rig's NVMe controller, behind the switch it shares with the GPU, so
+# peer-to-peer DMA between them is allowed; given after configs/smoke.toml
+[smoke]
+pci_addr = "0000:03:00.0"
+
+[os]
+distro = "ubuntu"
+version = "stonking"
+
+[qemu]
+img_bin = "qemu-img"
+default_guest = "ubuntu_2610_rocm_amd64"
+default_systemimage = "ubuntu-2610-rocm-x86_64"
+
+[qemu.systems.x86_64]
+bin = "qemu-system-x86_64"
+
+[qemu.guests.ubuntu_2610_rocm_amd64]
+path = "{{ local.env.HOME }}/guests/ubuntu-2610-rocm-amd64"
+system_label = "x86_64"
+system_args.kwa = {cpu = "host", smp = 4, m = "12G", accel = "kvm"}
+system_args.raw = """\
+-M "type=q35" \
+"""
+system_args.tcp_forward = {host = 4200, guest = 22}
+
+# xnvme-devenv v0.15.0, by the version tag the host is pinned by too;
+# 'disk.grow' leaves room for the SPDK build
+[system-imaging.images.ubuntu-2610-rocm-x86_64]
+system_label = "x86_64"
+oras.url = "oras://ghcr.io/xnvme/xnvme-devenv/guest-ubuntu-2610:v0.15.0"
+disk.path = "{{ local.env.HOME }}/system_imaging/disk/ubuntu-2610-rocm-amd64.qcow2"
+disk.grow = "32G"
+
+# xNVMe's package script for Ubuntu 26.10, and its HIP kernels built for
+# rocjitsu's GPU, as the guest has no GPU when it builds
+[xnvme]
+pkgs = "ubuntu-stonking"
+setup_args = "-Dhip_offload_arch=gfx1250"

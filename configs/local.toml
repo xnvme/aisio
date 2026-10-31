@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-# No transport, so workflows run on the machine running cijoe
+# No target, so tasks run on the machine running cijoe
 
-[cijoe.workflow]
+[cijoe.task]
 fail_fast = true

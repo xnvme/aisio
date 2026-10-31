@@ -14,11 +14,12 @@ with open(_repo_root / "configs/aisio.toml", "rb") as _f:
     _aisio = tomllib.load(_f)
 
 myst_substitutions = {
-    "ver_xnvme": _aisio["xnvme"]["repository"]["branch"],
+    "ver_xnvme": _aisio["xnvme"]["repository"]["tag"][:9],
     "ver_upcie_experimental": _aisio["upcie"]["dkms"]["version"],
     "ver_spdk": _aisio["spdk"]["repository"]["tag"],
     "ver_xal": _aisio["xal"]["repository"]["tag"],
     "ver_fil": _aisio["fil"]["repository"]["tag"],
+    "ver_opends": _aisio["opends"]["repository"]["tag"][:9],
     "ver_fio": _aisio["fio"]["repository"]["tag"].removeprefix("fio-"),
 }
 

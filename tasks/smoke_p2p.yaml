@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Smoke-test peer-to-peer I/O between NVMe and an AMD GPU
+  =======================================================
+
+  Drives short xnvmeperf runs on the NVMe controller at [smoke].pci_addr with
+  the data in the GPU's VRAM: with xNVMe's upcie-hip backend, the CPU submits
+  the commands from user space, and with io_uring_dmabuf, through the kernel's
+  io_uring and NVMe driver; either way the controller moves the data straight
+  to and from VRAM.
+  Fails when no I/O completes or any I/O fails. Needs an AMD GPU whose
+  peer-to-peer DMA the controller can reach, such as the one of xnvme-devenv's
+  compute-node-emulated rig, and xNVMe built with HIP by 'setup_aisio.yaml':
+
+    cijoe --monitor \
+      -c configs/smoke.toml \
+      -c configs/devenv_guest.toml \
+      tasks/smoke_p2p.yaml
+
+steps:
+  - name: prepare
+    run: |
+      for t in xnvmeperf devbind hugepages; do command -v $t || { echo "missing: $t"; exit 1; }; done
+      test -e /dev/kfd && ls /dev/dri | grep -q renderD
+      modprobe uio_pci_generic
+      mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+      hugepages setup --count {{ config.smoke.hugepages }}
+      devbind --device {{ config.smoke.pci_addr }} --bind uio_pci_generic
+
+  - name: xnvmeperf_vram_read
+    uses: xnvmeperf
+    with: &xnvmeperf
+      backend: upcie-hip
+      devices: ["{{ config.smoke.pci_addr }}"]
+      runtime: 3
+      iosize: 4096
+      qdepth: 32
+      iopattern: randread
+      check: true
+
+  - name: xnvmeperf_vram_write
+    uses: xnvmeperf
+    with:
+      <<: *xnvmeperf
+      iopattern: randwrite
+
+  - name: bind_kernel
+    run: |
+      devbind --device {{ config.smoke.pci_addr }} --bind nvme
+
+  # The same through the kernel: io_uring reads and writes the namespace's
+  # block device with the IO buffers in VRAM, registered as dma-bufs, which
+  # needs the kernel's io_uring dma-buf series, as the xnvme-devenv guest has.
+  # The block device is found by the controller's address, as with native
+  # multipath only the paths under /sys/block/<ns>/multipath lead to it, once
+  # the kernel driver has brought the controller back up
+  - name: io_uring_dmabuf
+    run: |
+      for _ in $(seq 50); do for blk in /sys/block/nvme*n*; do for dev in "$blk" "$blk"/multipath/*; do case "$(readlink -f "$dev/device")" in */{{ config.smoke.pci_addr }}/*) echo "/dev/${blk##*/}" ;; esac; done; done | sort -u | head -1 > /tmp/aisio-smoke-bdev; test -s /tmp/aisio-smoke-bdev && break; sleep 0.2; done; cat /tmp/aisio-smoke-bdev; test -s /tmp/aisio-smoke-bdev
+      for p in randread randwrite; do xnvmeperf run --be io_uring_dmabuf --direct --iopattern $p --iosize 4096 --qdepth 32 --runtime 3 --cpumask 0x1 $(cat /tmp/aisio-smoke-bdev) | tee /tmp/aisio-smoke-iou.out; awk '/^ *Total:/ {found=1; if ($2 == 0 || $4 != 0) exit 1} END {exit !found}' /tmp/aisio-smoke-iou.out || exit 1; done

@@ -6,33 +6,67 @@
 distro = "ubuntu"
 version = "resolute"
 
+# The daemons 'tasks/bench_aisio.yaml' runs
+[aisio]
+homi_id = 1
+ublk_id = 1
+xal_shm_name = "/xal_dev0"
+# Sized for aisio-cpu's buffers on filesize8gib
+homi_heap_size = 9663676416
+hugepages = 5120
+# Where the units read their configuration
+homi_conf = "/usr/local/etc/xnvme/homi-1.conf"
+qublk_conf = "/usr/local/etc/xnvme/qublk-1.conf"
+xal_conf = "/usr/local/etc/xal/xal-server.conf"
+
+# The script in xNVMe's toolbox/pkgs that installs its dependencies on [os]
+[xnvme]
+pkgs = "ubuntu-resolute"
+
+# Meson options for xNVMe, which a system's own config may set
+setup_args = ""
+
+# The checkouts go under /root/aisio, apart from any the system has in /root/git
+
+# TEMPORARY: a commit on main, as no xNVMe release has the upcie backends, the
+# homi control plane AiSIO builds on, OpenDS's aisio backend among them, or the
+# io_uring_dmabuf backend. core.repository_prep checks out whatever 'tag' names
 [xnvme.repository]
 remote = "https://github.com/xnvme/xnvme"
-branch = "main"
-path = "/root/git/xnvme"
+tag = "3b79ab10d14bcc580e4aa9ce6d1b4cc5679d0de9"
+path = "/root/aisio/xnvme"
 
 # The experimental package carries the version of the uPCIe release it ships
 # with, so one value names both.
 [upcie.dkms]
 remote = "https://github.com/safl/upcie"
-version = "0.9.0"
+version = "0.10.4"
 
 [xal.repository]
 remote = "https://github.com/xnvme/xal"
-tag = "v0.3.3"
-path = "/root/git/xal"
+tag = "v0.3.4"
+path = "/root/aisio/xal"
 
 [fil.repository]
 remote = "https://github.com/xnvme/fil"
-tag = "v0.3.4"
-path = "/root/git/fil"
+tag = "v0.4.0"
+path = "/root/aisio/fil"
+
+# TEMPORARY: a commit on fmma/opends-fork's next, as OpenDS has no release
+# yet. It builds against the xNVMe above; its aisio backend and the
+# aisio_homi_demo example need CUDA as well, and without it only the reference
+# backend is built
+[opends.repository]
+remote = "https://github.com/fmma/opends-fork"
+tag = "480d7786ebd4c7c6465094a3a9a9432b247e63f2"
+path = "/root/aisio/opends"
 
 [spdk.repository]
 remote = "https://github.com/spdk/spdk"
 tag = "v26.01"
-path = "/root/git/spdk"
+path = "/root/aisio/spdk"
 
 [fio.repository]
 remote = "https://github.com/axboe/fio"
 tag = "fio-3.41"
-path = "/root/git/fio"
+path = "/root/aisio/fio"

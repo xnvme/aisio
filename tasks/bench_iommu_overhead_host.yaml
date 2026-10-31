@@ -14,7 +14,7 @@ doc: |
     3. combine both result sets and generate an HTML report
 
   It modifies `/etc/default/grub` on the target, reboots the machine twice, and
-  waits for the CIJOE transport to return after each reboot.
+  waits for the CIJOE target to return after each reboot.
 
   Both runners cover the condition. xnvmeperf reports one row summed over the
   devices it was given, fio reports one row per device, and latency and tail
@@ -86,13 +86,13 @@ steps:
     run: systemd-run --on-active=2 systemctl reboot
 
   - name: wait_down_iommu_off
-    uses: core.wait_for_transport
+    uses: core.wait_for_target
     with:
       state: down
       timeout: 60
 
   - name: wait_up_iommu_off
-    uses: core.wait_for_transport
+    uses: core.wait_for_target
     with:
       state: up
       timeout: 600
@@ -118,13 +118,13 @@ steps:
     run: systemd-run --on-active=2 systemctl reboot
 
   - name: wait_down_iommu_on
-    uses: core.wait_for_transport
+    uses: core.wait_for_target
     with:
       state: down
       timeout: 60
 
   - name: wait_up_iommu_on
-    uses: core.wait_for_transport
+    uses: core.wait_for_target
     with:
       state: up
       timeout: 600

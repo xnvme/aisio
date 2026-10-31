@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# The NVMe controller 'tasks/smoke_daemons.yaml' serves and FORMATS, by PCI
+# address, since the kernel's nvme<N> numbering changes from boot to boot.
+# 'configs/qemu_guest.toml' has a scratch NVM controller here;
+# 'configs/devenv_guest.toml' names its rig's own.
+[smoke]
+pci_addr = "0000:01:00.0"
+mountpoint = "/mnt/smoke"
+homi_id = 1
+# Equal to homi_id, as the xnvme-qublk@<ublk_id> unit wants xnvme-homi@<ublk_id>
+ublk_id = 1
+xal_shm_name = "/xal_smoke"
+hugepages = 512
+# Where 'setup_aisio.yaml' builds it; meson does not install examples
+opends_demo = "/root/aisio/opends/builddir/aisio_homi_demo"
+# Where the units of xNVMe and xal, installed under meson's default prefix,
+# read their configuration
+xnvme_confdir = "/usr/local/etc/xnvme"
+xal_conf = "/usr/local/etc/xal/xal-server.conf"
