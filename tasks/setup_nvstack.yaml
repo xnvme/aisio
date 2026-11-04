@@ -10,7 +10,7 @@ doc: |
   apt. Deliberately NOT installed: MLNX_OFED, nvidia-gds / nvidia-peermem,
   nvidia-fs, and the BAM kernel-source build; AiSIO drives GPU-initiated NVMe
   I/O over the open dma-buf import path, not the proprietary GPUDirect-Storage
-  / DOCA / BaM stack. nvbandwidth is built to /root/git/nvbandwidth to provide
+  / DOCA / BaM stack. nvbandwidth is built to /root/aisio/nvbandwidth to provide
   the PCIe peak-bandwidth reference used by the bench_pcie / bench_cuda_iosize
   experiments. DCGM (from the same NVIDIA CUDA repo) provides the GPU metric
   collection backend for the bench workflows; scripts/dcgm_helper.py talks to
@@ -23,9 +23,12 @@ doc: |
   publishes only CUDA 13 (no 12.x) -- CUDA 13 satisfies xNVMe's '>=12.8'. CUDA
   installs under /usr/local/cuda-13.x; a /usr/local/cuda symlink and a
   /etc/profile.d/cuda.sh are wired up, and /etc/environment puts nvcc on the
-  PATH of non-interactive SSH commands too.
+  PATH of non-interactive SSH commands too. sshd reads /etc/environment only
+  when a connection opens, and cijoe keeps one connection for the whole task,
+  so each command of this task that needs nvcc sources /etc/profile.d/cuda.sh
+  on the same line, as cijoe runs every line of a step as a separate command.
 
-  Run against a target whose default transport has root (e.g. via root_unlock):
+  Run with a config whose default target logs in as root (e.g. via root_unlock):
 
     cijoe tasks/setup_nvstack.yaml --config configs/<target>.toml
 
@@ -39,13 +42,13 @@ steps:
     run: systemd-run --on-active=2 systemctl reboot
 
   - name: wait_down
-    uses: core.wait_for_transport
+    uses: core.wait_for_target
     with:
       state: down
       timeout: 90
 
   - name: wait_up
-    uses: core.wait_for_transport
+    uses: core.wait_for_target
     with:
       state: up
       timeout: 300
@@ -85,7 +88,7 @@ steps:
 
   - name: check_toolkit
     run: |
-      nvcc --version | grep release
+      . /etc/profile.d/cuda.sh && nvcc --version | grep release
 
   - name: check_libs
     run: |
@@ -108,9 +111,9 @@ steps:
   - name: nvbandwidth
     run: |
       DEBIAN_FRONTEND=noninteractive apt-get -qy install git cmake build-essential libboost-program-options-dev
-      rm -rf /root/git/nvbandwidth
-      mkdir -p /root/git
-      git clone --depth 1 https://github.com/NVIDIA/nvbandwidth.git /root/git/nvbandwidth
-      cmake -S /root/git/nvbandwidth -B /root/git/nvbandwidth/build -DCMAKE_BUILD_TYPE=Release
-      cmake --build /root/git/nvbandwidth/build -j "$(nproc)"
-      ls -l /root/git/nvbandwidth/build/nvbandwidth
+      rm -rf /root/aisio/nvbandwidth
+      mkdir -p /root/aisio
+      git clone --depth 1 https://github.com/NVIDIA/nvbandwidth.git /root/aisio/nvbandwidth
+      . /etc/profile.d/cuda.sh && cmake -S /root/aisio/nvbandwidth -B /root/aisio/nvbandwidth/build -DCMAKE_BUILD_TYPE=Release
+      . /etc/profile.d/cuda.sh && cmake --build /root/aisio/nvbandwidth/build -j "$(nproc)"
+      ls -l /root/aisio/nvbandwidth/build/nvbandwidth

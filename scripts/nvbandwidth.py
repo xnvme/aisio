@@ -29,7 +29,7 @@ def main(args, cijoe: Cijoe):
 
     artifacts = Path(args.output) / "artifacts"
 
-    install_path = cijoe.getconf("nvidia.nvbandwidth.path", "/root/git/nvbandwidth")
+    install_path = cijoe.getconf("nvidia.nvbandwidth.path", "/root/aisio/nvbandwidth")
     bin = Path(install_path) / "build" / "nvbandwidth"
 
     # The reference describes one link, so the run is pinned to the GPU the

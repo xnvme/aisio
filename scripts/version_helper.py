@@ -44,7 +44,7 @@ def xnvme_version(cijoe: Cijoe) -> str:
     stamp off the figure rather than failing the benchmark it annotates.
     """
 
-    path = cijoe.getconf("xnvme.repository.path", "/root/git/xnvme")
+    path = cijoe.getconf("xnvme.repository.path", "/root/aisio/xnvme")
 
     err, state = cijoe.run(f"git -C {path} rev-parse --short HEAD")
     if err:

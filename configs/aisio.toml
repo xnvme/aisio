@@ -6,33 +6,66 @@
 distro = "ubuntu"
 version = "resolute"
 
+[aisio]
+# The driver HOMI holds the drives through; the IOMMU translates, so vfio-pci
+driver = "vfio-pci"
+homi_id = 1
+ublk_id = 1
+xal_shm_name = "/xal_dev0"
+# Sized for aisio-cpu's buffers on filesize8gib
+homi_heap_size = 9663676416
+hugepages = 5120
+homi_conf = "/usr/local/etc/xnvme/homi-1.conf"
+qublk_conf = "/usr/local/etc/xnvme/qublk-1.conf"
+xal_conf = "/usr/local/etc/xal/xal-server.conf"
+
+# The script in xNVMe's toolbox/pkgs that installs its dependencies on [os]
+[xnvme]
+pkgs = "ubuntu-resolute"
+
+# Meson options for xNVMe, which a system's own config may set
+setup_args = ""
+
+# The checkouts go under /root/aisio, apart from any the system has in /root/git
+
+# TEMPORARY: a tag made for AiSIO, as no xNVMe release has the upcie backends,
+# homi, OpenDS's aisio backend or the io_uring_dmabuf backend
 [xnvme.repository]
 remote = "https://github.com/xnvme/xnvme"
-branch = "main"
-path = "/root/git/xnvme"
+tag = "for-aisio-02112026"
+path = "/root/aisio/xnvme"
 
 # The experimental package carries the version of the uPCIe release it ships
 # with, so one value names both.
 [upcie.dkms]
 remote = "https://github.com/safl/upcie"
-version = "0.9.0"
+version = "0.10.4"
 
 [xal.repository]
 remote = "https://github.com/xnvme/xal"
-tag = "v0.3.3"
-path = "/root/git/xal"
+tag = "v0.3.4"
+path = "/root/aisio/xal"
 
 [fil.repository]
 remote = "https://github.com/xnvme/fil"
-tag = "v0.3.4"
-path = "/root/git/fil"
+tag = "v0.5.0"
+path = "/root/aisio/fil"
 
+# Its aisio backend and examples need CUDA; without it only the reference
+# backend is built
+[opends.repository]
+remote = "https://github.com/xnvme/opends"
+tag = "v0.2.0"
+path = "/root/aisio/opends"
+
+# The SPDK xNVMe bundles in its spdk.wrap at the tag above, so bdevperf and
+# spdk_nvme_perf run the same NVMe driver as xnvmeperf over SPDK
 [spdk.repository]
 remote = "https://github.com/spdk/spdk"
-tag = "v26.01"
-path = "/root/git/spdk"
+tag = "v26.05"
+path = "/root/aisio/spdk"
 
 [fio.repository]
 remote = "https://github.com/axboe/fio"
 tag = "fio-3.41"
-path = "/root/git/fio"
+path = "/root/aisio/fio"
