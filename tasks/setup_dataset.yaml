@@ -16,8 +16,16 @@ doc: |
   See README.md for device configuration in datasets.toml.
 
 steps:
+  - name: drive_guard
+    uses: drive_guard
+    with:
+      devices: ["{{ config.filesystems.dset.pci_addr }}"]
+      mountpoint: "{{ config.filesystems.dset.mountpoint }}"
+
   - name: filesystem
     run: |
+      for _ in $(seq 50); do test -b {{ config.filesystems.dset.bdev }} && break; sleep 0.2; done; test -b {{ config.filesystems.dset.bdev }}
+      ns=$(for blk in /sys/block/nvme*n*; do case "${blk##*/}" in *c*) continue ;; esac; for dev in "$blk" "$blk"/multipath/*; do case "$(readlink -f "$dev/device")" in */{{ config.filesystems.dset.pci_addr }}/*) echo "/dev/${blk##*/}" ;; esac; done; done | sort -u); [ "$ns" = "{{ config.filesystems.dset.bdev }}" ] || { echo "{{ config.filesystems.dset.bdev }} is not the namespace of {{ config.filesystems.dset.pci_addr }}, which is '$ns'; refusing to format it"; exit 1; }
       lsblk -f
       umount {{ config.filesystems.dset.mountpoint }} || true
       mkfs.xfs -f -m reflink=0 {{ config.filesystems.dset.bdev }}

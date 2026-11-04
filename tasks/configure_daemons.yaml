@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Configure the AiSIO daemons
+  ===========================
+
+  Stops any daemons left running, binds the NVMe controller to [aisio].driver,
+  allocates hugepages, and writes the configuration of the homi, qublk and
+  xal-server units, as [aisio] names them. It does not start the daemons, that
+  is left to 'bench_aisio.yaml', and it does not format anything. Run it after
+  'setup_dataset.yaml', and again after a reboot, a change to the configs, or
+  a run of 'bench_io_modes.yaml' or 'bench_llama_load.yaml', which write the
+  same units' configuration:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/aisio.toml \
+      -c configs/datasets.toml \
+      tasks/configure_daemons.yaml
+
+steps:
+  - name: drive_guard
+    uses: drive_guard
+    with:
+      devices: ["{{ config.filesystems.dset.pci_addr }}"]
+      mountpoint: "{{ config.filesystems.dset.mountpoint }}"
+
+  - name: prepare
+    run: |
+      umount {{ config.filesystems.dset.mountpoint }} || true
+      systemctl stop xal-server xnvme-qublk@{{ config.aisio.ublk_id }} xnvme-homi@{{ config.aisio.homi_id }}
+      if [ -e /dev/ublkc{{ config.aisio.ublk_id }} ]; then qublk del --dev-id {{ config.aisio.ublk_id }}; fi
+      rm -f /dev/shm{{ config.aisio.xal_shm_name }}_*
+      modprobe {{ config.aisio.driver }}
+      modprobe ublk_drv
+      devbind --device {{ config.filesystems.dset.pci_addr }} --bind {{ config.aisio.driver }}
+      sync; echo 3 > /proc/sys/vm/drop_caches; echo 1 > /proc/sys/vm/compact_memory
+      hugepages setup --count {{ config.aisio.hugepages }}
+      n=$(cat /proc/sys/vm/nr_hugepages); [ "$n" -ge {{ config.aisio.hugepages }} ] || { echo "only $n of {{ config.aisio.hugepages }} hugepages could be reserved"; exit 1; }
+
+  - name: units_configure
+    run: |
+      mkdir -p {{ config.aisio.xnvme_confdir }} "$(dirname {{ config.aisio.xal_conf }})"
+      echo 'HOMI_DEVICES={{ config.filesystems.dset.pci_addr }}' > {{ config.aisio.xnvme_confdir }}/homi-{{ config.aisio.homi_id }}.conf
+      echo 'HOMI_OPTS=--be upcie --host-heap-size {{ config.aisio.homi_heap_size }}' >> {{ config.aisio.xnvme_confdir }}/homi-{{ config.aisio.homi_id }}.conf
+      echo 'QUBLK_URI={{ config.filesystems.dset.pci_addr }}' > {{ config.aisio.xnvme_confdir }}/qublk-{{ config.aisio.ublk_id }}.conf
+      echo 'QUBLK_OPTS=--be upcie --homi-id {{ config.aisio.homi_id }}' >> {{ config.aisio.xnvme_confdir }}/qublk-{{ config.aisio.ublk_id }}.conf
+      echo 'log_level = 3' > {{ config.aisio.xal_conf }}
+      echo 'devices = [{ uri = "/dev/ublkb{{ config.aisio.ublk_id }}", shm_name = "{{ config.aisio.xal_shm_name }}", mountpoint = "{{ config.filesystems.dset.mountpoint }}" }]' >> {{ config.aisio.xal_conf }}
+      echo '[xal]' >> {{ config.aisio.xal_conf }}
+      echo 'watchmode = 0' >> {{ config.aisio.xal_conf }}
