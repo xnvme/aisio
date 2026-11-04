@@ -1,0 +1,201 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Load a large model into GPU memory with llama.cpp, through OpenDS and without
+  =============================================================================
+
+  llama.cpp's loaders read the model into host memory and copy it into VRAM;
+  OpenDS has the drive write it into VRAM itself, over PCIe P2P, with homi
+  holding the controller and xal-server's index finding the file's extents.
+  This times the model load and the whole process, from a cold page cache,
+  with each of llama.cpp's loaders and with OpenDS's, on one drive:
+
+  - mmap, none and dio: llama.cpp's loaders, with the drive on the kernel's
+    nvme driver and its XFS mounted from the namespace. mmap faults the file
+    in through the page cache, llama.cpp's default; none reads it into a
+    staging buffer through the page cache; dio reads it with O_DIRECT,
+    bypassing the page cache, llama.cpp's fastest
+  - opends: llama.cpp's '--load-mode opends', with the drive held by homi, the
+    XFS mounted from qublk's /dev/ublkb<ublk_id>, and xal-server indexing it
+
+  Only the drive at [llama_load].pci_addr is touched, and the run prepares it
+  itself, whatever state it is in: a fresh XFS labelled [llama_load].label and
+  the model in its 'models' directory, copied from
+  [llama_load.model].source_dir, a known-good copy on the machine, and checked;
+  nothing is downloaded. It stops before writing anything when that drive is
+  not there, is mounted elsewhere or holds the root file system, or when the
+  copy is missing. llama.cpp, with the OpenDS loader, is built from
+  [llama.repository]; OpenDS itself is the one setup_aisio.yaml installs. Each
+  loader's runs and means are in 'llama_load-<mode>.json' in its step's
+  output; an opends run that fell back to llama.cpp's own reader fails. The GPU
+  must be NVIDIA, as OpenDS's aisio backend and the loader need CUDA:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/aisio.toml \
+      -c configs/llama_load_dellr760.toml \
+      tasks/bench_llama_load.yaml
+
+steps:
+  - name: stack_check
+    uses: stack_check
+
+  - name: prepare
+    run: |
+      for t in homi qublk xal-server devbind hugepages mkfs.xfs cmake nvidia-smi /usr/bin/time; do command -v $t || { echo "missing: $t"; exit 1; }; done
+      [ ! -f /run/aisio-cuda-hold.pid ] || kill $(cat /run/aisio-cuda-hold.pid) 2>/dev/null || true
+      pkg-config --modversion opends
+      systemctl cat xnvme-homi@{{ config.llama_load.homi_id }} xnvme-qublk@{{ config.llama_load.ublk_id }} xal-server > /dev/null
+      umount {{ config.llama_load.mountpoint }} 2>/dev/null || true
+      systemctl stop xal-server xnvme-qublk@{{ config.llama_load.ublk_id }} xnvme-homi@{{ config.llama_load.homi_id }}
+      if [ -e /dev/ublkc{{ config.llama_load.ublk_id }} ]; then qublk del --dev-id {{ config.llama_load.ublk_id }}; fi
+      rm -f /dev/shm{{ config.llama_load.xal_shm_name }}_*
+      modprobe ublk_drv && test -c /dev/ublk-control
+      mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+      sync; echo 3 > /proc/sys/vm/drop_caches; echo 1 > /proc/sys/vm/compact_memory
+      hugepages setup --count {{ config.llama_load.hugepages }}
+      n=$(cat /proc/sys/vm/nr_hugepages); [ "$n" -ge {{ config.llama_load.hugepages }} ] || { echo "only $n of {{ config.llama_load.hugepages }} hugepages could be reserved"; exit 1; }
+      nvidia-smi -pm 1
+
+  - name: llama_build
+    run: |
+      [ -d {{ config.llama.repository.path }}/.git ] || git clone {{ config.llama.repository.remote }} {{ config.llama.repository.path }}
+      git -C {{ config.llama.repository.path }} fetch --tags origin
+      git -C {{ config.llama.repository.path }} checkout -q -f {{ config.llama.repository.tag }}
+      [ ! -f /etc/profile.d/cuda.sh ] || . /etc/profile.d/cuda.sh; cmake -S {{ config.llama.repository.path }} -B {{ config.llama.repository.path }}/build -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native -DLLAMA_OPENDS=ON
+      [ ! -f /etc/profile.d/cuda.sh ] || . /etc/profile.d/cuda.sh; cmake --build {{ config.llama.repository.path }}/build --target llama-completion -j
+      {{ config.llama.repository.path }}/build/bin/llama-completion --version
+
+  # OpenDS must reach the drive with the xNVMe and xal of the stack serving it
+  - name: llama_libs
+    run: |
+      LD_LIBRARY_PATH={{ config.llama_load.libdir }} ldd {{ config.llama.repository.path }}/build/bin/llama-completion | grep -E "lib(xnvme|xal|opends)"
+      LD_LIBRARY_PATH={{ config.llama_load.libdir }} ldd {{ config.llama.repository.path }}/build/bin/llama-completion | grep -q "libxnvme.so.0 => {{ config.llama_load.libdir }}/"
+      LD_LIBRARY_PATH={{ config.llama_load.libdir }} ldd {{ config.llama.repository.path }}/build/bin/llama-completion | grep -q "libxal.so => {{ config.llama_load.libdir }}/"
+
+  - name: drive_guard
+    uses: drive_guard
+    with:
+      devices: ["{{ config.llama_load.pci_addr }}"]
+      mountpoint: "{{ config.llama_load.mountpoint }}"
+
+  - name: llama_prep
+    uses: llama_prep
+    with:
+      pci_addr: "{{ config.llama_load.pci_addr }}"
+      mountpoint: "{{ config.llama_load.mountpoint }}"
+      label: "{{ config.llama_load.label }}"
+      section: llama_load.model
+
+  # A process starts CUDA about a second sooner while another has called
+  # cuInit and is alive. homi has: its libxnvme is built with CUDA, whichever
+  # backend it serves. Persistence mode does not give this. Holding the driver
+  # for every loader keeps it out of the comparison
+  - name: cuda_hold
+    run: |
+      setsid python3 -c 'import ctypes, time; ctypes.CDLL("libcuda.so.1").cuInit(0); time.sleep(86400)' < /dev/null > /dev/null 2>&1 & echo $! > /run/aisio-cuda-hold.pid
+      sleep 2; kill -0 $(cat /run/aisio-cuda-hold.pid)
+
+  - name: dio
+    uses: llama_load
+    with: &llama_load
+      bin: "{{ config.llama.repository.path }}/build/bin/llama-completion"
+      model: "{{ config.llama_load.mountpoint }}/models/{{ config.llama_load.model.first }}"
+      mode: dio
+      repetitions: "{{ config.llama_load.repetitions }}"
+      prompt: "{{ config.llama_load.prompt }}"
+      env: "LD_LIBRARY_PATH={{ config.llama_load.libdir }}"
+      extra: "{{ config.llama_load.llama_args }}"
+
+  - name: mmap
+    uses: llama_load
+    with:
+      <<: *llama_load
+      mode: mmap
+
+  - name: none
+    uses: llama_load
+    with:
+      <<: *llama_load
+      mode: none
+
+  - name: bind_userspace
+    run: |
+      umount {{ config.llama_load.mountpoint }}
+      modprobe {{ config.llama_load.driver }}
+      devbind --device {{ config.llama_load.pci_addr }} --bind {{ config.llama_load.driver }}
+
+  # qublk's instance id is its ublk device id
+  - name: units_configure
+    run: |
+      mkdir -p {{ config.llama_load.xnvme_confdir }}
+      printf '%s\n' 'HOMI_DEVICES={{ config.llama_load.pci_addr }}' 'HOMI_OPTS=--be upcie --host-heap-size {{ config.llama_load.homi_heap_size }}' > {{ config.llama_load.xnvme_confdir }}/homi-{{ config.llama_load.homi_id }}.conf
+      printf '%s\n' 'QUBLK_URI={{ config.llama_load.pci_addr }}' 'QUBLK_OPTS=--be upcie --homi-id {{ config.llama_load.homi_id }}' > {{ config.llama_load.xnvme_confdir }}/qublk-{{ config.llama_load.ublk_id }}.conf
+      printf '%s\n' 'log_level = 3' 'devices = [' '  { uri = "/dev/ublkb{{ config.llama_load.ublk_id }}", shm_name = "{{ config.llama_load.xal_shm_name }}", mountpoint = "{{ config.llama_load.mountpoint }}" },' ']' '[xal]' 'watchmode = 0' > {{ config.llama_load.xal_conf }}
+
+  - name: homi_start
+    uses: daemon
+    with:
+      command: start
+      unit: xnvme-homi@{{ config.llama_load.homi_id }}
+
+  - name: qublk_start
+    uses: daemon
+    with:
+      command: start
+      unit: xnvme-qublk@{{ config.llama_load.ublk_id }}
+
+  # The model was written before xal-server starts, so its one index, made
+  # without a watch mode, has all of it
+  - name: mount
+    run: |
+      mount -o noatime /dev/ublkb{{ config.llama_load.ublk_id }} {{ config.llama_load.mountpoint }}
+      ls -l {{ config.llama_load.mountpoint }}/models
+
+  # Its unit reports started when the process starts, before it has indexed
+  - name: xal_start
+    uses: daemon
+    with:
+      command: start
+      unit: xal-server
+      ready: "serving 1 device(s)"
+      timeout: 600
+
+  - name: opends
+    uses: llama_load
+    with:
+      <<: *llama_load
+      mode: opends
+      env: "LD_LIBRARY_PATH={{ config.llama_load.libdir }} OPENDS_AISIO_HOMI_ID={{ config.llama_load.homi_id }} OPENDS_XAL_SHM={{ config.llama_load.xal_shm_name }} {{ config.llama_load.opends_env }}"
+
+  - name: xal_stop
+    uses: daemon
+    with:
+      command: stop
+      unit: xal-server
+
+  - name: unmount
+    run: |
+      umount {{ config.llama_load.mountpoint }}
+
+  - name: qublk_stop
+    uses: daemon
+    with:
+      command: stop
+      unit: xnvme-qublk@{{ config.llama_load.ublk_id }}
+
+  - name: homi_stop
+    uses: daemon
+    with:
+      command: stop
+      unit: xnvme-homi@{{ config.llama_load.homi_id }}
+
+  - name: bind_kernel
+    run: |
+      devbind --device {{ config.llama_load.pci_addr }} --bind nvme
+
+  - name: cuda_release
+    run: |
+      kill $(cat /run/aisio-cuda-hold.pid); rm -f /run/aisio-cuda-hold.pid
