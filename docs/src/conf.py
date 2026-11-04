@@ -13,12 +13,24 @@ _repo_root = Path(__file__).resolve().parent.parent.parent
 with open(_repo_root / "configs/aisio.toml", "rb") as _f:
     _aisio = tomllib.load(_f)
 
+
+def _ref(name):
+    """The tag or branch a component is pinned by, a commit hash cut to nine"""
+
+    repo = _aisio[name]["repository"]
+    ref = repo.get("tag") or repo["branch"]
+    return (
+        ref[:9] if len(ref) == 40 and all(c in "0123456789abcdef" for c in ref) else ref
+    )
+
+
 myst_substitutions = {
-    "ver_xnvme": _aisio["xnvme"]["repository"]["branch"],
+    "ver_xnvme": _ref("xnvme"),
     "ver_upcie_experimental": _aisio["upcie"]["dkms"]["version"],
     "ver_spdk": _aisio["spdk"]["repository"]["tag"],
     "ver_xal": _aisio["xal"]["repository"]["tag"],
     "ver_fil": _aisio["fil"]["repository"]["tag"],
+    "ver_opends": _ref("opends"),
     "ver_fio": _aisio["fio"]["repository"]["tag"].removeprefix("fio-"),
 }
 
@@ -51,6 +63,7 @@ templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "sphinx_book_theme"
+html_title = "AiSIO Technical Report"
 html_static_path = ["_static"]
 
 html_theme_options = {

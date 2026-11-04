@@ -4,9 +4,9 @@ SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
 SPDX-License-Identifier: BSD-3-Clause
 -->
 
-# Compiling the Documentation
+# Compiling the Technical Report
 
-To compile the documentation you need the following tools and packages on your
+To compile the technical report you need the following tools and packages on your
 systems:
 
 * Python3
@@ -45,7 +45,7 @@ Afterwhich you can run:
 aisio-docs-serve
 ```
 
-Then whenever the documentation sources ``aisio/docs/src/`` change, then the
+Then whenever the report's sources ``aisio/docs/src/`` change, then the
 **HTML** and **PDF** version of the docs are rebuilt. point your browser to:
 http://localhost:8000
 

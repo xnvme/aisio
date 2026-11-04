@@ -54,6 +54,7 @@ configuration pins; the ``poc`` tag pins its own.
 | AiSIO    | xNVMe                      | {{ ver_xnvme }}      | Source        | Unified NVMe command interface with uPCIe backend support                                                                           |
 | AiSIO    | xal                        | {{ ver_xal }}        | Source        | eXtent Access Library for file-to-block extent resolution                                                                           |
 | AiSIO    | fil                        | {{ ver_fil }}        | Source        | File Iterator Library; benchmark harness used to evaluate different I/O backends                                                    |
+| AiSIO    | OpenDS                     | {{ ver_opends }}     | Source        | Open accelerator direct storage, a vendor-neutral API modeled on cuFile; its reference backend is built where CUDA is absent        |
 | Tools    | devbind                    | —                    | pipx          | NVMe PCIe driver binding utility                                                                                                    |
 | Tools    | hugepages                  | —                    | pipx          | Huge page allocation management utility                                                                                             |
 
@@ -85,12 +86,12 @@ prefix = "PCI_BLACKLIST=0000:01:00.0"
 ```
 
 Devices must be unbound from the kernel NVMe driver and bound to
-``uio_pci_generic``. Huge pages are also required, as both SPDK and
+``vfio-pci``, with the IOMMU translating. Huge pages are also required, as both SPDK and
 xNVMe uPCIe rely on DMA-capable memory that must be physically
 contiguous and pinned:
 
 ```
-devbind --device '<pci_addr>' --bind uio_pci_generic
+devbind --device '<pci_addr>' --bind vfio-pci
 hugepages setup --count 1024
 ```
 
@@ -109,12 +110,12 @@ The format is a manual step rather than a workflow step, because it only has to
 be done once: every synthetic benchmark issues ``randread`` exclusively, so none
 of them write to the devices and the state established by the format survives
 across runs. Formatting goes through the kernel NVMe driver, so it precedes the
-binding to ``uio_pci_generic`` above and each device is rebound afterwards:
+binding to ``vfio-pci`` above and each device is rebound afterwards:
 
 ```
 devbind --device '<pci_addr>' --bind nvme
 nvme format /dev/<ns> --force
-devbind --device '<pci_addr>' --bind uio_pci_generic
+devbind --device '<pci_addr>' --bind vfio-pci
 ```
 
 (sec-dcgm-sampling)=
@@ -314,14 +315,8 @@ files.
 All datasets are generated with a fixed random seed to ensure
 reproducibility across systems.
 
-The AiSIO benchmark uses the xNVMe uPCIe path and requires the device bound
-to ``uio_pci_generic`` with hugepages allocated:
-
-```
-umount /mnt/datasets
-devbind --device '<pci_addr>' --bind uio_pci_generic
-hugepages setup --count 5120
-```
+The AiSIO benchmark uses the xNVMe uPCIe path. ``configure_daemons.yaml``
+binds the device to ``vfio-pci`` and allocates the hugepages it needs.
 
 The count must be large enough to fit the biggest batch of I/O buffers. The
 ``filesize8gib`` dataset drives this requirement, and 5120 pages (10 GiB) is
@@ -329,17 +324,24 @@ sufficient for the benchmarks in this suite.
 
 #### AiSIO / uPCIe (``bench_aisio.yaml``)
 
-This benchmark consists of two parts. First, all three datasets
-(tiktokish, imagenetish, filesize8gib) are loaded through FIL over the
-AiSIO path using the ``aisio-cpu``, ``aisio-gpu``, and ``aisio-p2p``
-backends, measuring end-to-end dataset-loading performance for
-CPU-driven, GPU-driven, and peer-to-peer transfers. Second, synthetic
-random-read benchmarks are run with xnvmeperf using the ``upcie`` (buffers
-in host memory) and ``upcie-cuda`` (buffers in GPU memory, via P2P)
-backends, both CPU-initiated, measuring raw I/O throughput on the uPCIe
-path.
+``configure_daemons.yaml`` prepares the system once. The workflow then starts
+``homi``, ``qublk`` and ``xal-server``, and the benchmark consists of two
+parts. First, synthetic random-read benchmarks are run with xnvmeperf through
+``homi`` using the ``upcie`` (buffers in host memory) and ``upcie-cuda``
+(buffers in GPU memory, via P2P) backends, both CPU-initiated, measuring raw
+I/O throughput on the uPCIe path. Second, all three datasets (tiktokish,
+imagenetish, filesize8gib) are loaded through FIL over the AiSIO path using
+the ``aisio-cpu``, ``aisio-gpu``, and ``aisio-p2p`` backends, measuring
+end-to-end dataset-loading performance for CPU-driven, GPU-driven, and
+peer-to-peer transfers.
 
 ```
+cijoe --monitor \
+    -c configs/transport.toml \
+    -c configs/aisio.toml \
+    -c configs/datasets.toml \
+    tasks/configure_daemons.yaml
+
 cijoe --monitor \
     -c configs/transport.toml \
     -c configs/aisio.toml \

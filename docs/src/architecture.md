@@ -67,11 +67,17 @@ commands.
   queue entries, populates data transfer descriptors (PRPs or SGLs), and writes
   doorbell registers. This applies to both kernel managed and user space managed
   infrastructure.
+- *Accelerator-assisted*: CPU-initiated; the CPU submits every command,
+  processes every completion and writes both doorbells. The controller writes
+  the completions into accelerator memory, and a compute kernel resident on the
+  accelerator only copies them into a completion queue mirror in host memory,
+  where the CPU reads them.
 - *Device-initiated*: software executing on a PCIe-attached accelerator (such as
   a GPU) constructs and submits NVMe commands from device-resident driver code.
   Host-side software remains responsible for device initialization, queue
   provisioning, and metadata resolution, but the accelerator drives the data
-  path independently once the queues are established.
+  path independently once the queues are established. Where the device is an
+  accelerator, this is *accelerator-initiated* I/O.
 
 **Buffer placement** describes where data buffers and queue structures reside,
 and determines whether peer-to-peer (P2P) DMA (see {ref}`sec-pcie`) is involved.

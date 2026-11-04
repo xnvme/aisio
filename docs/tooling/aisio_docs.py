@@ -583,9 +583,9 @@ def start_landing_server():
                     <div class="page">
                         <header>
                             <div>
-                                <h1>AiSIO Documentation</h1>
+                                <h1>AiSIO Technical Report</h1>
                                 <span class="subtitle">
-                                    Accelerator-integrated Storage I/O • Whitepaper &amp; System Docs
+                                    Accelerator-integrated Storage I/O, Technical Report
                                 </span>
                             </div>
                             <div>
@@ -647,7 +647,7 @@ def start_landing_server():
                             </section>
                         </main>
                         <footer>
-                            <span>AiSIO Docs helper • Serving on 127.0.0.1:{LANDING_PORT}</span>
+                            <span>AiSIO Technical Report helper, serving on 127.0.0.1:{LANDING_PORT}</span>
                             <span>HTML: :{HTML_PORT} • PDF: :{PDF_PORT}</span>
                         </footer>
                     </div>
