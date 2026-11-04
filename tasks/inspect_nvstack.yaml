@@ -6,13 +6,10 @@ doc: |
   Inspect the state of the nvstack
 
 steps:
-  - name: gdscheck
-    run: /usr/local/cuda/gds/tools/gdscheck -p
-
   - name: modules
     run: |
       uname -r
-      lsmod | egrep 'nvidia(_uvm)?|nvidia_peermem'
+      lsmod | grep -E 'nvidia(_uvm)?'
 
   - name: block
     run: lsblk -f

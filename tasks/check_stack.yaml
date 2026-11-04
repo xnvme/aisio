@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Check that the deployed AiSIO stack is the one configs/aisio.toml pins
+  =======================================================================
+
+  Checks the components' checkouts against their pins, the deployed xNVMe and
+  uPCIe against them, and that nothing on the system loads other copies of the
+  stack's libraries or programs in their place: a second copy on the dynamic
+  linker's path, /etc/ld.so.preload, LD_PRELOAD or LD_LIBRARY_PATH. It changes
+  nothing; on an invalid configuration it fails and says what it found.
+  setup_aisio.yaml ends with it, and the I/O modes and the OpenDS example start
+  with it:
+
+    cijoe --monitor \
+      -c configs/transport.toml \
+      -c configs/aisio.toml \
+      tasks/check_stack.yaml
+
+steps:
+  - name: stack_check
+    uses: stack_check
