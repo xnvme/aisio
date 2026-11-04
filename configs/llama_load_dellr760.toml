@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# 'tasks/bench_llama_load.yaml' on a Dell R760 with an H100 PCIe (80 GB) and
+# sixteen PCIe Gen6 NVMe drives, which this host links at Gen5 x4, so a drive's
+# rate here is the link's, not the drive's. One drive on the GPU's NUMA node
+# holds the model; the task touches no other. It writes a file system and the
+# model onto that drive, so format it again before 'bench_io_modes.yaml', which
+# expects every block deallocated.
+# Also when run on the machine itself, without configs/transport.toml
+[cijoe.task]
+fail_fast = true
+
+[llama_load]
+pci_addr = "0000:64:00.0"
+# The driver homi holds the drive through; the IOMMU translates on this host,
+# which uio_pci_generic cannot work with
+driver = "vfio-pci"
+label = "aisio-llama"
+mountpoint = "/mnt/llama"
+# Not 1, which a client gets by default and by accident; qublk's instance id is
+# its ublk device id
+homi_id = 42
+ublk_id = 42
+xal_shm_name = "/xal_llama"
+homi_heap_size = 1073741824
+hugepages = 2048
+xnvme_confdir = "/usr/local/etc/xnvme"
+# OpenDS's backend has no runpath; without this the dynamic linker may find
+# another xNVMe and xal than homi's
+libdir = "/usr/local/lib/x86_64-linux-gnu"
+xal_conf = "/usr/local/etc/xal/xal-server.conf"
+repetitions = 5
+prompt = "What is the capital of France?"
+# llama.cpp cannot see the GPU heap of OpenDS's backend when it fits the model
+# into VRAM, so that heap is kept small
+opends_env = "OPENDS_AISIO_DEVICE_HEAP_MB=64"
+# The token embedding in VRAM too, as the OpenDS measurements had it
+llama_args = "-ot token_embd.weight=CUDA0"
+
+# Llama-3.3-70B-Instruct Q6_K, 53.9 GiB in two files; llama.cpp loads both
+# from the first. Copied from source_dir, a known-good copy on the machine; the
+# task downloads nothing. The files are those of Hugging Face's
+# bartowski/Llama-3.3-70B-Instruct-GGUF at revision b6c5c9f1, directory
+# Llama-3.3-70B-Instruct-Q6_K
+[llama_load.model]
+first = "Llama-3.3-70B-Instruct-Q6_K-00001-of-00002.gguf"
+# Lines as sha256sum prints them
+files = [
+  "a3fdb310817544d0f3368fea19df2e611228b3c4d9c2390f4b55261ec0f5e9d4  Llama-3.3-70B-Instruct-Q6_K-00001-of-00002.gguf",
+  "828c8425b56575ed0631806ff61ebdc516754895a112865bf2a18daf1c257b0b  Llama-3.3-70B-Instruct-Q6_K-00002-of-00002.gguf",
+]
+source_dir = "/root/models_src/llama33-70b/Llama-3.3-70B-Instruct-Q6_K"
+
+# TEMPORARY: llama.cpp with the OpenDS loader, '--load-mode opends', from
+# fmma/llama.cpp's release for OpenDS 0.2.0, as upstream has none
+[llama.repository]
+remote = "https://github.com/fmma/llama.cpp"
+tag = "opends-0.2.0-b12034"
+path = "/root/aisio/llama.cpp"
