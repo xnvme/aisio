@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# 'tasks/smoke_daemons.yaml' FORMATS the controller it is given and
+# 'tasks/smoke_p2p.yaml' writes to it, so there is no default: name it as smoke.pci_addr in a config of your own, by PCI address,
+# as 'configs/qemu_guest.toml' and 'configs/devenv_guest.toml' do for theirs.
+[smoke]
+# The driver HOMI holds the drive through; the IOMMU translates, so vfio-pci
+driver = "vfio-pci"
+mountpoint = "/mnt/smoke"
+homi_id = 1
+# Equal to homi_id, as the xnvme-qublk@<ublk_id> unit wants xnvme-homi@<ublk_id>
+ublk_id = 1
+xal_shm_name = "/xal_smoke"
+hugepages = 512
+# Where 'setup_aisio.yaml' builds it; meson does not install examples
+opends_example = "/root/aisio/opends/builddir/sync_read_example"
+# Under meson's default prefix, where setup_aisio.yaml installs xNVMe and xal
+xnvme_confdir = "/usr/local/etc/xnvme"
+xal_conf = "/usr/local/etc/xal/xal-server.conf"

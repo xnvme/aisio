@@ -15,8 +15,8 @@ xal_shm_name = "/xal_dev0"
 # Sized for aisio-cpu's buffers on filesize8gib
 homi_heap_size = 9663676416
 hugepages = 5120
-homi_conf = "/usr/local/etc/xnvme/homi-1.conf"
-qublk_conf = "/usr/local/etc/xnvme/qublk-1.conf"
+# where the xnvme-homi@ and xnvme-qublk@ units read homi-<id>.conf and qublk-<id>.conf
+xnvme_confdir = "/usr/local/etc/xnvme"
 xal_conf = "/usr/local/etc/xal/xal-server.conf"
 
 # The script in xNVMe's toolbox/pkgs that installs its dependencies on [os]
