@@ -1,0 +1,90 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+doc: |
+  Smoke-test peer-to-peer I/O between NVMe and an AMD GPU
+  =======================================================
+
+  Drives short xnvmeperf runs on the NVMe controller at [smoke].pci_addr with
+  the data in the GPU's VRAM: with xNVMe's upcie-hip backend, the CPU submits
+  the commands from user space, as a client of homi, which holds the
+  controller, bound to [smoke].driver, through its systemd unit; and with
+  io_uring_dmabuf, through the kernel's io_uring and NVMe driver. Either way
+  the controller moves the data straight to and from VRAM. It WRITES random
+  blocks to the namespace of that controller.
+  Fails when no I/O completes or any I/O fails. Needs an AMD GPU whose
+  peer-to-peer DMA the controller can reach, such as the one of xnvme-devenv's
+  compute-node-emulated rig, and xNVMe built with HIP by 'setup_aisio.yaml':
+
+    cijoe --monitor \
+      -c configs/smoke.toml \
+      -c configs/devenv_guest.toml \
+      tasks/smoke_p2p.yaml
+
+steps:
+  - name: drive_guard
+    uses: drive_guard
+    with:
+      devices: ["{{ config.smoke.pci_addr }}"]
+
+  - name: prepare
+    run: |
+      for t in homi xnvmeperf devbind hugepages; do command -v $t || { echo "missing: $t"; exit 1; }; done
+      systemctl cat xnvme-homi@{{ config.smoke.homi_id }} > /dev/null
+      umount {{ config.smoke.mountpoint }} 2>/dev/null || true
+      systemctl stop xal-server xnvme-qublk@{{ config.smoke.ublk_id }} xnvme-homi@{{ config.smoke.homi_id }}
+      if [ -e /dev/ublkc{{ config.smoke.ublk_id }} ]; then qublk del --dev-id {{ config.smoke.ublk_id }}; fi
+      test -e /dev/kfd && ls /dev/dri | grep -q renderD
+      modprobe {{ config.smoke.driver }}
+      mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+      sync; echo 3 > /proc/sys/vm/drop_caches; echo 1 > /proc/sys/vm/compact_memory
+      hugepages setup --count {{ config.smoke.hugepages }}
+      n=$(cat /proc/sys/vm/nr_hugepages); [ "$n" -ge {{ config.smoke.hugepages }} ] || { echo "only $n of {{ config.smoke.hugepages }} hugepages could be reserved"; exit 1; }
+      devbind --device {{ config.smoke.pci_addr }} --bind {{ config.smoke.driver }}
+
+  - name: homi_configure
+    run: |
+      mkdir -p {{ config.smoke.xnvme_confdir }}
+      printf '%s\n' 'HOMI_DEVICES={{ config.smoke.pci_addr }}' 'HOMI_OPTS=--be upcie' > {{ config.smoke.xnvme_confdir }}/homi-{{ config.smoke.homi_id }}.conf
+
+  - name: homi_start
+    uses: daemon
+    with:
+      command: start
+      unit: xnvme-homi@{{ config.smoke.homi_id }}
+
+  - name: xnvmeperf_vram_read
+    uses: xnvmeperf
+    with: &xnvmeperf
+      backend: upcie-hip
+      devices: ["{{ config.smoke.pci_addr }}"]
+      runtime: 3
+      iosize: 4096
+      qdepth: 32
+      iopattern: randread
+      check: true
+      homi_id: "{{ config.smoke.homi_id }}"
+
+  - name: xnvmeperf_vram_write
+    uses: xnvmeperf
+    with:
+      <<: *xnvmeperf
+      iopattern: randwrite
+
+  - name: homi_stop
+    uses: daemon
+    with:
+      command: stop
+      unit: xnvme-homi@{{ config.smoke.homi_id }}
+
+  - name: bind_kernel
+    run: |
+      devbind --device {{ config.smoke.pci_addr }} --bind nvme
+
+  # Needs the kernel's io_uring dma-buf series. With native multipath only the
+  # paths under /sys/block/<ns>/multipath lead to the controller's address
+  - name: io_uring_dmabuf
+    run: |
+      for _ in $(seq 50); do for blk in /sys/block/nvme*n*; do case "${blk##*/}" in *c*) continue ;; esac; for dev in "$blk" "$blk"/multipath/*; do case "$(readlink -f "$dev/device")" in */{{ config.smoke.pci_addr }}/*) echo "/dev/${blk##*/}" ;; esac; done; done | sort -u | head -1 > /tmp/aisio-smoke-bdev; test -s /tmp/aisio-smoke-bdev && break; sleep 0.2; done; cat /tmp/aisio-smoke-bdev; test -s /tmp/aisio-smoke-bdev
+      for p in randread randwrite; do xnvmeperf run --be io_uring_dmabuf --direct --iopattern $p --iosize 4096 --qdepth 32 --runtime 3 --cpumask 0x1 $(cat /tmp/aisio-smoke-bdev) | tee /tmp/aisio-smoke-iou.out; awk '/^ *Total:/ {found=1; if ($2 == 0 || $4 != 0) exit 1} END {exit !found}' /tmp/aisio-smoke-iou.out || exit 1; done

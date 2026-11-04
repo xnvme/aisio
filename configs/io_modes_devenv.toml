@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# 'tasks/bench_io_modes.yaml' in the xnvme-devenv guest: its one NVMe controller
+# and rocjitsu's emulated AMD GPU behind the same switch. The guest has no IOMMU,
+# so the drive is bound to uio_pci_generic, and no CPU frequency control, so
+# 'make guest-bench' leaves out the frequency steps, and gpu_initiated, which is
+# CUDA only. The figures say nothing about performance; the run checks that
+# every mode works.
+[io_modes]
+devices = ["0000:03:00.0"]
+devices_gpu = ["0000:03:00.0"]
+# The guest's namespace has 4 KiB blocks
+iosize = 4096
+gpu_be = "upcie-hip"
+gpu_info = "lspci -nn -d 1002:"
+driver = "uio_pci_generic"
+cpulist = "0"
+cpulist_gpu = "0"
+gpu_id = 0
+homi_id = 1
+hugepages = 512
+frequency_khz = 0
+frequency_restore_min_khz = 0
+frequency_restore_max_khz = 0
