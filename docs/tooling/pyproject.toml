@@ -5,7 +5,7 @@
 [project]
 name = "aisio-docs"
 version = "0.1.0"
-description = "Documentation build environment for the AISIO project"
+description = "Build environment for the AiSIO technical report"
 readme = "README.md"
 requires-python = ">=3.10"
 

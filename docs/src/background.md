@@ -46,12 +46,24 @@ drivers, and is independent of whether data movement uses host memory or
 peer-to-peer DMA. In the literature, this execution model is sometimes also
 referred to as *host-initiated* I/O.
 
+**Accelerator-assisted I/O**
+: CPU-initiated I/O, assisted by a compute kernel resident on the accelerator.
+The host CPU does everything it does in any CPU-initiated I/O: it constructs
+and submits the commands, rings the submission doorbell, processes the
+completions and writes the completion queue's head doorbell. The controller
+writes the completions into accelerator memory, and the kernel on the
+accelerator only copies them into a mirror of the completion queue in host
+memory, where the CPU reads them; the accelerator neither submits commands nor
+processes completions. In AiSIO this is the P2P completion queue mirror, with
+the payloads in accelerator memory as well.
+
 **Device-initiated I/O**
 : I/O in which NVMe commands are constructed and submitted by software executing
 on a PCIe-attached device, such as a GPU, DPU, or FPGA. Payloads reside in
 device-local or device-accessible memory, and command submission proceeds
 without host involvement on the data path, subject to host-managed coordination
-and policy.
+and policy. Where the device is an accelerator, this is also called
+*accelerator-initiated* I/O.
 
 **OS-managed**
 : Storage access paths that operate through kernel-resident drivers and the

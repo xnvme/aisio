@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-# AISIO Whitepaper LaTeX Theme (Single-Column, Clean, Book-Quality)
+# AiSIO Technical Report LaTeX Theme (Single-Column, Clean, Book-Quality)
 
 latex_engine = "lualatex"
 
@@ -10,7 +10,7 @@ latex_documents = [
     (
         "index",
         "aisio.tex",
-        "AiSIO Whitepaper",
+        "AiSIO Technical Report",
         "Simon A. F. Lund, Karl Bonde Torp, Nadja Brix Koch, Javier González",
         "report",  # stable long-form layout
         False,
@@ -67,7 +67,7 @@ latex_elements = {
 % Header and footer
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\textcolor{AisioGrey}{AiSIO Whitepaper}}
+\fancyhead[L]{\textcolor{AisioGrey}{AiSIO Technical Report}}
 \fancyhead[R]{\textcolor{AisioGrey}{\nouppercase{\leftmark}}}
 \fancyfoot[C]{\thepage\ / \pageref{LastPage}}
 \renewcommand{\headrulewidth}{0pt}
@@ -83,7 +83,7 @@ latex_elements = {
 
   \vspace{1.5cm}
   {\large\color{AisioGrey}
-    Whitepaper • System Architecture • Open Research \par
+    Technical Report \par
   }
 
   \vspace{2.5cm}

@@ -68,3 +68,21 @@ backend carries device-initiated I/O to file-based workloads, where block
 translation through XAL and the full AiSIO stack are exercised end-to-end. The
 ``bench_aisio`` workflow already runs it. The next step is an experiment that
 reports performance on that path.
+
+(sec-future-report)=
+## This Report
+
+This report is outdated and is being reworked to match the software it
+describes. Until that lands, these shortcomings are known:
+
+* None of the experiments exercise HOMI, so their results say nothing about
+  I/O served through it.
+* The architecture diagrams are outdated and use names the components no
+  longer have, among them homid, sil and udma-buf.
+* The experimental framework names an IOMMU physical-address mapper, shipped
+  in uPCIe's experimental modules, without describing it.
+
+The rework will bring the text, names and figures in line with the current
+components, rerun the experiments through HOMI so the results describe the
+stack as it is built, and add `tasks/bench_io_modes.yaml`, which already does,
+as an experiment of its own.
