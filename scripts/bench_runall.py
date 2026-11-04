@@ -24,7 +24,7 @@ from typing import Optional
 
 from cijoe.core.command import Cijoe
 
-from bench_helper import BenchHelper
+from bench_helper import BenchHelper, gpu_local_devices
 from cpu_freq_helper import CpuFrequencyHelper
 
 
@@ -189,6 +189,8 @@ def main(args, cijoe: Cijoe):
         return 1
 
     devices: list = cijoe.getconf("devices")
+    if devices and cijoe.getconf("bench.gpu_local", False):
+        devices = gpu_local_devices(cijoe, devices)
     if not devices:
         log.error("Failed: No devices defined in config")
         return 1
