@@ -30,40 +30,47 @@ jobs:
   lint:
     runs-on: ubuntu-latest
 
-    # the cijoe that the provisioning jobs run
     container:
-      image: ghcr.io/safl/nosi/ubuntu-2604-docker:latest
+      image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
 
     steps:
       - name: Grab source
         uses: actions/checkout@v7.0.0
 
+      # The image's cijoe moves with the image; the configs need 0.9.69 or later
+      - name: Pin cijoe
+        run: &cijoe |
+          cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
+          "$cijoe_python" -m ensurepip --upgrade >/dev/null
+          "$cijoe_python" -m pip install --quiet cijoe==0.9.70
+
       - name: Lint the cijoe workflows
         run: |
           cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
-          "$cijoe_python" .github/scripts/cijoe_lint.py
+          "$cijoe_python" .github/scripts/cijoe_lint.py -x tasks/devenv_start.yaml
+          python3 tests/test_drive_guard.py
 
-  # README.md Steps 2-7 in a QEMU guest, less the steps that need a GPU
+  # README.md Steps 2, 3, 5 and 6 in a QEMU guest, then the daemon smoke test and the dataset setup
   provision:
     needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
     container:
-      image: ghcr.io/safl/nosi/ubuntu-2604-docker:latest
+      image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
       options: --privileged -v /mnt:/mnt
 
     steps:
       - name: Grab source
         uses: actions/checkout@v7.0.0
 
+      - name: Pin cijoe
+        run: *cijoe
+
       - name: Prepare environment
         run: &prepare |
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-          # stage_nosi_guest needs withcache, and the cijoe venv has no pip
           cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
-          "$cijoe_python" -m ensurepip --upgrade >/dev/null
-          "$cijoe_python" -m pip install --quiet withcache
           echo "CIJOE_PYTHON=$cijoe_python" >> $GITHUB_ENV
           # the guest images overflow the container overlay
           mkdir -p /mnt/system_imaging /mnt/guests
@@ -108,6 +115,17 @@ jobs:
             -o cijoe-output/setup_aisio \
             tasks/setup_aisio.yaml
 
+      # Before the datasets, as it formats the device and takes it only while
+      # nothing else has it mounted; configs/qemu_guest.toml after
+      # configs/smoke.toml, so the guest's driver is used
+      - name: smoke_daemons.yaml
+        run: |
+          cijoe --monitor \
+            -c configs/smoke.toml \
+            -c configs/qemu_guest.toml \
+            -o cijoe-output/smoke_daemons \
+            tasks/smoke_daemons.yaml
+
       - name: setup_dataset.yaml
         run: |
           cijoe --monitor \
@@ -116,6 +134,15 @@ jobs:
             -c configs/datasets_small.toml \
             -o cijoe-output/setup_dataset \
             tasks/setup_dataset.yaml
+
+      - name: Daemon logs
+        if: failure()
+        run: |
+          cijoe \
+            -c configs/smoke.toml \
+            -c configs/qemu_guest.toml \
+            -o cijoe-output/smoke_daemons_logs \
+            tasks/smoke_daemons.yaml logs || true
 
       - name: Guest serial console
         if: failure()
@@ -131,6 +158,63 @@ jobs:
           path: cijoe-output/
           if-no-files-found: warn
 
+  # AiSIO on the xnvme-devenv guest, ROCm and no CUDA; relies on the fil pinned
+  # in configs/aisio.toml building without CUDA
+  devenv:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    # The xnvme-devenv version configs/devenv_guest.toml pins the guest by
+    container:
+      image: ghcr.io/xnvme/xnvme-devenv/host:v0.15.0
+      options: --privileged -v /mnt:/mnt
+
+    steps:
+      - name: Grab source
+        uses: actions/checkout@v7.0.0
+
+      - name: Prepare environment
+        run: *prepare
+
+      # The general lint runs where xnvme-devenv's scripts are not installed
+      - name: Lint devenv_start.yaml
+        run: |
+          "$CIJOE_PYTHON" .github/scripts/cijoe_lint.py \
+            -c configs/devenv_guest.toml \
+            -c /opt/xnvme-devenv/rigs/compute-node-emulated.toml \
+            tasks/devenv_start.yaml
+
+      - name: Start the guest
+        run: make guest-start
+
+      - name: Provision AiSIO
+        run: make guest-provision
+
+      - name: Smoke-test the daemons and P2P I/O into VRAM
+        run: make guest-test
+
+      - name: Run the I/O modes experiment on the emulated GPU
+        run: make guest-bench
+
+      - name: Daemon logs
+        if: failure()
+        run: make guest-logs || true
+
+      - name: Guest serial console
+        if: failure()
+        run: |
+          tail -c 20000 "$HOME/guests/ubuntu-2610-rocm-amd64/serial.output" 2>/dev/null \
+            || echo "no guest serial output"
+
+      - name: Upload cijoe output
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: devenv-cijoe-output
+          path: cijoe-output/
+          if-no-files-found: warn
+
   # setup_amdstack.yaml in a guest of its own, less the checks that need a GPU
   amdstack:
     needs: lint
@@ -138,12 +222,15 @@ jobs:
     timeout-minutes: 60
 
     container:
-      image: ghcr.io/safl/nosi/ubuntu-2604-docker:latest
+      image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
       options: --privileged -v /mnt:/mnt
 
     steps:
       - name: Grab source
         uses: actions/checkout@v7.0.0
+
+      - name: Pin cijoe
+        run: *cijoe
 
       - name: Prepare environment
         run: *prepare
