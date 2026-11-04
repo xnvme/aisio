@@ -11,7 +11,8 @@ Loads each workflow as 'cijoe' does before running it: scripts resolve,
 templates render against the configs, and each step's 'with' parses.
 'cijoe --integrity-check' renders without the 'config' and 'local' keys
 and neither loads scripts nor parses 'with'. Without '-c', every
-'configs/*.toml' is loaded. Run from the repository root:
+'configs/*.toml' is loaded. '--exclude' leaves out workflows whose scripts
+only another environment has. Run from the repository root:
 
   python3 .github/scripts/cijoe_lint.py
 """
@@ -22,7 +23,7 @@ import tempfile
 from pathlib import Path
 
 from cijoe.cli.cli import create_combined_toml, parse_args
-from cijoe.core.resources import Config, Workflow, get_resources
+from cijoe.core.resources import Config, Task, get_resources
 
 
 def with_arguments(step):
@@ -53,7 +54,7 @@ def cijoe_arguments(path):
 def lint(path, config, resources):
     """Return the errors cijoe would raise loading the workflow at 'path'"""
 
-    workflow = Workflow(path)
+    workflow = Task(path)
     errors = workflow.load(cijoe_arguments(path), config)
     if errors:
         return errors
@@ -80,11 +81,13 @@ def lint(path, config, resources):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     parser.add_argument("--config", "-c", type=Path, action="append")
+    parser.add_argument("--exclude", "-x", type=Path, action="append", default=[])
     parser.add_argument("workflows", type=Path, nargs="*")
     args = parser.parse_args()
 
     configs = args.config or sorted(Path("configs").glob("*.toml"))
     workflows = args.workflows or sorted(Path("tasks").glob("*.yaml"))
+    workflows = [path for path in workflows if path not in args.exclude]
     resources = get_resources()
 
     with tempfile.TemporaryDirectory() as tmpdir:

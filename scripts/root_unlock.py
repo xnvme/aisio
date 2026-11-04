@@ -29,10 +29,10 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--root-probe-timeout", type=int, default=30)
 
 
-def wait_for_transport(cijoe, transport_name, timeout):
+def wait_for_target(cijoe, target, timeout):
     began = time.time()
     while time.time() - began < timeout:
-        err, _ = cijoe.run("true", transport_name=transport_name)
+        err, _ = cijoe.run("true", target=target)
         if not err:
             return True
         time.sleep(5)
@@ -40,12 +40,12 @@ def wait_for_transport(cijoe, transport_name, timeout):
 
 
 def main(args, cijoe):
-    if wait_for_transport(cijoe, args.root, args.root_probe_timeout):
+    if wait_for_target(cijoe, args.root, args.root_probe_timeout):
         log.info("root SSH already available; skipping unlock")
         return 0
 
-    if not wait_for_transport(cijoe, args.operator, args.timeout):
-        log.error(f"operator transport '{args.operator}' did not come up")
+    if not wait_for_target(cijoe, args.operator, args.timeout):
+        log.error(f"operator target '{args.operator}' did not come up")
         return 1
 
     for command in [
@@ -54,13 +54,13 @@ def main(args, cijoe):
         f"echo 'PasswordAuthentication yes' | sudo tee -a {SSHD_DROPIN}",
         "sudo systemctl restart ssh",
     ]:
-        err, _ = cijoe.run(command, transport_name=args.operator)
+        err, _ = cijoe.run(command, target=args.operator)
         if err:
             log.error(f"root-unlock command failed: {command}")
             return err
 
-    if not wait_for_transport(cijoe, args.root, args.timeout):
-        log.error("root transport did not come up after unlock")
+    if not wait_for_target(cijoe, args.root, args.timeout):
+        log.error("root target did not come up after unlock")
         return 1
 
     return 0
