@@ -11,11 +11,11 @@ memory at high bandwidth, while the file system on the SSD stays mounted and
 usable by the rest of the host. This repository provides documentation, tools,
 and scripts for setting up and exploring it.
 
-In this release, the path to take is the I/O-modes benchmark,
-`tasks/bench_io_modes.yaml` with `xnvmeperf`. The steps below lead from a fresh
-Ubuntu installation to running it, in Step 7, with the figures to expect on
-the hardware it ran on. The rest is included and its parts are in place, but
-it still needs polish; it follows under Preview.
+This is AiSIO v26.11. In this release, the path to take is the I/O-modes
+benchmark, `tasks/bench_io_modes.yaml` with `xnvmeperf`. The steps below lead
+from a fresh Ubuntu installation to running it, in Step 7, with the figures to
+expect on the hardware it ran on. The rest is included and its parts are in
+place, but it still needs polish; it follows under Preview.
 
 The technical report under `docs/` is outdated, about nine months behind, and
 is being reworked. Since it was written, significant changes have made it into

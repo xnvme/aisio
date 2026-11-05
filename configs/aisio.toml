@@ -7,6 +7,9 @@ distro = "ubuntu"
 version = "resolute"
 
 [aisio]
+# The release this lock is; 'make bump' writes it here, in README.md and in
+# docs/tooling/pyproject.toml
+release = "26.11"
 # The driver HOMI holds the drives through; the IOMMU translates, so vfio-pci
 driver = "vfio-pci"
 homi_id = 1

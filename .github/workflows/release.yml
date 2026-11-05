@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# A merged "ver: bump to vYY.MM" commit on top of main is tagged and released
+name: release
+
+on:
+  push:
+    branches: [main]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    if: >-
+      startsWith(github.event.head_commit.message, 'ver: bump to v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+
+    steps:
+      - name: Grab source
+        uses: actions/checkout@v7.0.0
+
+      - name: Check the version, and write the release notes
+        id: version
+        run: |
+          python3 .github/scripts/release.py "$(git log -1 --format=%s)" \
+            > "$RUNNER_TEMP/notes.md"
+
+      - name: Check what of the release is done already
+        id: done
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if git fetch --quiet --depth 1 origin tag "v$VERSION" 2>/dev/null &&
+            [ "$(git rev-parse "v$VERSION^{commit}")" != "$GITHUB_SHA" ]; then
+            echo "v$VERSION is a tag of another commit"
+            exit 1
+          fi
+          if gh release view "v$VERSION" --repo "$REPO" >/dev/null 2>&1; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require that the merged pull request was tested on this tree
+        run: |
+          pr=$(gh api "repos/$REPO/commits/$GITHUB_SHA/pulls" --jq '.[0].number')
+          if [ -z "$pr" ]; then
+            echo "No pull request merged $GITHUB_SHA; release by merging one"
+            exit 1
+          fi
+          git fetch --quiet --depth 1 origin "refs/pull/$pr/head"
+          if [ "$(git rev-parse 'FETCH_HEAD^{tree}')" != "$(git rev-parse 'HEAD^{tree}')" ]; then
+            echo "#$pr was behind main when merged, so its checks ran on another tree"
+            exit 1
+          fi
+          head=$(git rev-parse FETCH_HEAD)
+          run=$(gh run list --repo "$REPO" --workflow verify.yml \
+            --commit "$head" --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId')
+          if [ -z "$run" ]; then
+            echo "No successful verify run of #$pr's head, $head"
+            exit 1
+          fi
+
+      - name: Tag and create the release
+        if: steps.done.outputs.released != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" --repo "$REPO" --target "$GITHUB_SHA" \
+            --title "v$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
