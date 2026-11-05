@@ -37,7 +37,7 @@ myst_substitutions = {
 project = "AiSIO"
 author = "Simon A. F. Lund, Karl Bonde Torp, Nadja Brix Koch, Javier González"
 year = datetime.now().year
-release = "0.1"
+release = _aisio["aisio"]["release"]
 
 extensions = [
     "myst_parser",

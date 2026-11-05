@@ -26,7 +26,14 @@ OUTPUT ?= cijoe-output
 
 rig_configs = $(foreach r,$(RIG),-c $(if $(filter %.toml,$(r)),$(r),$(RIGS_DIR)/$(r).toml))
 
-.PHONY: devenv guest-start guest-provision guest-test guest-bench guest-logs guest-stop
+.PHONY: bump devenv guest-start guest-provision guest-test guest-bench guest-logs guest-stop
+
+# Writes NEW_VERSION where the release is named; see CHANGELOG.md for the rest
+bump:
+ifndef NEW_VERSION
+	$(error Usage: make bump NEW_VERSION=YY.MM)
+endif
+	@python3 .github/scripts/bump.py $(NEW_VERSION)
 
 # Host networking puts the guest's SSH on the host's port 4200
 devenv:
