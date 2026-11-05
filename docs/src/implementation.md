@@ -79,7 +79,7 @@ It is built from:
   I/O.
 
 The following subsections describe uPCIe, the dma-buf import mechanism,
-device-initiated benchmarking in xnvmeperf, and HOMI.
+device-initiated benchmarking in xnvmeperf, HOMI, and OpenDS.
 
 ### uPCIe
 
@@ -205,3 +205,24 @@ runtime, so queue resources are provisioned dynamically across initiators.
 
 Information about running HOMI is found in the [xNVMe homi
 documentation](https://xnvme.io/tools/homi/index.html).
+
+### OpenDS
+
+[OpenDS](https://github.com/xnvme/opends) is a library through which
+applications can use the stack. Its API is file-based and modeled on NVIDIA's
+cuFile: an application registers a file descriptor and a GPU buffer, then reads
+and writes by file offset.
+
+When its driver opens, OpenDS attaches to HOMI, creates an I/O queue pair for
+each of its worker threads, and maps the extent index that ``xal-server``
+publishes in shared memory. A read looks up the file's extents in that index
+and submits NVMe commands through xNVMe's ``upcie-cuda`` backend, so the
+controller writes the data into GPU memory by P2P DMA, with no file system or
+kernel NVMe driver on the data path. This is CPU-initiated P2P I/O. Writes go
+through the file system, mounted from the ublk device on the same controller,
+so block allocation stays with the kernel.
+
+The aim of OpenDS is to keep file semantics on top of the stack, for reads and
+writes alike. It moves data by P2P where that gives the result the kernel
+would, and takes the kernel path where it does not, as when a write has to
+update file system metadata.
