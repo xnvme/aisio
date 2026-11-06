@@ -31,7 +31,7 @@ rig_configs = $(foreach r,$(RIG),-c $(if $(filter %.toml,$(r)),$(r),$(RIGS_DIR)/
 # Writes NEW_VERSION where the release is named; see CHANGELOG.md for the rest
 bump:
 ifndef NEW_VERSION
-	$(error Usage: make bump NEW_VERSION=YY.MM)
+	$(error Usage: make bump NEW_VERSION=YY.MM, or YY.MM.DD for a patch)
 endif
 	@python3 .github/scripts/bump.py $(NEW_VERSION)
 

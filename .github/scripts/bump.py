@@ -4,22 +4,25 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """
-Bump the AiSIO release to YY.MM[.N]
-===================================
+Bump the AiSIO release to YY.MM, or YY.MM.DD for a patch
+========================================================
 
 Writes the version to configs/aisio.toml, README.md and
-docs/tooling/pyproject.toml, and opens an empty '## YY.MM' section in
+docs/tooling/pyproject.toml, and opens an empty '## <version>' section in
 CHANGELOG.md. The release workflow refuses an empty section, so the notes must
-be written before 'ver: bump to vYY.MM' is merged.
+be written before 'ver: bump to v<version>' is merged. A patch release is
+named by the day of the month it is cut.
 
   make bump NEW_VERSION=26.12
+  make bump NEW_VERSION=26.12.04
 """
 
 import re
 import sys
 from pathlib import Path
 
-VERSION = re.compile(r"\d{2}\.\d{2}(?:\.\d+)?")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from release import is_version  # noqa: E402
 
 # file, the line holding the version, and how to write it
 EDITS = [
@@ -32,8 +35,8 @@ EDITS = [
 def bump(root: Path, version: str):
     """Write version into root's files; raises ValueError saying what is wrong"""
 
-    if not VERSION.fullmatch(version):
-        raise ValueError(f"{version!r} is not YY.MM[.N]")
+    if not is_version(version):
+        raise ValueError(f"{version!r} is not YY.MM or YY.MM.DD")
 
     for name, pattern, line in EDITS:
         path = root / name
