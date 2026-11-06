@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 """
 .github/scripts/release.py, which decides whether a commit on main releases,
-.github/scripts/bump.py, which 'make bump' runs to name the next one, and that the release in configs/aisio.toml is the one README.md names and
+.github/scripts/bump.py, which 'make bump' runs to name the next one, and
+that the release in configs/aisio.toml is the one README.md names and
 docs/tooling/pyproject.toml carries, since neither can read it from there.
 
     python3 tests/test_release.py
@@ -34,6 +35,10 @@ bump = load("bump")
 
 CHANGELOG = """# Changelog
 
+## 26.11.18
+
+What the patch fixes.
+
 ## 26.11
 
 What 26.11 brings.
@@ -62,10 +67,19 @@ with tempfile.TemporaryDirectory() as tmp:
     if found != ("26.11", "What 26.11 brings.\n\n* and a list"):
         failures.append(f"a bump to v26.11 releases {found!r}")
 
+    found = release.check("ver: bump to v26.11.18", project(tmp, "26.11.18"))
+    if found != ("26.11.18", "What the patch fixes."):
+        failures.append(f"a bump to v26.11.18 releases {found!r}")
+
     for subject, version, problem in [
         ("fix(docs): something", "26.11", "not a version bump"),
         ("ver: bump to 26.11", "26.11", "not a version bump"),
         ("ver: bump to v26.11 and more", "26.11", "not a version bump"),
+        ("ver: bump to v26.13", "26.13", "not YY.MM or YY.MM.DD"),
+        ("ver: bump to v26.11.6", "26.11.6", "not YY.MM or YY.MM.DD"),
+        ("ver: bump to v26.02.30", "26.02.30", "not YY.MM or YY.MM.DD"),
+        ("ver: bump to v26.11.18", "26.11", "release is 26.11"),
+        ("ver: bump to v26.11.19", "26.11.19", "no '## 26.11.19' section"),
         ("ver: bump to v26.11", "26.12", "release is 26.12"),
         ("ver: bump to v26.12", "26.12", "no '## 26.12' section"),
     ]:
@@ -119,7 +133,10 @@ with tempfile.TemporaryDirectory() as tmp:
     except ValueError as exc:
         if "no '## 99.12' section" not in str(exc):
             failures.append(f"bump: {exc}")
-    for bad in ("26.1", "v26.12", "26.12-rc1"):
+    bump.bump(tmp, "99.12.31")
+    if named_in(tmp) != ("99.12.31", "99.12.31", ["99.12.31"]):
+        failures.append(f"bump: names {named_in(tmp)!r}, not 99.12.31 everywhere")
+    for bad in ("26.1", "v26.12", "26.12-rc1", "26.12.1", "26.12.32"):
         try:
             bump.bump(tmp, bad)
             failures.append(f"bump: takes {bad!r}")

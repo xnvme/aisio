@@ -6,20 +6,34 @@
 """
 Whether a commit on main releases a version, and the notes to release it with
 
-Given the subject of the commit, 'ver: bump to vYY.MM', this checks that YY.MM
-is [aisio] release in configs/aisio.toml and that CHANGELOG.md has a section
-for it, writes that section to stdout as the release notes, and
-'version=YY.MM' to $GITHUB_OUTPUT. It exits non-zero, saying why, when any of
-that is not so.
+Given the subject of the commit, 'ver: bump to vYY.MM' or, for a patch release,
+'ver: bump to vYY.MM.DD', this checks that the version is a date, that it is
+[aisio] release in configs/aisio.toml, and that CHANGELOG.md has a section for
+it. It writes that section to stdout as the release notes, and
+'version=<version>' to $GITHUB_OUTPUT. It exits non-zero, saying why, when any
+of that is not so.
 """
 
 import os
 import re
 import sys
 import tomllib
+from datetime import datetime
 from pathlib import Path
 
-SUBJECT = re.compile(r"^ver: bump to v(\d{2}\.\d{2}(?:\.\d+)?)$")
+SUBJECT = re.compile(r"^ver: bump to v(\S+)$")
+
+
+def is_version(version: str) -> bool:
+    """Whether version is YY.MM, or YY.MM.DD for a patch, each part a real date"""
+
+    for form in ("%y.%m", "%y.%m.%d"):
+        try:
+            if datetime.strptime(version, form).strftime(form) == version:
+                return True
+        except ValueError:
+            pass
+    return False
 
 
 def notes_for(changelog: str, version: str) -> str:
@@ -38,6 +52,8 @@ def check(subject: str, root: Path):
     if not bump:
         raise ValueError(f"not a version bump: {subject!r}")
     version = bump.group(1)
+    if not is_version(version):
+        raise ValueError(f"{version!r} is not YY.MM or YY.MM.DD")
 
     config = tomllib.loads((root / "configs/aisio.toml").read_text())
     found = config.get("aisio", {}).get("release")

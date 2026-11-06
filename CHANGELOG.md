@@ -7,10 +7,11 @@ SPDX-License-Identifier: BSD-3-Clause
 # Changelog
 
 AiSIO is released by year and month, e.g. `v26.11`, each release being the lock
-in `configs/aisio.toml` as it stands that month. `make bump NEW_VERSION=YY.MM`
-names the next one and opens its section below, whose notes are then written.
-A merged commit with the subject `ver: bump to vYY.MM` is tagged and released,
-with that section as the release notes.
+in `configs/aisio.toml` as it stands that month. A patch release within the
+month adds the day it is cut, e.g. `v26.11.18`. `make bump NEW_VERSION=YY.MM`,
+or `YY.MM.DD`, names the next one and opens its section below, whose notes are
+then written. A merged commit with the subject `ver: bump to v<version>` is
+tagged and released, with that section as the release notes.
 
 ## 26.11
 
