@@ -235,8 +235,10 @@ establish I/O queue pairs for direct command submission.
 Accelerators cannot interact directly with kernel metadata structures or perform
 pathname resolution. File extent information must therefore be extracted on
 the host. A separate host-resident component, ``xal-server``, does so and makes
-it available through shared memory, allowing accelerators to translate file
-offsets into physical block ranges without kernel involvement on the data path.
+it available through shared memory. The host process driving the I/O
+translates file offsets into physical block ranges from that index, and hands
+the accelerator NVMe commands that already address those blocks. The kernel
+is not involved on the data path.
 
 HOMI is intentionally scoped as a reference implementation. It focuses on
 exposing and coordinating multiple I/O paths rather than on providing a complete

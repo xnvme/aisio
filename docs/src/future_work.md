@@ -64,8 +64,9 @@ targets.
 Initial benchmarking of device-initiated I/O is in place: xnvmeperf's
 ``cuda-run`` subcommand drives NVMe I/O entirely from CUDA kernels, and I/O size
 scaling and queue depth scaling experiments are complete. FIL's ``aisio-gpu``
-backend carries device-initiated I/O to file-based workloads, where block
-translation through XAL and the full AiSIO stack are exercised end-to-end. The
+backend carries device-initiated I/O to file-based workloads, and exercises
+the full AiSIO stack end-to-end. The host translates file offsets to blocks
+through XAL, and the GPU submits the resulting commands. The
 ``bench_aisio`` workflow already runs it. The next step is an experiment that
 reports performance on that path.
 
