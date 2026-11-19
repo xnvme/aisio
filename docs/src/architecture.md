@@ -323,10 +323,9 @@ the perspective of each initiator, the assigned VF behaves as a dedicated NVMe
 endpoint, simplifying driver logic and reducing cross-path interference.
 
 Despite this delegation, HOMI remains essential to the architecture. The
-host control plane continues to manage administrative operations, coordinate
-file system metadata, maintain the file-extent cache, and handle error detection
-and recovery. SR-IOV therefore complements HOMI by reducing software overhead on
-the data path, rather than replacing host orchestration.
+host control plane continues to manage administrative operations, and to handle
+error detection and recovery. SR-IOV therefore complements HOMI by reducing
+software overhead on the data path, rather than replacing host orchestration.
 
 Compared to software-mediated multipath, SR-IOV improves isolation and reduces
 runtime coordination costs, but introduces hardware dependencies and limits
