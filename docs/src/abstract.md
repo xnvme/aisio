@@ -34,10 +34,10 @@ Host Orchestrated Multipath I/O (HOMI) serves as a reference implementation
 of these principles. HOMI explores how OS-managed, user space managed, and
 device-initiated I/O paths can be orchestrated to coexist with shared access
 to the same NVMe controller, either through software-mediated multiplexing
-or hardware-assisted delegation. A host-resident control plane coordinates
-device initialization, queue provisioning, and file-extent metadata, enabling
-accelerators to access file-backed data without requiring modifications to
-existing file systems.
+or hardware-assisted delegation. Host-resident services share out the
+controller, serve it as a block device to the kernel, and publish file
+extents, enabling accelerators to access file-backed data without requiring
+modifications to existing file systems.
 
 This work presents HOMI as an experimental platform for studying
 accelerator-integrated storage I/O in open and modifiable system software.
