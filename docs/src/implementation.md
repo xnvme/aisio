@@ -73,7 +73,9 @@ It is built from:
   across both CPU-initiated and GPU-initiated I/O paths.
 - The dma-buf importer released by uPCIe, which resolves the physical addresses
   of GPU device memory.
-- XAL, for file-to-block extent resolution.
+- XAL, for file-to-block extent resolution. Its ``xal-server`` reads the
+  extents of the XFS file system mounted from the ublk device through the
+  FIEMAP ioctl, and publishes them in shared memory.
 - FIL, whose ``aisio-cpu``, ``aisio-p2p``, and ``aisio-gpu`` backends exercise
   CPU-initiated I/O into host memory, CPU-initiated P2P I/O, and GPU-initiated
   I/O.
