@@ -11,13 +11,15 @@ for AiSIO and naming each thing it found, when:
 
 - a component's checkout is not at the commit its pin in the configuration
   names: [<name>.repository].tag, or the head of .branch on its remote
-- xNVMe's library-info reports another version than its checkout
+- 'xnvme env library' reports another xNVMe version than its checkout
 - uPCIe's DKMS modules are not at [upcie.dkms].version
 - a library the stack installs resolves anywhere but --libdir, or has a
   second copy on the dynamic linker's path, or /etc/ld.so.preload, LD_PRELOAD
   or LD_LIBRARY_PATH could load something else in its place
 - a program the stack installs is not the one in --bindir, or does not link
   the libraries in --libdir
+- a command xnvme runs from --libexecdir is missing there, or does not link the
+  libraries in --libdir
 
 Retargetable: True
 ------------------
@@ -29,12 +31,15 @@ from argparse import ArgumentParser
 
 COMPONENTS = ["xnvme", "xal", "fil", "opends"]
 LIBRARIES = ["libxnvme.so.0", "libxal.so", "libopends_aisio.so", "libopends_ref.so"]
-PROGRAMS = ["xnvme", "xnvmeperf", "homi", "qublk", "xal-server", "filperf"]
+PROGRAMS = ["xnvme", "xal-server", "filperf"]
+# 'xnvme perf', 'xnvme homi' and 'xnvme qublk' run these
+XNVME_COMMANDS = ["xnvme-perf", "xnvme-homi", "xnvme-qublk"]
 
 
 def add_args(parser: ArgumentParser):
     parser.add_argument("--libdir", type=str, default="/usr/local/lib/x86_64-linux-gnu")
     parser.add_argument("--bindir", type=str, default="/usr/local/bin")
+    parser.add_argument("--libexecdir", type=str, default="/usr/local/libexec/xnvme")
 
 
 def out(cijoe, cmd):
@@ -66,9 +71,9 @@ def deployed(cijoe):
     path = cijoe.getconf("xnvme.repository.path", "")
     if path:
         _, want = out(cijoe, f"git -C {path} describe --tags --always")
-        _, info = out(cijoe, "xnvme library-info | grep -m1 vcs")
+        _, info = out(cijoe, "xnvme env library | grep -m1 vcs")
         if want not in info:
-            problems.append(f"xnvme: library-info has '{info}', the checkout is {want}")
+            problems.append(f"xnvme: env library has '{info}', the checkout is {want}")
 
     version = cijoe.getconf("upcie.dkms.version", "")
     if version:
@@ -104,7 +109,17 @@ def linker(cijoe, libdir):
     return problems
 
 
-def programs(cijoe, libdir, bindir):
+def links(cijoe, prog, where, libdir):
+    problems = []
+    _, libs = out(cijoe, f"ldd {where} | grep -E 'lib(xnvme|xal|opends)'")
+    for line in libs.splitlines():
+        if "=>" in line and f"=> {libdir}/" not in line:
+            problems.append(f"{prog}: links {line.strip()}")
+
+    return problems
+
+
+def programs(cijoe, libdir, bindir, libexecdir):
     problems = []
     for prog in PROGRAMS:
         err, where = out(cijoe, f"command -v {prog}")
@@ -113,10 +128,15 @@ def programs(cijoe, libdir, bindir):
         if where != f"{bindir}/{prog}":
             problems.append(f"{prog}: {where} comes first, not {bindir}/{prog}")
             continue
-        _, libs = out(cijoe, f"ldd {where} | grep -E 'lib(xnvme|xal|opends)'")
-        for line in libs.splitlines():
-            if "=>" in line and f"=> {libdir}/" not in line:
-                problems.append(f"{prog}: links {line.strip()}")
+        problems += links(cijoe, prog, where, libdir)
+
+    for prog in XNVME_COMMANDS:
+        where = f"{libexecdir}/{prog}"
+        err, _ = out(cijoe, f"test -x {where}")
+        if err:
+            problems.append(f"{prog}: not in {libexecdir}")
+            continue
+        problems += links(cijoe, prog, where, libdir)
 
     return problems
 
@@ -126,7 +146,7 @@ def main(args, cijoe):
         checkouts(cijoe)
         + deployed(cijoe)
         + linker(cijoe, args.libdir)
-        + programs(cijoe, args.libdir, args.bindir)
+        + programs(cijoe, args.libdir, args.bindir, args.libexecdir)
     )
     if not problems:
         return 0

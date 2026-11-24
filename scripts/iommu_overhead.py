@@ -21,7 +21,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from iommu_common import IOMMU_SYSFS, check_vfio_kernel, iommu_units
-from xnvmeperf import xnvmeperf_cmd
+from xnvmeperf import XNVMEPERF, xnvmeperf_cmd
 
 FIO_PERCENTILE_LIST = "99.9:99.99:99.999"
 VFIO_DEVICE_OPEN_RETRIES = 5
@@ -416,7 +416,7 @@ def reset_driver(cijoe, pci_addrs):
 def build_xnvmeperf_cmd(args, cijoe, devices, rw, iosize, iodepth):
     """One xnvmeperf run over every device, on the CPUs they are pinned to."""
     return runner_env(args) + xnvmeperf_cmd(
-        "xnvmeperf",
+        XNVMEPERF,
         {
             "cpumask": cpus_to_cpumask(device["cpu"] for device in devices),
             "qdepth": iodepth,

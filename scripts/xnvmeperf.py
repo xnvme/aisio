@@ -6,6 +6,9 @@ import logging as log
 import re
 from argparse import ArgumentParser
 
+# xNVMe installs xnvmeperf as a command of the xnvme program
+XNVMEPERF = "xnvme perf"
+
 REQUIRED_KEYS = [
     "cpumask",
     "iopattern",
@@ -109,9 +112,9 @@ def main(args, cijoe):
         args.devices = [d["pci_addr"] for d in devs[: args.ndevs]]
 
     if args.command == "cuda-run":
-        cmd = xnvmeperf_cuda_cmd("xnvmeperf", vars(args))
+        cmd = xnvmeperf_cuda_cmd(XNVMEPERF, vars(args))
     else:
-        cmd = xnvmeperf_cmd("xnvmeperf", vars(args))
+        cmd = xnvmeperf_cmd(XNVMEPERF, vars(args))
 
     err, state = cijoe.run(cmd)
     if err:

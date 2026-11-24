@@ -44,7 +44,7 @@ steps:
 
   - name: prepare
     run: |
-      for t in homi qublk xal-server devbind hugepages mkfs.xfs cmake nvidia-smi /usr/bin/time; do command -v $t || { echo "missing: $t"; exit 1; }; done
+      for t in xnvme xal-server devbind hugepages mkfs.xfs cmake nvidia-smi /usr/bin/time; do command -v $t || { echo "missing: $t"; exit 1; }; done; for c in homi qublk; do xnvme $c --help > /dev/null || { echo "missing: xnvme $c"; exit 1; }; done
       [ ! -f /run/aisio-cuda-hold.pid ] || kill $(cat /run/aisio-cuda-hold.pid) 2>/dev/null || true
       pkg-config --modversion opends
       systemctl cat xnvme-homi@{{ config.llama_load.homi_id }} xnvme-qublk@{{ config.llama_load.ublk_id }} xal-server > /dev/null

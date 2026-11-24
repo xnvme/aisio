@@ -54,7 +54,7 @@ steps:
   - name: system
     run: |
       iommu show
-      xnvme library-info
+      xnvme env library
       {{ config.io_modes.gpu_info }}
 
   - name: drive_guard
@@ -88,34 +88,34 @@ steps:
 
   - name: cpu_initiated_all
     run: |
-      xnvmeperf run {{ config.io_modes.devices | join(" ") }} --cpulist {{ config.io_modes.cpulist }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
-      xnvmeperf run {{ config.io_modes.devices | join(" ") }} --cpulist {{ config.io_modes.cpulist }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
-      xnvmeperf run {{ config.io_modes.devices | join(" ") }} --cpulist {{ config.io_modes.cpulist }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvme perf run {{ config.io_modes.devices | join(" ") }} --cpulist {{ config.io_modes.cpulist }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvme perf run {{ config.io_modes.devices | join(" ") }} --cpulist {{ config.io_modes.cpulist }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvme perf run {{ config.io_modes.devices | join(" ") }} --cpulist {{ config.io_modes.cpulist }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
 
   - name: cpu_initiated_gpu_node
     run: |
-      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
-      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
-      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvme perf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvme perf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
+      xnvme perf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be upcie --homi-id {{ config.io_modes.homi_id }}
 
   - name: p2p
     run: |
-      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }}
-      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }}
-      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }}
+      xnvme perf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }}
+      xnvme perf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }}
+      xnvme perf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }}
 
   - name: p2p_cq_mirror
     run: |
-      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --p2p-cq-mirror
-      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --p2p-cq-mirror
-      xnvmeperf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --p2p-cq-mirror
+      xnvme perf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --p2p-cq-mirror
+      xnvme perf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --p2p-cq-mirror
+      xnvme perf run {{ config.io_modes.devices_gpu | join(" ") }} --cpulist {{ config.io_modes.cpulist_gpu }} --iopattern randread --qdepth 128 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --p2p-cq-mirror
 
   - name: gpu_initiated
     run: |
-      xnvmeperf cuda-verify {{ config.io_modes.devices_gpu | join(" ") }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --iosize 4096 --qdepth 32 --nqueues 1
-      xnvmeperf cuda-run {{ config.io_modes.devices_gpu | join(" ") }} --iopattern randread --qdepth 256 --nqueues 1 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --sq-hostmem
-      xnvmeperf cuda-run {{ config.io_modes.devices_gpu | join(" ") }} --iopattern randread --qdepth 256 --nqueues 1 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --sq-hostmem
-      xnvmeperf cuda-run {{ config.io_modes.devices_gpu | join(" ") }} --iopattern randread --qdepth 256 --nqueues 1 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --sq-hostmem
+      xnvme perf cuda-verify {{ config.io_modes.devices_gpu | join(" ") }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --iosize 4096 --qdepth 32 --nqueues 1
+      xnvme perf cuda-run {{ config.io_modes.devices_gpu | join(" ") }} --iopattern randread --qdepth 256 --nqueues 1 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --sq-hostmem
+      xnvme perf cuda-run {{ config.io_modes.devices_gpu | join(" ") }} --iopattern randread --qdepth 256 --nqueues 1 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --sq-hostmem
+      xnvme perf cuda-run {{ config.io_modes.devices_gpu | join(" ") }} --iopattern randread --qdepth 256 --nqueues 1 --runtime 10 --iosize {{ config.io_modes.iosize }} --be {{ config.io_modes.gpu_be }} --gpu-id {{ config.io_modes.gpu_id }} --homi-id {{ config.io_modes.homi_id }} --sq-hostmem
 
   - name: homi_stop
     run: |
