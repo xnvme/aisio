@@ -30,7 +30,7 @@ steps:
 
   - name: prepare
     run: |
-      for t in homi xnvmeperf devbind hugepages; do command -v $t || { echo "missing: $t"; exit 1; }; done
+      for t in xnvme devbind hugepages; do command -v $t || { echo "missing: $t"; exit 1; }; done; for c in homi perf; do xnvme $c --help > /dev/null || { echo "missing: xnvme $c"; exit 1; }; done
       systemctl cat xnvme-homi@{{ config.smoke.homi_id }} > /dev/null
       umount {{ config.smoke.mountpoint }} 2>/dev/null || true
       systemctl stop xal-server xnvme-qublk@{{ config.smoke.ublk_id }} xnvme-homi@{{ config.smoke.homi_id }}
@@ -87,4 +87,4 @@ steps:
   - name: io_uring_dmabuf
     run: |
       for _ in $(seq 50); do for blk in /sys/block/nvme*n*; do case "${blk##*/}" in *c*) continue ;; esac; for dev in "$blk" "$blk"/multipath/*; do case "$(readlink -f "$dev/device")" in */{{ config.smoke.pci_addr }}/*) echo "/dev/${blk##*/}" ;; esac; done; done | sort -u | head -1 > /tmp/aisio-smoke-bdev; test -s /tmp/aisio-smoke-bdev && break; sleep 0.2; done; cat /tmp/aisio-smoke-bdev; test -s /tmp/aisio-smoke-bdev
-      for p in randread randwrite; do xnvmeperf run --be io_uring_dmabuf --direct --iopattern $p --iosize 4096 --qdepth 32 --runtime 3 --cpumask 0x1 $(cat /tmp/aisio-smoke-bdev) | tee /tmp/aisio-smoke-iou.out; awk '/^ *Total:/ {found=1; if ($2 == 0 || $4 != 0) exit 1} END {exit !found}' /tmp/aisio-smoke-iou.out || exit 1; done
+      for p in randread randwrite; do xnvme perf run --be io_uring_dmabuf --direct --iopattern $p --iosize 4096 --qdepth 32 --runtime 3 --cpumask 0x1 $(cat /tmp/aisio-smoke-bdev) | tee /tmp/aisio-smoke-iou.out; awk '/^ *Total:/ {found=1; if ($2 == 0 || $4 != 0) exit 1} END {exit !found}' /tmp/aisio-smoke-iou.out || exit 1; done

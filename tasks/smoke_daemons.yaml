@@ -34,7 +34,7 @@ doc: |
 steps:
   - name: prepare
     run: |
-      for t in homi qublk xnvmeperf filperf xal-server devbind hugepages mkfs.xfs journalctl; do command -v $t || { echo "missing: $t"; exit 1; }; done
+      for t in xnvme filperf xal-server devbind hugepages mkfs.xfs journalctl; do command -v $t || { echo "missing: $t"; exit 1; }; done; for c in homi qublk perf; do xnvme $c --help > /dev/null || { echo "missing: xnvme $c"; exit 1; }; done
       systemctl cat xnvme-homi@{{ config.smoke.homi_id }} xnvme-qublk@{{ config.smoke.ublk_id }} xal-server > /dev/null
       umount {{ config.smoke.mountpoint }} 2>/dev/null || true
       systemctl stop xal-server xnvme-qublk@{{ config.smoke.ublk_id }} xnvme-homi@{{ config.smoke.homi_id }}

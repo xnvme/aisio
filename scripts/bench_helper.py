@@ -41,7 +41,7 @@ from dcgm_helper import DcgmHelper
 from fio_xnvme import fio_xnvme_cmd
 from spdk_nvme_perf import spdk_nvme_perf_cmd
 from version_helper import target_versions
-from xnvmeperf import xnvmeperf_cmd, xnvmeperf_cuda_cmd
+from xnvmeperf import XNVMEPERF, xnvmeperf_cmd, xnvmeperf_cuda_cmd
 
 # The PCI classes of display controllers, as sysfs writes them
 GPU_CLASSES = ("0x0300", "0x0302", "0x0380")
@@ -130,7 +130,7 @@ class BenchHelper:
             else:
                 self.bin = Path(spdk_path) / "build" / "bin" / "spdk_nvme_perf"
         elif tool in ["xnvmeperf", "xnvmeperf-cuda"]:
-            self.bin = "xnvmeperf"
+            self.bin = XNVMEPERF
         elif tool == "fio_xnvme":
             self.bin = "fio"
         else:
