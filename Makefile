@@ -50,8 +50,15 @@ guest-start:
 		-o $(OUTPUT)/devenv_start \
 		tasks/devenv_start.yaml
 
+# The guest image carries an older uPCIe than the pin. Its DKMS modules are
+# replaced first, as xNVMe builds its experimental paths against their headers.
 # configs/devenv_guest.toml last, so its [os] is the guest's own
 guest-provision:
+	cijoe --monitor \
+		-c configs/aisio.toml \
+		-c configs/devenv_guest.toml \
+		-o $(OUTPUT)/setup_upcie_modules \
+		tasks/setup_upcie_modules.yaml
 	cijoe --monitor \
 		-c configs/aisio.toml \
 		-c configs/devenv_guest.toml \
