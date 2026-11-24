@@ -18,8 +18,9 @@ doc: |
     `configs/devices_*.toml`
 
   The compare config controls the fio working-set size and the compare artifact root.
-  The device config must provide exactly one benchmark target and use
-  `xnvme.driver.prefix` to blacklist any NVMe boot device.
+  The device config must provide exactly one benchmark target, and
+  `[bench].hugepages`. Each backend's step binds that device alone, so an NVMe
+  boot device stays on the kernel driver.
 
   Output layout
   -------------
@@ -37,9 +38,10 @@ steps:
 
   - name: prepare_spdk
     run: |
-      {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+      devbind --device {{ config.devices[0].pci_addr }} --bind nvme || true
+      hugepages setup --count {{ config.bench.hugepages }}
       modprobe uio_pci_generic
-      DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+      devbind --device {{ config.devices[0].pci_addr }} --bind uio_pci_generic
 
   - name: trim_before_read_spdk
     uses: fio_xnvme_trim
@@ -120,9 +122,10 @@ steps:
 
   - name: prepare_upcie
     run: |
-      {{ config.xnvme.driver.prefix }} xnvme-driver reset || true
+      devbind --device {{ config.devices[0].pci_addr }} --bind nvme || true
+      hugepages setup --count {{ config.bench.hugepages }}
       modprobe uio_pci_generic
-      DRIVER_OVERRIDE=uio_pci_generic {{ config.xnvme.driver.prefix }} xnvme-driver
+      devbind --device {{ config.devices[0].pci_addr }} --bind uio_pci_generic
 
   - name: trim_before_read_upcie
     uses: fio_xnvme_trim

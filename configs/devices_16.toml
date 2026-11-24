@@ -5,13 +5,14 @@
 [cijoe.task]
 fail_fast=true
 
-[xnvme.driver]
-prefix = "PCI_BLACKLIST=\"0000:01:00.0\""
-
 # true benchmarks only the devices on the GPU's NUMA node, so data between a
 # device and the GPU stays on one socket
 [bench]
 gpu_local = false
+# The driver the bench tasks bind [[devices]] to, and the 2 MiB hugepages they
+# reserve
+driver = "vfio-pci"
+hugepages = 1024
 
 [[devices]]
 pci_addr = "0000:4a:00.0"

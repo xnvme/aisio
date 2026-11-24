@@ -9,10 +9,15 @@ doc: |
   Warning: This will overwrite everything on the devices defined
   in the config file.
 
+  It reserves `[bench].hugepages` hugepages and binds each device in `[[devices]]` to
+  `[bench].driver`, leaving every other device on its driver.
+
 steps:
   - name: bind_to_userspace
     run: |
-      {{ config.xnvme.driver.prefix }} xnvme-driver
+      hugepages setup --count {{ config.bench.hugepages }}
+      modprobe {{ config.bench.driver }}
+      for device in {{ config.devices | map(attribute="pci_addr") | join(" ") }}; do devbind --device $device --bind {{ config.bench.driver }} || exit 1; done
 
   - name: populate
     uses: bdevperf_populate
