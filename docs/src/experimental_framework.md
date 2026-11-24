@@ -76,15 +76,6 @@ to match the target system. Device PCI addresses can be found with:
 lspci | grep Non-Volatile
 ```
 
-If the boot device is an NVMe device, it must be excluded from driver
-rebinding by setting the ``xnvme.driver.prefix`` key in the
-configuration file:
-
-```toml
-[xnvme.driver]
-prefix = "PCI_BLACKLIST=0000:01:00.0"
-```
-
 Devices must be unbound from the kernel NVMe driver and bound to
 ``vfio-pci``, with the IOMMU translating. Huge pages are also required, as both SPDK and
 xNVMe uPCIe rely on DMA-capable memory that must be physically

@@ -18,27 +18,20 @@ doc: |
   and change the `pci_addr` keys in the `[[devices]]` to match the PCI addresses of the
   found devices.
 
-  If the boot device is an NVMe device, see "Binding to userspace" below.
-
   Binding to userspace
   --------------------
-  This scripts assumes if the boot device is an NVMe device, then the `xnvme.driver.prefix`
-  variable has been defined to add the device's PCIe address to the PCI_BLACKLIST env var
-  for the xnvme-driver script. Example:
-
-    [xnvme.driver]
-    prefix = "PCI_BLACKLIST=0000:01:00.0"
-
-  It's important that if the boot device is also an NVMe device that it's added in the
-  `PCI_BLACKLIST` in step "bind_to_userspace", since the xnvme-driver script otherwise
-  will unbind it, making the machine unusable (until next reboot).
+  Step "bind_to_userspace" reserves `[bench].hugepages` hugepages and binds each device
+  in `[[devices]]` to `[bench].driver`. It binds no other device, so an NVMe boot device
+  stays on the kernel driver.
 
   It is not necessary to run this step if the workflow is run repeatedly.
 
 steps:
   - name: bind_to_userspace
     run: |
-      {{ config.xnvme.driver.prefix }} xnvme-driver
+      hugepages setup --count {{ config.bench.hugepages }}
+      modprobe {{ config.bench.driver }}
+      for device in {{ config.devices | map(attribute="pci_addr") | join(" ") }}; do devbind --device $device --bind {{ config.bench.driver }} || exit 1; done
 
   - name: run
     uses: bench_runall
