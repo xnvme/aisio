@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-# Develop AiSIO on the xnvme-devenv guest, with an emulated AMD GPU and an
+# Develop AiSIO on the systems-devenv guest, with an emulated AMD GPU and an
 # NVMe controller behind one PCIe switch. 'make devenv' enters the host
 # container CI runs the 'devenv' job in; the guest-* targets run inside it,
 # and CI runs them too. Needs KVM.
@@ -11,8 +11,8 @@
 #   make guest-start guest-provision guest-test guest-bench
 #   make guest-stop
 
-# The xnvme-devenv version configs/devenv_guest.toml pins the guest by
-DEVENV_IMAGE ?= ghcr.io/xnvme/xnvme-devenv/host:v0.15.0
+# The systems-devenv version configs/devenv_guest.toml pins the guest by
+DEVENV_IMAGE ?= ghcr.io/refenv/systems-devenv/host:v0.19.0
 
 # Guest images and disks, kept across 'make devenv' sessions
 DEVENV_STATE ?= $(HOME)/.cache/aisio-devenv
@@ -20,7 +20,7 @@ DEVENV_STATE ?= $(HOME)/.cache/aisio-devenv
 # Rig names or .toml files, layered in order. The tasks expect
 # compute-node-emulated's GPU and controller; a further rig only adjusts it
 RIG ?= compute-node-emulated
-RIGS_DIR ?= /opt/xnvme-devenv/rigs
+RIGS_DIR ?= /opt/systems-devenv/rigs
 
 OUTPUT ?= cijoe-output
 

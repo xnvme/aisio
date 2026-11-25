@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-# 'tasks/bench_io_modes.yaml' in the xnvme-devenv guest: its one NVMe controller
+# 'tasks/bench_io_modes.yaml' in the systems-devenv guest: its one NVMe controller
 # and rocjitsu's emulated AMD GPU behind the same switch. The guest has no IOMMU,
 # so the drive is bound to uio_pci_generic, and no CPU frequency control, so
 # 'make guest-bench' leaves out the frequency steps, and gpu_initiated, which is

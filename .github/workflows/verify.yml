@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
+      image: ghcr.io/refenv/nosi/ubuntu-2604-docker@sha256:27146decdc033c31726df0af6f505203a7b4d8aefbd97b9a4b828f39dda6c7a6
 
     steps:
       - name: Grab source
@@ -58,7 +58,7 @@ jobs:
     timeout-minutes: 90
 
     container:
-      image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
+      image: ghcr.io/refenv/nosi/ubuntu-2604-docker@sha256:27146decdc033c31726df0af6f505203a7b4d8aefbd97b9a4b828f39dda6c7a6
       options: --privileged -v /mnt:/mnt
 
     steps:
@@ -159,16 +159,16 @@ jobs:
           path: cijoe-output/
           if-no-files-found: warn
 
-  # AiSIO on the xnvme-devenv guest, ROCm and no CUDA; relies on the fil pinned
+  # AiSIO on the systems-devenv guest, ROCm and no CUDA; relies on the fil pinned
   # in configs/aisio.toml building without CUDA
   devenv:
     needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
-    # The xnvme-devenv version configs/devenv_guest.toml pins the guest by
+    # The systems-devenv version configs/devenv_guest.toml pins the guest by
     container:
-      image: ghcr.io/xnvme/xnvme-devenv/host:v0.15.0
+      image: ghcr.io/refenv/systems-devenv/host:v0.19.0
       options: --privileged -v /mnt:/mnt
 
     steps:
@@ -178,12 +178,12 @@ jobs:
       - name: Prepare environment
         run: *prepare
 
-      # The general lint runs where xnvme-devenv's scripts are not installed
+      # The general lint runs where systems-devenv's scripts are not installed
       - name: Lint devenv_start.yaml
         run: |
           "$CIJOE_PYTHON" .github/scripts/cijoe_lint.py \
             -c configs/devenv_guest.toml \
-            -c /opt/xnvme-devenv/rigs/compute-node-emulated.toml \
+            -c /opt/systems-devenv/rigs/compute-node-emulated.toml \
             tasks/devenv_start.yaml
 
       - name: Start the guest
@@ -223,7 +223,7 @@ jobs:
     timeout-minutes: 60
 
     container:
-      image: ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:45d7ba1fdd05d8f562051ae58a2f4f2370e6c9958a8b27dd543e2a836ccc28db
+      image: ghcr.io/refenv/nosi/ubuntu-2604-docker@sha256:27146decdc033c31726df0af6f505203a7b4d8aefbd97b9a4b828f39dda6c7a6
       options: --privileged -v /mnt:/mnt
 
     steps:
