@@ -230,7 +230,7 @@ cijoe --monitor -c configs/transport.toml -c configs/aisio.toml \
 
 For the other modes, replace the middle line with `p2p`, then `p2p_cq_mirror`,
 then `gpu_initiated`. Without step names, the task runs all four in order.
-Without a GPU of your own, the xnvme-devenv guest below runs the first three on
+Without a GPU of your own, the systems-devenv guest below runs the first three on
 an emulated AMD GPU with `make guest-bench`, as CI does.
 
 ### What to Expect
@@ -337,10 +337,10 @@ cijoe --monitor -c configs/transport.toml -c configs/aisio.toml \
     tasks/bench_llama_load.yaml
 ```
 
-## Develop in the xnvme-devenv guest
+## Develop in the systems-devenv guest
 
 Without the hardware, AiSIO is developed and tested in a QEMU guest from
-[xnvme-devenv](https://github.com/xnvme/xnvme-devenv): Ubuntu 26.10 with ROCm,
+[systems-devenv](https://github.com/refenv/systems-devenv): Ubuntu 26.10 with ROCm,
 an emulated AMD GPU, and an NVMe controller behind the same PCIe switch, so
 the controller can move data to and from the GPU's VRAM. The guest has no
 IOMMU, so its configs bind the controller to `uio_pci_generic` instead of
@@ -351,7 +351,7 @@ hardware. CI runs the same make targets. It needs Docker and KVM on the host:
 make devenv
 ```
 
-That starts a shell in xnvme-devenv's host container, with this checkout
+That starts a shell in systems-devenv's host container, with this checkout
 mounted at `/aisio`. In it, boot the guest, set up the AiSIO components with
 `setup_aisio.yaml`, and run the smoke tests, which drive the daemons with I/O
 and do peer-to-peer I/O between the controller and VRAM:

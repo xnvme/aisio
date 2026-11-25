@@ -14,7 +14,7 @@ doc: |
   the controller moves the data straight to and from VRAM. It WRITES random
   blocks to the namespace of that controller.
   Fails when no I/O completes or any I/O fails. Needs an AMD GPU whose
-  peer-to-peer DMA the controller can reach, such as the one of xnvme-devenv's
+  peer-to-peer DMA the controller can reach, such as the one of systems-devenv's
   compute-node-emulated rig, and xNVMe built with HIP by 'setup_aisio.yaml':
 
     cijoe --monitor \
