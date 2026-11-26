@@ -68,6 +68,7 @@ steps:
 
   - name: fio
     run: |
+      cd "{{ config.fio.repository.path }}"; for p in "{{ config.xnvme.repository.path }}"/toolbox/fio/patches/fio-0*.patch; do git apply -R --check "$p" 2>/dev/null || git apply "$p" || exit 1; done
       cd "{{ config.fio.repository.path }}"; ./configure; make; make install
 
   - name: spdk
