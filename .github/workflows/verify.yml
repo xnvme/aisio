@@ -49,6 +49,7 @@ jobs:
           cijoe_python="$(dirname "$(readlink -f "$(command -v cijoe)")")/python"
           "$cijoe_python" .github/scripts/cijoe_lint.py -x tasks/devenv_start.yaml
           python3 tests/test_drive_guard.py
+          python3 tests/test_pal_check.py
           python3 tests/test_release.py
 
   # README.md Steps 2, 3, 5 and 6 in a QEMU guest, then the daemon smoke test and the dataset setup

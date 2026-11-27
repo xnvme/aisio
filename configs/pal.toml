@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: Samsung Electronics Co., Ltd
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# 'tasks/setup_pal.yaml' WRITES to the NVMe controller at pal.pci_addr, so the
+# address is left empty and the task fails until a config of your own names
+# it, by PCI address.
+[pal]
+pci_addr = ""
+# The first LBA of the three transfers the check overwrites
+slba = 0
+# The trees are checked out and built here, on the target
+workdir = "/root/aisio/pal"
+
+# TEMPORARY: Jason Gunthorpe's RFC branch for the dma-buf mapping types, with
+# the PAL (Physical Address List) type that iommufd maps, on v7.0-rc1. Not
+# merged upstream.
+[pal.kernel]
+remote = "https://github.com/jgunthorpe/linux"
+commit = "c37cf2824740d833b21eb816e21f94836100291f"
+localversion = "-pal"
+
+# TEMPORARY: a proof-of-concept port of the NVIDIA open kernel modules to the
+# mapping types, with a PAL exporter. It is one commit on the release below,
+# applied to the target's own /usr/src/nvidia-<version>, so the target must
+# run that driver release.
+[pal.nvidia]
+version = "580.178.04"
+remote = "https://github.com/jaeyoon-choi/open-gpu-kernel-modules"
+commit = "d7ae70a0a98ff86e4b1c86bd3b79c17b39d77514"
+
+# TEMPORARY: the PoC tools, pal_probe and pal_nvme, on a uPCIe branch that
+# also has the fix that builds dmabuf_import on the kernel above
+[pal.tools]
+remote = "https://github.com/jaeyoon-choi/upcie"
+commit = "9cb2f101653500a93d8827c146ce7a69ce35bc5a"
